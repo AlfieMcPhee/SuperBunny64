@@ -1,0 +1,2981 @@
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4"><Item class="Workspace" referent="RBX00000001"><Properties><string name="Name">Workspace</string><bool name="StreamingEnabled">false</bool><float name="Gravity">170</float></Properties></Item><Item class="Lighting" referent="RBX00000002"><Properties><string name="Name">Lighting</string><token name="Technology">1</token></Properties></Item><Item class="ReplicatedStorage" referent="RBX00000005"><Properties><string name="Name">ReplicatedStorage</string></Properties><Item class="Folder" referent="RBX00000004"><Properties><string name="Name">Bunny64</string></Properties><Item class="ModuleScript" referent="RBX00000003"><Properties><string name="Name">Config</string><ProtectedString name="Source"><![CDATA[--[[
+	Bunny 64 - shared configuration.
+	Everything tunable lives here so you can tweak the game without digging
+	through the scripts.
+]]
+
+local Config = {}
+
+Config.GameName = "BUNNY 64"
+Config.Version = "1.0.0"
+
+-- Saving ------------------------------------------------------------------
+-- Changing this name starts everybody with a fresh save.
+Config.DataStoreName = "Bunny64_Save_v1"
+Config.AutosaveSeconds = 60
+
+-- Feel ----------------------------------------------------------------------
+Config.Gravity = 170
+Config.WalkSpeed = 24
+Config.JumpPower = 58          -- first jump (~10 studs high)
+Config.DoubleJumpPower = 55    -- second jump in the air
+Config.PoundHang = 0.18        -- seconds you hang in the air before a ground pound
+Config.PoundSpeed = 160
+Config.StompBounce = 62
+Config.MushroomBounce = 190
+Config.MaxHearts = 3
+Config.HealEveryCarrots = 10   -- every N carrots restores a heart
+Config.WaterLevel = -6
+
+-- Goals ---------------------------------------------------------------------
+Config.CollectorGoal = 50      -- carrots needed for the "Carrot Collector" golden carrot
+Config.BugBusterGoal = 12      -- Grumblebugs to bop for the "Bug Buster" golden carrot
+Config.BugRespawnSeconds = 40
+
+Config.Goldens = {
+	{ id = "burrow", name = "Burrow Rooftop", hint = "Old cottages have the best views. Try the crates." },
+	{ id = "tower", name = "Lookout Tower", hint = "Spiral steps lead to the top of the stone tower." },
+	{ id = "oak", name = "Old Oak Crown", hint = "Climb the great oak's leafy branches." },
+	{ id = "sky", name = "Cloud Garden", hint = "A springy mushroom tops the big hill..." },
+	{ id = "islet", name = "Lonely Islet", hint = "Hop the stepping stones out west. Mind the sinking ones." },
+	{ id = "collector", name = "Carrot Collector", hint = "Gather 50 carrots." },
+	{ id = "buster", name = "Bug Buster", hint = "Bop 12 Grumblebugs." },
+}
+
+-- Sounds --------------------------------------------------------------------
+-- These use sounds bundled with the Roblox client. Swap in your own uploaded
+-- audio ("rbxassetid://123...") for a more personal soundtrack.
+Config.Sounds = {
+	Jump = { id = "rbxasset://sounds/action_jump.mp3", volume = 0.4 },
+	DoubleJump = { id = "rbxasset://sounds/swoosh.wav", volume = 0.5 },
+	Pound = { id = "rbxasset://sounds/action_falling.mp3", volume = 0.5 },
+	Land = { id = "rbxasset://sounds/action_get_up.mp3", volume = 0.6 },
+	Carrot = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.45 },
+	Golden = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.7 },
+	Stomp = { id = "rbxasset://sounds/swoosh.wav", volume = 0.6 },
+	Hurt = { id = "rbxasset://sounds/action_falling.mp3", volume = 0.6 },
+	Splash = { id = "rbxasset://sounds/impact_water.mp3", volume = 0.6 },
+	Boing = { id = "rbxasset://sounds/action_jump.mp3", volume = 0.7 },
+	Start = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.5 },
+}
+-- Put an uploaded music track id here, e.g. "rbxassetid://1234567890"
+Config.MusicId = ""
+Config.MusicVolume = 0.3
+
+-- Palette: muted, earthy, late-90s console colours --------------------------
+local rgb = Color3.fromRGB
+Config.Palette = {
+	Grass = rgb(104, 136, 72),
+	GrassLight = rgb(122, 150, 82),
+	GrassDark = rgb(82, 112, 60),
+	Dirt = rgb(128, 98, 70),
+	DirtDark = rgb(104, 80, 58),
+	Path = rgb(150, 124, 92),
+	Sand = rgb(190, 172, 128),
+	Stone = rgb(138, 134, 122),
+	StoneDark = rgb(102, 98, 90),
+	Wood = rgb(110, 80, 54),
+	WoodLight = rgb(146, 112, 76),
+	Plaster = rgb(206, 192, 164),
+	Roof = rgb(136, 66, 54),
+	Water = rgb(56, 98, 108),
+	Leaf = rgb(76, 108, 56),
+	LeafDark = rgb(58, 88, 46),
+	Pine = rgb(56, 84, 58),
+	Mushroom = rgb(160, 64, 54),
+	MushroomStem = rgb(214, 200, 172),
+	Carrot = rgb(204, 108, 46),
+	CarrotDark = rgb(170, 84, 36),
+	CarrotLeaf = rgb(84, 120, 52),
+	Gold = rgb(206, 166, 70),
+	GoldDark = rgb(166, 128, 48),
+	Fur = rgb(170, 128, 90),
+	Cream = rgb(222, 206, 176),
+	EarPink = rgb(190, 128, 124),
+	Button = rgb(32, 26, 26),
+	Bow = rgb(140, 50, 48),
+	Patch = rgb(98, 118, 138),
+	BugShell = rgb(90, 70, 104),
+	BugBelly = rgb(50, 40, 54),
+	BugSpot = rgb(176, 146, 80),
+	Ink = rgb(36, 26, 22),
+	UiText = rgb(240, 226, 196),
+}
+
+return Config
+]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX0000000B"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX0000000A"><Properties><string name="Name">Bunny64Server</string><ProtectedString name="Source"><![CDATA[--[[
+	Bunny 64 - server entry point.
+	Builds the world, loads/saves progress, validates pickups, runs enemies.
+]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local Shared = ReplicatedStorage:WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+
+local DataService = require(script:WaitForChild("DataService"))
+local WorldBuilder = require(script:WaitForChild("WorldBuilder"))
+local EnemyService = require(script:WaitForChild("EnemyService"))
+local BunnyCharacter = require(script:WaitForChild("BunnyCharacter"))
+
+Players.CharacterAutoLoads = false
+
+-- Remotes ---------------------------------------------------------------------
+local remotes = Instance.new("Folder")
+remotes.Name = "Remotes"
+local function remote(className, name)
+	local r = Instance.new(className)
+	r.Name = name
+	r.Parent = remotes
+	return r
+end
+local GetProfile = remote("RemoteFunction", "GetProfile")
+local Collect = remote("RemoteEvent", "Collect")
+local Update = remote("RemoteEvent", "Update")
+local Pound = remote("RemoteEvent", "Pound")
+local Bounce = remote("RemoteEvent", "Bounce")
+local Effect = remote("RemoteEvent", "Effect")
+remotes.Parent = Shared
+
+-- World -----------------------------------------------------------------------
+local info = WorldBuilder.Build()
+
+local goldenSet = {}
+for _, g in ipairs(Config.Goldens) do
+	goldenSet[g.id] = g
+end
+local TOTAL_CARROTS = 0
+for _ in pairs(info.carrots) do
+	TOTAL_CARROTS += 1
+end
+Shared:SetAttribute("TotalCarrots", TOTAL_CARROTS)
+
+-- Helpers -----------------------------------------------------------------------
+local function countKeys(t)
+	local n = 0
+	for _ in pairs(t) do
+		n += 1
+	end
+	return n
+end
+
+local function snapshot(player, event)
+	local profile = DataService.Get(player)
+	if not profile then
+		return nil
+	end
+	local d = profile.data
+	return {
+		carrots = d.carrots,
+		goldens = d.goldens,
+		carrotCount = d.carrotCount,
+		goldenCount = countKeys(d.goldens),
+		bugs = d.bugs,
+		playTime = DataService.GetPlayTime(player),
+		completedTime = d.completedTime,
+		canSave = profile.canSave,
+		totalCarrots = TOTAL_CARROTS,
+		event = event,
+	}
+end
+
+local function push(player, event)
+	local snap = snapshot(player, event)
+	if snap then
+		Update:FireClient(player, snap)
+	end
+	local profile = DataService.Get(player)
+	local stats = player:FindFirstChild("leaderstats")
+	if stats and profile then
+		stats.Carrots.Value = profile.data.carrotCount
+		stats.Golden.Value = countKeys(profile.data.goldens)
+	end
+end
+
+local function getRoot(player)
+	local char = player.Character
+	return char and char:FindFirstChild("HumanoidRootPart"), char and char:FindFirstChildOfClass("Humanoid")
+end
+
+-- Per-player runtime state
+local state = {} -- [Player] = { safe = CFrame, invulnUntil = number }
+
+local function heal(player, amount)
+	local _, hum = getRoot(player)
+	if hum and hum.Health > 0 then
+		hum.Health = math.min(hum.MaxHealth, hum.Health + amount)
+	end
+end
+
+local function hurt(player, fromPos, amount, ignoreInvuln)
+	local root, hum = getRoot(player)
+	local st = state[player]
+	if not (root and hum and st) or hum.Health <= 0 then
+		return
+	end
+	if not ignoreInvuln and os.clock() < st.invulnUntil then
+		return
+	end
+	st.invulnUntil = os.clock() + 1.5
+	hum:TakeDamage(amount or 1)
+	local away = Vector3.new(root.Position.X - fromPos.X, 0, root.Position.Z - fromPos.Z)
+	if away.Magnitude < 0.1 then
+		away = Vector3.new(0, 0, 1)
+	end
+	Bounce:FireClient(player, away.Unit * 45 + Vector3.new(0, 40, 0), false, "hurt")
+end
+
+-- Progress events -----------------------------------------------------------------
+local function checkCompletion(player, profile)
+	local d = profile.data
+	if not d.completedTime and countKeys(d.goldens) >= #Config.Goldens then
+		d.completedTime = DataService.GetPlayTime(player)
+		return true
+	end
+	return false
+end
+
+local function onBopped(player)
+	local profile = DataService.Get(player)
+	if not profile then
+		return
+	end
+	profile.data.bugs += 1
+	local event = { kind = "bop" }
+	if profile.data.bugs == Config.BugBusterGoal then
+		event = { kind = "unlock", id = "buster" }
+	end
+	push(player, event)
+end
+
+Collect.OnServerEvent:Connect(function(player, id)
+	if type(id) ~= "string" then
+		return
+	end
+	local profile = DataService.Get(player)
+	local root = getRoot(player)
+	if not profile or not root then
+		return
+	end
+	local d = profile.data
+
+	local carrotPos = info.carrots[id]
+	if carrotPos then
+		if d.carrots[id] or (root.Position - carrotPos).Magnitude > 18 then
+			return
+		end
+		d.carrots[id] = true
+		d.carrotCount += 1
+		local event = { kind = "carrot", id = id }
+		if d.carrotCount % Config.HealEveryCarrots == 0 then
+			heal(player, 1)
+			event.heal = true
+		end
+		if d.carrotCount == Config.CollectorGoal then
+			event = { kind = "unlock", id = "collector", heal = event.heal }
+		end
+		push(player, event)
+		return
+	end
+
+	local goldPos = info.goldens[id]
+	if goldPos and goldenSet[id] then
+		if d.goldens[id] or (root.Position - goldPos).Magnitude > 20 then
+			return
+		end
+		if id == "collector" and d.carrotCount < Config.CollectorGoal then
+			return
+		end
+		if id == "buster" and d.bugs < Config.BugBusterGoal then
+			return
+		end
+		d.goldens[id] = true
+		heal(player, Config.MaxHearts)
+		local done = checkCompletion(player, profile)
+		push(player, { kind = done and "complete" or "golden", id = id })
+		task.spawn(DataService.Save, player, false) -- goldens are precious: save right away
+	end
+end)
+
+GetProfile.OnServerInvoke = function(player)
+	DataService.WaitFor(player, 30)
+	return snapshot(player, nil)
+end
+
+Pound.OnServerEvent:Connect(function(player, action, pos)
+	local root = getRoot(player)
+	if not root then
+		return
+	end
+	if action == "start" then
+		EnemyService.MarkPounding(player, 2)
+	elseif action == "land" and typeof(pos) == "Vector3" and (pos - root.Position).Magnitude < 15 then
+		EnemyService.MarkPounding(player, 0.15)
+		EnemyService.Shockwave(player, pos)
+		Effect:FireAllClients("pound", pos)
+	end
+end)
+
+-- Enemies ---------------------------------------------------------------------------
+EnemyService.Start(info, {
+	effect = function(kind, pos)
+		Effect:FireAllClients(kind, pos)
+	end,
+	bopped = onBopped,
+	bounce = function(player, vel, keepHorizontal)
+		Bounce:FireClient(player, vel, keepHorizontal, "stomp")
+	end,
+	hurt = function(player, fromPos)
+		hurt(player, fromPos, 1, false)
+	end,
+})
+
+-- Characters ---------------------------------------------------------------------------
+local function spawnCharacter(player)
+	if player.Parent then
+		player:LoadCharacter()
+	end
+end
+
+local function onCharacter(player, character)
+	local st = state[player]
+	if st then
+		st.invulnUntil = os.clock() + 2
+		st.safe = info.spawn
+	end
+	BunnyCharacter.Apply(character)
+	local humanoid = character:WaitForChild("Humanoid")
+	local regen = character:WaitForChild("Health", 3)
+	if regen then
+		regen:Destroy() -- hearts only come back from carrots
+	end
+	humanoid.MaxHealth = Config.MaxHearts
+	humanoid.Health = Config.MaxHearts
+	humanoid.WalkSpeed = Config.WalkSpeed
+	humanoid.UseJumpPower = true
+	humanoid.JumpPower = Config.JumpPower
+	humanoid.Died:Connect(function()
+		task.wait(3)
+		if player.Character == character then
+			spawnCharacter(player)
+		end
+	end)
+end
+
+local function onPlayerAdded(player)
+	state[player] = { safe = info.spawn, invulnUntil = 0 }
+
+	local stats = Instance.new("Folder")
+	stats.Name = "leaderstats"
+	local carrots = Instance.new("IntValue")
+	carrots.Name = "Carrots"
+	carrots.Parent = stats
+	local golden = Instance.new("IntValue")
+	golden.Name = "Golden"
+	golden.Parent = stats
+	stats.Parent = player
+
+	player.CharacterAdded:Connect(function(character)
+		onCharacter(player, character)
+	end)
+
+	local profile = DataService.Load(player)
+	if not profile or not player.Parent then
+		return
+	end
+	push(player, nil)
+	spawnCharacter(player)
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+for _, player in ipairs(Players:GetPlayers()) do
+	task.spawn(onPlayerAdded, player)
+end
+
+Players.PlayerRemoving:Connect(function(player)
+	state[player] = nil
+	DataService.Release(player)
+end)
+
+-- Water & safe-spot tracking ----------------------------------------------------------
+local floorParams = RaycastParams.new()
+floorParams.FilterType = Enum.RaycastFilterType.Include
+floorParams.FilterDescendantsInstances = { info.solidFolder }
+
+local acc = 0
+RunService.Heartbeat:Connect(function(dt)
+	acc += dt
+	if acc < 0.2 then
+		return
+	end
+	acc = 0
+	for player, st in pairs(state) do
+		local root, hum = getRoot(player)
+		if root and hum and hum.Health > 0 then
+			local pos = root.Position
+			if pos.Y < Config.WaterLevel - 2.5 then
+				Effect:FireAllClients("splash", Vector3.new(pos.X, Config.WaterLevel, pos.Z))
+				hurt(player, pos, 1, true)
+				if hum.Health > 0 then
+					player.Character:PivotTo(st.safe)
+					Bounce:FireClient(player, Vector3.zero, false, "reset")
+				end
+			elseif hum.FloorMaterial ~= Enum.Material.Air then
+				local hit = workspace:Raycast(pos, Vector3.new(0, -8, 0), floorParams)
+				if hit and not hit.Instance:GetAttribute("Moving") and hit.Instance.Anchored and hit.Instance:GetAttribute("Bounce") == nil then
+					st.safe = CFrame.new(hit.Position + Vector3.new(0, 4, 0)) * (root.CFrame - root.CFrame.Position)
+				end
+			end
+		end
+	end
+end)
+
+print(string.format("[Bunny64] Ready: %d carrots, %d golden carrots.", TOTAL_CARROTS, #Config.Goldens))
+]]></ProtectedString><token name="RunContext">0</token></Properties><Item class="ModuleScript" referent="RBX00000006"><Properties><string name="Name">BunnyCharacter</string><ProtectedString name="Source"><![CDATA[--[[
+	BunnyCharacter - dresses any R15 or R6 avatar as a plush bunny teddy.
+
+	The original body parts are hidden and soft "fabric" blobs are welded to
+	each limb, so Roblox's own walk/jump animations still drive the bunny.
+]]
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+local P = Config.Palette
+
+local BunnyCharacter = {}
+
+local function blob(limb, offset, size, color, material, isBlock)
+	local p = Instance.new("Part")
+	p.Name = "Bunny_" .. limb.Name
+	p.Size = size
+	p.Color = color
+	p.Material = material or Enum.Material.Fabric
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Massless = true
+	p.Anchored = false
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	if not isBlock then
+		local mesh = Instance.new("SpecialMesh")
+		mesh.MeshType = Enum.MeshType.Sphere
+		mesh.Parent = p
+	end
+	p.CFrame = limb.CFrame * offset
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = limb
+	weld.Part1 = p
+	weld.Parent = p
+	p.Parent = limb.Parent
+	return p
+end
+
+local function hideOriginal(character)
+	for _, d in ipairs(character:GetDescendants()) do
+		if d:IsA("BasePart") and d.Name ~= "HumanoidRootPart" and not string.find(d.Name, "^Bunny_") then
+			d.Transparency = 1
+		elseif d:IsA("Decal") and d.Parent and d.Parent.Name == "Head" then
+			d:Destroy()
+		elseif d:IsA("Accessory") or d:IsA("Shirt") or d:IsA("Pants") or d:IsA("ShirtGraphic") then
+			d:Destroy()
+		end
+	end
+end
+
+function BunnyCharacter.Apply(character)
+	local humanoid = character:WaitForChild("Humanoid", 10)
+	if not humanoid then
+		return
+	end
+	local isR15 = humanoid.RigType == Enum.HumanoidRigType.R15
+	local function get(r15Name, r6Name)
+		return character:WaitForChild(isR15 and r15Name or r6Name, 10)
+	end
+
+	local head = get("Head", "Head")
+	local torso = get("UpperTorso", "Torso")
+	local lowerTorso = isR15 and get("LowerTorso", "Torso") or torso
+	local lArm = get("LeftUpperArm", "Left Arm")
+	local rArm = get("RightUpperArm", "Right Arm")
+	local lHand = isR15 and get("LeftHand", "Left Arm") or lArm
+	local rHand = isR15 and get("RightHand", "Right Arm") or rArm
+	local lLeg = get("LeftUpperLeg", "Left Leg")
+	local rLeg = get("RightUpperLeg", "Right Leg")
+	local lFoot = isR15 and get("LeftFoot", "Left Leg") or lLeg
+	local rFoot = isR15 and get("RightFoot", "Right Leg") or rLeg
+	if not (head and torso and lArm and rArm and lLeg and rLeg) then
+		return
+	end
+
+	hideOriginal(character)
+	character.DescendantAdded:Connect(function(d)
+		if d:IsA("Accessory") or d:IsA("Shirt") or d:IsA("Pants") then
+			task.defer(function()
+				d:Destroy()
+			end)
+		end
+	end)
+
+	local CF = CFrame.new
+	local V = Vector3.new
+	local fur, cream, pink = P.Fur, P.Cream, P.EarPink
+	local smooth = Enum.Material.SmoothPlastic
+
+	-- Torso: round plush body with a cream belly and stitched seam (front is -Z)
+	local bodyY = isR15 and -0.4 or -0.2
+	blob(torso, CF(0, bodyY, 0), V(3.0, 3.3, 2.6), fur)
+	blob(torso, CF(0, bodyY - 0.2, -1.05), V(2.0, 2.3, 0.7), cream)
+	for i = 0, 2 do
+		blob(torso, CF(0, bodyY + 0.6 - i * 0.55, -1.42) * CFrame.Angles(0, 0, (i % 2 == 0) and 0.4 or -0.4), V(0.45, 0.1, 0.06), P.Button, smooth, true)
+	end
+	-- Bow tie
+	blob(torso, CF(-0.45, 1.05, -1.1) * CFrame.Angles(0, 0, 0.3), V(0.8, 0.55, 0.35), P.Bow)
+	blob(torso, CF(0.45, 1.05, -1.1) * CFrame.Angles(0, 0, -0.3), V(0.8, 0.55, 0.35), P.Bow)
+	blob(torso, CF(0, 1.05, -1.2), V(0.35, 0.35, 0.3), P.Bow)
+	-- Fluffy tail
+	blob(lowerTorso, CF(0, isR15 and 0 or -0.8, 1.15), V(1.0, 1.0, 1.0), cream)
+
+	-- Head (big and round, teddy-proportioned)
+	blob(head, CF(0, 0.45, 0), V(2.8, 2.5, 2.5), fur)
+	blob(head, CF(0, 0.05, -1.05), V(1.45, 0.95, 0.8), cream)
+	blob(head, CF(0, 0.3, -1.42), V(0.45, 0.32, 0.3), pink)
+	for _, sx in ipairs({ -1, 1 }) do
+		blob(head, CF(sx * 0.52, 0.72, -1.08), V(0.38, 0.44, 0.22), P.Button, smooth)
+		blob(head, CF(sx * 0.55, 0.8, -1.18), V(0.1, 0.1, 0.06), P.Cream, smooth)
+		-- ears: outer fabric with a pink inner, tilted outward
+		local earCF = CF(sx * 0.62, 2.4, 0.1) * CFrame.Angles(-0.15, 0, -sx * 0.2)
+		blob(head, earCF, V(0.85, 2.9, 0.5), fur)
+		blob(head, earCF * CF(0, -0.1, -0.15), V(0.48, 2.2, 0.28), pink)
+		if sx == 1 then
+			-- sewn-on patch, every well-loved teddy has one
+			blob(head, earCF * CF(0, 0.3, 0.24) * CFrame.Angles(0, 0, 0.3), V(0.42, 0.42, 0.06), P.Patch, Enum.Material.Fabric, true)
+		end
+	end
+
+	-- Arms & paws
+	for _, pair in ipairs({ { lArm, lHand }, { rArm, rHand } }) do
+		blob(pair[1], CF(0, isR15 and -0.3 or 0.1, 0), V(1.05, isR15 and 1.9 or 2.0, 1.05), fur)
+		blob(pair[2], CF(0, isR15 and 0 or -0.9, 0), V(0.95, 0.85, 0.95), cream)
+	end
+
+	-- Legs & big feet with pink pads
+	for _, pair in ipairs({ { lLeg, lFoot }, { rLeg, rFoot } }) do
+		blob(pair[1], CF(0, isR15 and 0 or 0.25, 0), V(1.2, isR15 and 1.6 or 1.5, 1.2), fur)
+		local footOffset = isR15 and CF(0, 0, -0.3) or CF(0, -0.8, -0.35)
+		blob(pair[2], footOffset, V(1.2, 0.7, 1.9), fur)
+		blob(pair[2], footOffset * CF(0, 0, 0.92), V(0.75, 0.45, 0.12), pink)
+	end
+
+	-- Soft ink outline around the bunny for a hand-drawn, storybook edge
+	local outline = Instance.new("Highlight")
+	outline.Name = "BunnyOutline"
+	outline.FillTransparency = 1
+	outline.OutlineColor = P.Ink
+	outline.OutlineTransparency = 0.25
+	outline.DepthMode = Enum.HighlightDepthMode.Occluded
+	outline.Parent = character
+
+	humanoid.BreakJointsOnDeath = false
+end
+
+return BunnyCharacter
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000007"><Properties><string name="Name">DataService</string><ProtectedString name="Source"><![CDATA[--[[
+	DataService - loads and saves each player's progress with DataStoreService.
+
+	* Session locking: a save records which server owns it, so two servers can't
+	  overwrite each other if a player hops servers quickly.
+	* Retries with back-off, autosave, save on leave and on server shutdown.
+	* In Studio without "Enable Studio Access to API Services" the game still
+	  runs; progress just isn't saved (the HUD tells the player).
+]]
+
+local DataStoreService = game:GetService("DataStoreService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+
+local DataService = {}
+
+local SCHEMA_VERSION = 1
+local LOCK_TIMEOUT = 600 -- seconds before a stale lock may be taken over
+
+local store = nil
+do
+	local ok, result = pcall(function()
+		return DataStoreService:GetDataStore(Config.DataStoreName)
+	end)
+	if ok then
+		store = result
+	else
+		warn("[Bunny64] DataStore unavailable:", result)
+	end
+end
+
+local profiles = {} -- [Player] = profile
+
+local function defaultData()
+	return {
+		version = SCHEMA_VERSION,
+		carrots = {}, -- [carrotId] = true
+		goldens = {}, -- [goldenId] = true
+		carrotCount = 0,
+		bugs = 0,
+		playTime = 0,
+		completedTime = nil,
+		firstJoin = os.time(),
+	}
+end
+
+local function reconcile(data)
+	if type(data) ~= "table" then
+		return defaultData()
+	end
+	for key, value in pairs(defaultData()) do
+		if data[key] == nil then
+			data[key] = value
+		end
+	end
+	-- Recount in case of older saves
+	local count = 0
+	for _ in pairs(data.carrots) do
+		count += 1
+	end
+	data.carrotCount = count
+	return data
+end
+
+local function shallowCopy(t)
+	local out = {}
+	for k, v in pairs(t) do
+		out[k] = v
+	end
+	return out
+end
+
+local function isApiDisabledError(err)
+	local msg = tostring(err)
+	return string.find(msg, "StudioAccessToApisNotAllowed") ~= nil
+		or string.find(msg, "publish", 1, true) ~= nil
+		or string.find(msg, "403", 1, true) ~= nil
+end
+
+local function keyFor(player)
+	return "player_" .. player.UserId
+end
+
+-- Load ------------------------------------------------------------------------
+function DataService.Load(player)
+	local profile = {
+		player = player,
+		data = defaultData(),
+		canSave = false,
+		loaded = false,
+		lastTick = os.clock(),
+		sessionStart = os.clock(),
+	}
+	profiles[player] = profile
+
+	if store then
+		local attempts = 5
+		for attempt = 1, attempts do
+			if not player.Parent then
+				return nil
+			end
+			local locked = false
+			local ok, result = pcall(function()
+				return store:UpdateAsync(keyFor(player), function(old)
+					old = reconcile(old)
+					local lock = old.lock
+					if lock and lock.job ~= game.JobId and os.time() - (lock.time or 0) < LOCK_TIMEOUT and attempt < attempts then
+						locked = true
+						return nil -- cancel: another server still owns this save
+					end
+					old.lock = { job = game.JobId, time = os.time() }
+					return old
+				end)
+			end)
+			if ok and result then
+				profile.data = reconcile(result)
+				profile.canSave = true
+				break
+			elseif not ok then
+				warn(string.format("[Bunny64] Load attempt %d for %s failed: %s", attempt, player.Name, tostring(result)))
+				if isApiDisabledError(result) then
+					break
+				end
+			end
+			task.wait(locked and 3 or attempt * 1.5)
+		end
+	end
+
+	profile.data.lock = nil
+	profile.loaded = true
+	if not profile.canSave then
+		warn("[Bunny64] Progress for " .. player.Name .. " will NOT be saved this session.")
+	end
+	return profile
+end
+
+-- Save ------------------------------------------------------------------------
+local function tickPlayTime(profile)
+	local now = os.clock()
+	profile.data.playTime += now - profile.lastTick
+	profile.lastTick = now
+end
+
+function DataService.Save(player, release)
+	local profile = profiles[player]
+	if not profile or not profile.loaded then
+		return false
+	end
+	tickPlayTime(profile)
+	if not profile.canSave or not store then
+		return false
+	end
+	local payload = shallowCopy(profile.data)
+	payload.lock = (not release) and { job = game.JobId, time = os.time() } or nil
+
+	for attempt = 1, 3 do
+		local stolen = false
+		local ok, err = pcall(function()
+			store:UpdateAsync(keyFor(player), function(old)
+				if type(old) == "table" and old.lock and old.lock.job ~= game.JobId then
+					stolen = true
+					return nil -- another server took over; don't clobber its data
+				end
+				return payload
+			end)
+		end)
+		if ok then
+			if stolen then
+				warn("[Bunny64] Save skipped for " .. player.Name .. ": session owned by another server.")
+				profile.canSave = false
+				return false
+			end
+			return true
+		end
+		warn(string.format("[Bunny64] Save attempt %d for %s failed: %s", attempt, player.Name, tostring(err)))
+		task.wait(attempt)
+	end
+	return false
+end
+
+function DataService.Release(player)
+	DataService.Save(player, true)
+	profiles[player] = nil
+end
+
+function DataService.Get(player)
+	local profile = profiles[player]
+	if profile and profile.loaded then
+		return profile
+	end
+	return nil
+end
+
+function DataService.WaitFor(player, timeout)
+	local start = os.clock()
+	while player.Parent and os.clock() - start < (timeout or 30) do
+		local profile = DataService.Get(player)
+		if profile then
+			return profile
+		end
+		task.wait(0.1)
+	end
+	return nil
+end
+
+function DataService.GetPlayTime(player)
+	local profile = profiles[player]
+	if not profile then
+		return 0
+	end
+	return profile.data.playTime + (os.clock() - profile.lastTick)
+end
+
+-- Autosave & shutdown -----------------------------------------------------------
+task.spawn(function()
+	while true do
+		task.wait(Config.AutosaveSeconds)
+		for player in pairs(profiles) do
+			task.spawn(DataService.Save, player, false)
+		end
+	end
+end)
+
+game:BindToClose(function()
+	if RunService:IsStudio() and not store then
+		return
+	end
+	local pending = 0
+	for _, player in ipairs(Players:GetPlayers()) do
+		if profiles[player] then
+			pending += 1
+			task.spawn(function()
+				DataService.Save(player, true)
+				pending -= 1
+			end)
+		end
+	end
+	local start = os.clock()
+	while pending > 0 and os.clock() - start < 25 do
+		task.wait(0.1)
+	end
+end)
+
+return DataService
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000008"><Properties><string name="Name">EnemyService</string><ProtectedString name="Source"><![CDATA[--[[
+	EnemyService - Grumblebugs: grumpy beetles that wander the meadow and
+	charge at bunnies who get too close. Jump on them or ground pound near
+	them to bop them. They come back after a while.
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+local P = Config.Palette
+
+local EnemyService = {}
+
+local bugs = {}
+local folder
+local rayParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Include
+local callbacks
+local lastHurt = {} -- [Player] = os.clock()
+local poundingUntil = {} -- [Player] = os.clock()
+
+local function part(model, cf, size, color, isBall, material)
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Size = size
+	p.CFrame = cf
+	p.Color = color
+	p.Material = material or Enum.Material.SmoothPlastic
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	if isBall then
+		local m = Instance.new("SpecialMesh")
+		m.MeshType = Enum.MeshType.Sphere
+		m.Parent = p
+	end
+	p.Parent = model
+	return p
+end
+
+local function buildBug(pos)
+	local model = Instance.new("Model")
+	model.Name = "Grumblebug"
+	local base = CFrame.new(pos)
+	local root = part(model, base * CFrame.new(0, 1.6, 0), Vector3.new(4, 3, 5), P.BugShell)
+	root.Transparency = 1
+	root.Name = "Root"
+	model.PrimaryPart = root
+	-- body (front is -Z)
+	part(model, base * CFrame.new(0, 1.9, 0.4), Vector3.new(5, 3.4, 6), P.BugShell, true)
+	part(model, base * CFrame.new(0, 0.8, 0.4), Vector3.new(4.4, 1, 5.4), P.BugBelly, true)
+	part(model, base * CFrame.new(0, 3.55, 0.4), Vector3.new(0.15, 0.2, 5.4), P.BugBelly) -- wing seam
+	for _, s in ipairs({ { 1.1, 3.1, -0.4, 1.3 }, { -1.2, 3.0, 1.4, 1.1 }, { 0.9, 2.9, 2.2, 0.9 } }) do
+		part(model, base * CFrame.new(s[1], s[2], s[3]), Vector3.new(s[4], 0.5, s[4]), P.BugSpot, true)
+	end
+	part(model, base * CFrame.new(0, 1.7, -2.9), Vector3.new(2.6, 2.3, 2.3), P.BugBelly, true)
+	for _, sx in ipairs({ -1, 1 }) do
+		part(model, base * CFrame.new(sx * 0.6, 2.2, -3.85), Vector3.new(0.85, 0.95, 0.4), P.Cream, true)
+		part(model, base * CFrame.new(sx * 0.55, 2.1, -4.05), Vector3.new(0.35, 0.42, 0.15), P.Button, true)
+		part(model, base * CFrame.new(sx * 0.6, 2.8, -3.95) * CFrame.Angles(0, 0, sx * 0.45), Vector3.new(0.9, 0.22, 0.2), P.Button)
+		part(model, base * CFrame.new(sx * 0.5, 3.4, -3.3) * CFrame.Angles(-0.5, 0, sx * -0.3), Vector3.new(0.15, 1.6, 0.15), P.BugBelly)
+		for i = -1, 1 do
+			part(model, base * CFrame.new(sx * 2.5, 0.5, i * 1.6) * CFrame.Angles(0, 0, sx * 0.5), Vector3.new(1.8, 0.35, 0.35), P.BugBelly)
+		end
+	end
+	model.Parent = folder
+	return model
+end
+
+local function groundAt(pos)
+	local hit = workspace:Raycast(pos + Vector3.new(0, 8, 0), Vector3.new(0, -30, 0), rayParams)
+	if hit then
+		return hit.Position.Y, hit.Instance
+	end
+	return nil
+end
+
+local function defeat(bug, player)
+	bug.alive = false
+	bug.respawnAt = os.clock() + Config.BugRespawnSeconds
+	callbacks.effect("poof", bug.pos + Vector3.new(0, 2, 0))
+	-- quick squash, then vanish
+	task.spawn(function()
+		for i = 1, 6 do
+			if not bug.model.Parent then
+				break
+			end
+			bug.model:PivotTo(CFrame.new(bug.pos + Vector3.new(0, 1.6 - i * 0.3, 0)) * CFrame.Angles(0, bug.yaw, 0))
+			task.wait(0.03)
+		end
+		bug.model.Parent = nil
+	end)
+	if player then
+		callbacks.bopped(player)
+	end
+end
+
+function EnemyService.Start(info, cb)
+	callbacks = cb
+	folder = Instance.new("Folder")
+	folder.Name = "Grumblebugs"
+	folder.Parent = workspace
+	rayParams.FilterDescendantsInstances = { info.solidFolder }
+
+	for _, home in ipairs(info.bugs) do
+		local y = groundAt(home + Vector3.new(0, 10, 0)) or home.Y
+		local pos = Vector3.new(home.X, y, home.Z)
+		local bug = {
+			home = pos,
+			pos = pos,
+			yaw = math.random() * math.pi * 2,
+			turnAt = 0,
+			alive = true,
+			respawnAt = 0,
+			phase = math.random() * 6,
+		}
+		bug.model = buildBug(pos)
+		table.insert(bugs, bug)
+	end
+
+	RunService.Heartbeat:Connect(function(dt)
+		EnemyService.Step(dt)
+	end)
+end
+
+function EnemyService.MarkPounding(player, seconds)
+	poundingUntil[player] = os.clock() + seconds
+end
+
+-- Ground pound shockwave from a player landing at `pos`
+function EnemyService.Shockwave(player, pos)
+	for _, bug in ipairs(bugs) do
+		if bug.alive then
+			local d = Vector3.new(bug.pos.X - pos.X, 0, bug.pos.Z - pos.Z).Magnitude
+			if d < 14 and math.abs(bug.pos.Y - pos.Y) < 8 then
+				defeat(bug, player)
+			end
+		end
+	end
+end
+
+local function nearestPlayer(pos)
+	local best, bestDist, bestHrp = nil, 45, nil
+	for _, player in ipairs(Players:GetPlayers()) do
+		local char = player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if hrp and hum and hum.Health > 0 then
+			local d = (hrp.Position - pos).Magnitude
+			if d < bestDist and math.abs(hrp.Position.Y - 3 - pos.Y) < 10 then
+				best, bestDist, bestHrp = player, d, hrp
+			end
+		end
+	end
+	return best, bestHrp
+end
+
+function EnemyService.Step(dt)
+	local now = os.clock()
+	for _, bug in ipairs(bugs) do
+		if not bug.alive then
+			if now >= bug.respawnAt then
+				bug.alive = true
+				bug.pos = bug.home
+				bug.model.Parent = folder
+				callbacks.effect("poof", bug.pos + Vector3.new(0, 2, 0))
+			end
+			continue
+		end
+
+		local target, hrp = nearestPlayer(bug.pos)
+		local fromHome = Vector3.new(bug.pos.X - bug.home.X, 0, bug.pos.Z - bug.home.Z).Magnitude
+		local speed = 7
+		if target and fromHome < 60 then
+			local d = hrp.Position - bug.pos
+			bug.yaw = math.atan2(-d.X, -d.Z)
+			speed = 15
+		else
+			if fromHome > 22 then
+				local d = bug.home - bug.pos
+				bug.yaw = math.atan2(-d.X, -d.Z)
+			elseif now > bug.turnAt then
+				bug.yaw += (math.random() - 0.5) * 2.5
+				bug.turnAt = now + 1 + math.random() * 2
+			end
+		end
+
+		local look = Vector3.new(-math.sin(bug.yaw), 0, -math.cos(bug.yaw))
+		local nextPos = bug.pos + look * speed * dt
+		local gy, hitPart = groundAt(nextPos)
+		if gy and gy > Config.WaterLevel + 1 and math.abs(gy - bug.pos.Y) < 3 and not (hitPart and hitPart:GetAttribute("Moving")) then
+			bug.pos = Vector3.new(nextPos.X, gy, nextPos.Z)
+		else
+			bug.yaw += math.pi * (0.5 + math.random() * 0.5)
+		end
+		local bob = math.abs(math.sin(now * (speed > 10 and 16 or 9) + bug.phase)) * 0.3
+		bug.model:PivotTo(CFrame.new(bug.pos + Vector3.new(0, 1.6 + bob, 0)) * CFrame.Angles(0, bug.yaw, 0))
+
+		-- Contact with bunnies
+		for _, player in ipairs(Players:GetPlayers()) do
+			local char = player.Character
+			local root = char and char:FindFirstChild("HumanoidRootPart")
+			local hum = char and char:FindFirstChildOfClass("Humanoid")
+			if root and hum and hum.Health > 0 then
+				local feet = root.Position.Y - 3
+				local flat = Vector3.new(root.Position.X - bug.pos.X, 0, root.Position.Z - bug.pos.Z).Magnitude
+				if flat < 4.6 and feet < bug.pos.Y + 4.2 and feet > bug.pos.Y - 2.5 then
+					local vy = root.AssemblyLinearVelocity.Y
+					local pounding = (poundingUntil[player] or 0) > now
+					if (vy < -1 and feet > bug.pos.Y + 1.4) or pounding then
+						defeat(bug, player)
+						callbacks.bounce(player, Vector3.new(0, Config.StompBounce, 0), true)
+						break
+					elseif now - (lastHurt[player] or 0) > 1.5 then
+						lastHurt[player] = now
+						callbacks.hurt(player, bug.pos)
+					end
+				end
+			end
+		end
+	end
+end
+
+Players.PlayerRemoving:Connect(function(player)
+	lastHurt[player] = nil
+	poundingUntil[player] = nil
+end)
+
+function EnemyService.GiveInvulnerability(player, seconds)
+	lastHurt[player] = os.clock() + seconds - 1.5
+end
+
+return EnemyService
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000009"><Properties><string name="Name">WorldBuilder</string><ProtectedString name="Source"><![CDATA[--[[
+	WorldBuilder - builds Carrot Meadow out of chunky low-poly parts at runtime.
+
+	Coordinates are in studs. The main island's grass is at Y = 0 and the sea
+	sits at Config.WaterLevel. Returns a table describing spawn, collectibles
+	and enemy homes.
+]]
+
+local RunService = game:GetService("RunService")
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+
+local P = Config.Palette
+local WATER = Config.WaterLevel
+local SMOOTH = Enum.Material.SmoothPlastic
+
+local WorldBuilder = {}
+
+local world -- Folder for solid level geometry
+local decor -- Folder for non-colliding decoration
+local collectFolder -- Folder for carrots
+local movers = {}
+
+local info = {
+	carrots = {}, -- [id] = Vector3
+	goldens = {}, -- [id] = Vector3
+	bugs = {}, -- { Vector3 }
+	spawn = nil,
+}
+
+--------------------------------------------------------------------------------
+-- Part helpers
+--------------------------------------------------------------------------------
+
+local function make(className, props, parent)
+	local inst = Instance.new(className)
+	if inst:IsA("BasePart") then
+		inst.Anchored = true
+		inst.TopSurface = Enum.SurfaceType.Smooth
+		inst.BottomSurface = Enum.SurfaceType.Smooth
+		inst.Material = SMOOTH
+	end
+	for k, v in pairs(props) do
+		inst[k] = v
+	end
+	inst.Parent = parent or world
+	return inst
+end
+
+local function block(cf, size, color, material, parent)
+	return make("Part", { CFrame = cf, Size = size, Color = color, Material = material or SMOOTH }, parent)
+end
+
+-- Vertical cylinder sitting on `bottom` (its base) at x,z.
+local function cyl(x, bottom, z, radius, height, color, material, parent)
+	return make("Part", {
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(height, radius * 2, radius * 2),
+		CFrame = CFrame.new(x, bottom + height / 2, z) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = color,
+		Material = material or SMOOTH,
+	}, parent)
+end
+
+-- Ellipsoid "blob" (decoration by default).
+local function blob(pos, size, color, material, parent, collide)
+	local p = make("Part", {
+		Size = size,
+		CFrame = CFrame.new(pos),
+		Color = color,
+		Material = material or SMOOTH,
+		CanCollide = collide == true,
+		CanQuery = collide == true,
+	}, parent or decor)
+	local mesh = Instance.new("SpecialMesh")
+	mesh.MeshType = Enum.MeshType.Sphere
+	mesh.Parent = p
+	return p
+end
+
+local function wedge(cf, size, color, material)
+	return make("WedgePart", { CFrame = cf, Size = size, Color = color, Material = material or SMOOTH })
+end
+
+-- Grass-capped earthy pillar: dirt sides with a grass lid, very N64.
+local function mound(x, z, radius, top, grassColor, base)
+	base = base or -20
+	cyl(x, base, z, radius, top - base - 0.6, P.Dirt)
+	cyl(x, top - 1, z, radius + 0.4, 1, grassColor or P.Grass)
+end
+
+local function terrace(x, z, tiers)
+	for _, t in ipairs(tiers) do
+		mound(x, z, t[1], t[2], t[3] or P.Grass, 0)
+	end
+end
+
+local function path(from, to, width)
+	local a = Vector3.new(from.X, 0.12, from.Z)
+	local b = Vector3.new(to.X, 0.12, to.Z)
+	local len = (b - a).Magnitude
+	make("Part", {
+		Size = Vector3.new(width, 0.25, len),
+		CFrame = CFrame.lookAt((a + b) / 2, b),
+		Color = P.Path,
+		CanCollide = false,
+		CanQuery = false,
+	}, decor)
+end
+
+-- Physics-driven moving platform: unanchored, steered by AlignPosition /
+-- AlignOrientation so standing players ride along. fn(t) returns a CFrame.
+local function mover(part, fn)
+	part.Anchored = false
+	part.CustomPhysicalProperties = PhysicalProperties.new(50, 1, 0, 100, 1)
+	part:SetAttribute("Moving", true)
+	local att = Instance.new("Attachment")
+	att.Parent = part
+	local ap = Instance.new("AlignPosition")
+	ap.Mode = Enum.PositionAlignmentMode.OneAttachment
+	ap.Attachment0 = att
+	ap.RigidityEnabled = true
+	ap.Position = part.Position
+	ap.Parent = part
+	local ao = Instance.new("AlignOrientation")
+	ao.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	ao.Attachment0 = att
+	ao.RigidityEnabled = true
+	ao.CFrame = part.CFrame
+	ao.Parent = part
+	table.insert(movers, { part = part, fn = fn, ap = ap, ao = ao })
+	return part
+end
+
+--------------------------------------------------------------------------------
+-- Collectibles
+--------------------------------------------------------------------------------
+
+local function carrotModel(pos, golden)
+	local model = Instance.new("Model")
+	model.Name = golden and "GoldenCarrot" or "Carrot"
+	local body = golden and P.Gold or P.Carrot
+	local dark = golden and P.GoldDark or P.CarrotDark
+	local leaf = golden and P.Cream or P.CarrotLeaf
+	local s = golden and 1.8 or 1
+	local function piece(offset, size, color, isBall)
+		local p = make("Part", {
+			Size = size * s,
+			CFrame = CFrame.new(pos + offset * s),
+			Color = color,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			CastShadow = true,
+		}, model)
+		if isBall then
+			local m = Instance.new("SpecialMesh")
+			m.MeshType = Enum.MeshType.Sphere
+			m.Parent = p
+		end
+		return p
+	end
+	-- Stacked tapering body
+	local root = piece(Vector3.new(0, 0.5, 0), Vector3.new(1.4, 1.2, 1.4), body)
+	piece(Vector3.new(0, -0.5, 0), Vector3.new(1.05, 1, 1.05), dark)
+	piece(Vector3.new(0, -1.3, 0), Vector3.new(0.7, 0.8, 0.7), body)
+	piece(Vector3.new(0, -1.9, 0), Vector3.new(0.35, 0.5, 0.35), dark)
+	for i = -1, 1 do
+		local l = piece(Vector3.new(i * 0.25, 1.75, 0), Vector3.new(0.22, 1.5, 0.45), leaf)
+		l.CFrame = CFrame.new(pos + Vector3.new(i * 0.3, 1.75, 0) * s) * CFrame.Angles(0, i * 0.6, -i * 0.35)
+	end
+	model.PrimaryPart = root
+	model.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+	if golden then
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(255, 214, 140)
+		light.Range = 14
+		light.Brightness = 1.2
+		light.Parent = root
+		-- A faint shaft of light so golden carrots can be spotted from afar
+		make("Part", {
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(160, 3, 3),
+			CFrame = CFrame.new(pos + Vector3.new(0, 82, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = Color3.fromRGB(230, 206, 140),
+			Transparency = 0.82,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			CastShadow = false,
+		}, model).Name = "Beam"
+	end
+	model.Parent = collectFolder
+	return model
+end
+
+local function carrot(pos)
+	local id = string.format("c_%d_%d_%d", math.round(pos.X), math.round(pos.Y), math.round(pos.Z))
+	if info.carrots[id] then
+		return
+	end
+	info.carrots[id] = pos
+	local m = carrotModel(pos, false)
+	m:SetAttribute("CollectId", id)
+	m:SetAttribute("Kind", "carrot")
+end
+
+local function golden(id, pos)
+	info.goldens[id] = pos
+	local m = carrotModel(pos, true)
+	m:SetAttribute("CollectId", id)
+	m:SetAttribute("Kind", "golden")
+end
+
+--------------------------------------------------------------------------------
+-- Decoration
+--------------------------------------------------------------------------------
+
+local rng = Random.new(6464)
+
+local function roundTree(x, y, z, s)
+	cyl(x, y - 1, z, 0.9 * s, 9 * s, P.Wood, Enum.Material.Wood)
+	blob(Vector3.new(x, y + 10 * s, z), Vector3.new(9, 7, 9) * s, P.Leaf)
+	blob(Vector3.new(x + 2 * s, y + 8.5 * s, z + 1 * s), Vector3.new(6, 5, 6) * s, P.LeafDark)
+	blob(Vector3.new(x - 1.5 * s, y + 13 * s, z - 0.5 * s), Vector3.new(5.5, 4.5, 5.5) * s, P.Leaf)
+end
+
+local function pineTree(x, y, z, s)
+	cyl(x, y - 1, z, 0.7 * s, 5 * s, P.Wood, Enum.Material.Wood)
+	-- stepped "cone" of cylinders, decorative except the trunk
+	cyl(x, y + 3 * s, z, 4.2 * s, 3 * s, P.Pine, nil, decor)
+	cyl(x, y + 6 * s, z, 3.2 * s, 3 * s, P.Pine, nil, decor)
+	cyl(x, y + 9 * s, z, 2.1 * s, 3 * s, P.Pine, nil, decor)
+	cyl(x, y + 12 * s, z, 1 * s, 2.5 * s, P.Pine, nil, decor)
+end
+
+local function rock(x, y, z, s)
+	make("Part", {
+		Size = Vector3.new(4, 3, 3.5) * s,
+		CFrame = CFrame.new(x, y + 1 * s, z) * CFrame.Angles(rng:NextNumber(-0.4, 0.4), rng:NextNumber(0, 6.28), rng:NextNumber(-0.4, 0.4)),
+		Color = rng:NextNumber() < 0.5 and P.Stone or P.StoneDark,
+		Material = Enum.Material.Slate,
+	})
+end
+
+local function flower(x, y, z)
+	local colors = { Color3.fromRGB(196, 170, 96), Color3.fromRGB(176, 120, 132), Color3.fromRGB(214, 206, 186), Color3.fromRGB(140, 120, 160) }
+	make("Part", {
+		Size = Vector3.new(0.25, 1.2, 0.25),
+		CFrame = CFrame.new(x, y + 0.6, z),
+		Color = P.CarrotLeaf,
+		CanCollide = false,
+		CanQuery = false,
+		CastShadow = false,
+	}, decor)
+	blob(Vector3.new(x, y + 1.3, z), Vector3.new(0.9, 0.5, 0.9), colors[rng:NextInteger(1, #colors)])
+end
+
+local function fence(from, to)
+	local dir = to - from
+	local n = math.max(1, math.floor(dir.Magnitude / 6))
+	for i = 0, n do
+		local p = from + dir * (i / n)
+		block(CFrame.new(p.X, 1.6, p.Z), Vector3.new(0.7, 3.2, 0.7), P.Wood, Enum.Material.Wood)
+	end
+	for _, h in ipairs({ 1.2, 2.5 }) do
+		local a = Vector3.new(from.X, h, from.Z)
+		local b = Vector3.new(to.X, h, to.Z)
+		make("Part", {
+			Size = Vector3.new(0.35, 0.45, (b - a).Magnitude),
+			CFrame = CFrame.lookAt((a + b) / 2, b),
+			Color = P.WoodLight,
+			Material = Enum.Material.Wood,
+		})
+	end
+end
+
+local function sign(pos, facing, title, subtitle)
+	block(CFrame.new(pos + Vector3.new(0, 2.5, 0)), Vector3.new(0.8, 5, 0.8), P.Wood, Enum.Material.Wood)
+	local board = block(
+		CFrame.lookAt(pos + Vector3.new(0, 5, 0), pos + Vector3.new(0, 5, 0) + facing) * CFrame.new(0, 0, -0.5),
+		Vector3.new(9, 3.6, 0.5),
+		P.WoodLight,
+		Enum.Material.Wood
+	)
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 40
+	gui.LightInfluence = 1
+	gui.Parent = board
+	local function label(text, y, h, size)
+		local t = Instance.new("TextLabel")
+		t.BackgroundTransparency = 1
+		t.Size = UDim2.new(1, -20, h, 0)
+		t.Position = UDim2.new(0, 10, y, 0)
+		t.Font = Enum.Font.Antique
+		t.Text = text
+		t.TextSize = size
+		t.TextColor3 = Color3.fromRGB(50, 34, 24)
+		t.Parent = gui
+	end
+	label(title, 0.08, 0.5, 64)
+	label(subtitle, 0.55, 0.35, 36)
+end
+
+--------------------------------------------------------------------------------
+-- Areas
+--------------------------------------------------------------------------------
+
+local function buildIsland()
+	-- Sea
+	for _, off in ipairs({ Vector3.new(-1000, 0, -1000), Vector3.new(1000, 0, -1000), Vector3.new(-1000, 0, 1000), Vector3.new(1000, 0, 1000) }) do
+		local w = make("Part", {
+			Name = "Water",
+			Size = Vector3.new(2000, 1, 2000),
+			CFrame = CFrame.new(off.X, WATER - 0.5, off.Z),
+			Color = P.Water,
+			Transparency = 0.15,
+			Reflectance = 0.05,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			CastShadow = false,
+		}, decor)
+		w.Material = Enum.Material.Glass
+	end
+	-- Sea floor so the water looks deep
+	block(CFrame.new(0, WATER - 40, 0), Vector3.new(2048, 2, 2048), Color3.fromRGB(40, 66, 70), nil, decor)
+
+	-- Beach ring and main island
+	cyl(0, -30, 0, 246, 27, P.Sand)
+	mound(0, 0, 230, 0, P.Grass, -30)
+	-- Irregular shoreline bulges
+	for i = 1, 10 do
+		local a = i / 10 * math.pi * 2 + rng:NextNumber(-0.2, 0.2)
+		local r = rng:NextNumber(205, 225)
+		local rad = rng:NextNumber(26, 40)
+		cyl(math.cos(a) * r, -30, math.sin(a) * r, rad + 14, 27, P.Sand)
+		mound(math.cos(a) * r, math.sin(a) * r, rad, 0, P.Grass, -30)
+	end
+	-- Gentle rises across the meadow
+	for _ = 1, 9 do
+		local a = rng:NextNumber(0, math.pi * 2)
+		local r = rng:NextNumber(40, 180)
+		local x, z = math.cos(a) * r, math.sin(a) * r
+		if (Vector3.new(x, 0, z) - Vector3.new(-130, 0, -120)).Magnitude > 70 and (Vector3.new(x, 0, z) - Vector3.new(140, 0, -90)).Magnitude > 80 then
+			mound(x, z, rng:NextNumber(14, 24), rng:NextNumber(1.5, 3), P.GrassLight, -2)
+		end
+	end
+end
+
+local function buildSpawn()
+	local spawnPos = Vector3.new(0, 0, 60)
+	local sp = make("SpawnLocation", {
+		Size = Vector3.new(10, 1, 10),
+		CFrame = CFrame.new(spawnPos + Vector3.new(0, 0.3, 0)),
+		Color = P.Stone,
+		Material = Enum.Material.Slate,
+		Neutral = true,
+		Duration = 0,
+		CanCollide = true,
+	})
+	sp.Name = "BunnySpawn"
+	info.spawn = sp.CFrame + Vector3.new(0, 4, 0)
+
+	sign(Vector3.new(12, 0, 40), Vector3.new(-0.5, 0, 0.85).Unit, "CARROT MEADOW", "Find the 7 golden carrots")
+
+	-- carrot ring
+	for i = 0, 7 do
+		local a = i / 8 * math.pi * 2
+		carrot(spawnPos + Vector3.new(math.cos(a) * 22, 3, math.sin(a) * 22))
+	end
+	-- fence corner
+	fence(Vector3.new(-30, 0, 90), Vector3.new(-10, 0, 98))
+	fence(Vector3.new(-10, 0, 98), Vector3.new(12, 0, 98))
+	fence(Vector3.new(12, 0, 98), Vector3.new(30, 0, 90))
+
+	-- paths from spawn
+	path(spawnPos, Vector3.new(-60, 0, -28), 7)
+	path(spawnPos, Vector3.new(-105, 0, -95), 7)
+	path(spawnPos, Vector3.new(100, 0, 120), 7)
+	path(spawnPos, Vector3.new(100, 0, -55), 7)
+	path(spawnPos, Vector3.new(-225, 0, 40), 7)
+end
+
+local function buildCottage()
+	local x, z = -60, -40
+	local wallTop = 12
+	block(CFrame.new(x, wallTop / 2, z), Vector3.new(22, wallTop, 16), P.Plaster)
+	-- timber frame
+	for _, dx in ipairs({ -10.6, 10.6 }) do
+		for _, dz in ipairs({ -7.6, 7.6 }) do
+			block(CFrame.new(x + dx, wallTop / 2, z + dz), Vector3.new(1.2, wallTop, 1.2), P.Wood, Enum.Material.Wood)
+		end
+	end
+	block(CFrame.new(x, wallTop - 0.5, z), Vector3.new(22.4, 1, 16.4), P.Wood, Enum.Material.Wood)
+	-- door and windows on the +Z side (facing the spawn)
+	block(CFrame.new(x, 3.5, z + 8.05), Vector3.new(4, 7, 0.3), P.Wood, Enum.Material.Wood)
+	for _, dx in ipairs({ -6, 6 }) do
+		block(CFrame.new(x + dx, 6.5, z + 8.05), Vector3.new(3.4, 3, 0.3), Color3.fromRGB(70, 82, 86), Enum.Material.Glass)
+	end
+	-- gable roof (two wedges meeting at the ridge)
+	wedge(CFrame.new(x, wallTop + 3.5, z - 4.5), Vector3.new(25, 7, 9), P.Roof, Enum.Material.Slate)
+	wedge(CFrame.new(x, wallTop + 3.5, z + 4.5) * CFrame.Angles(0, math.pi, 0), Vector3.new(25, 7, 9), P.Roof, Enum.Material.Slate)
+	block(CFrame.new(x + 6, wallTop + 7, z - 2), Vector3.new(2.6, 6, 2.6), P.StoneDark, Enum.Material.Brick)
+	-- crates to climb
+	block(CFrame.new(x - 6, 3, z + 13), Vector3.new(6, 6, 6), P.WoodLight, Enum.Material.WoodPlanks)
+	block(CFrame.new(x + 2, 6, z + 13), Vector3.new(6, 12, 6), P.WoodLight, Enum.Material.WoodPlanks)
+	carrot(Vector3.new(x - 6, 9, z + 13))
+	carrot(Vector3.new(x + 2, 15, z + 13))
+	golden("burrow", Vector3.new(x - 4, wallTop + 11, z))
+	for i = 0, 3 do
+		carrot(Vector3.new(x - 15 + i * 10, 3, z + 22))
+	end
+	-- garden
+	for i = 0, 4 do
+		block(CFrame.new(x - 18, 0.4, z - 6 + i * 4), Vector3.new(6, 0.8, 2.4), P.DirtDark)
+		blob(Vector3.new(x - 18, 1.2, z - 6 + i * 4), Vector3.new(1.4, 1, 1.4), P.CarrotLeaf)
+	end
+end
+
+local function buildTower()
+	local cx, cz = -130, -120
+	terrace(cx, cz, { { 50, 7 }, { 38, 14, P.GrassLight }, { 28, 21 } })
+	cyl(cx, 21, cz, 10, 82, P.Stone, Enum.Material.Slate)
+	for y = 35, 95, 15 do
+		cyl(cx, y, cz, 10.7, 1.4, P.StoneDark, Enum.Material.Slate)
+	end
+	cyl(cx, 103, cz, 14, 3, P.StoneDark, Enum.Material.Slate)
+	for i = 0, 11 do
+		local a = i / 12 * math.pi * 2
+		block(CFrame.new(cx + math.cos(a) * 13, 107.5, cz + math.sin(a) * 13) * CFrame.Angles(0, -a, 0), Vector3.new(2.5, 3, 2.5), P.Stone, Enum.Material.Slate)
+	end
+	block(CFrame.new(cx + 4, 112, cz), Vector3.new(0.6, 12, 0.6), P.Wood, Enum.Material.Wood)
+	block(CFrame.new(cx + 6.5, 116, cz), Vector3.new(4.5, 3, 0.2), P.Bow, Enum.Material.Fabric)
+	golden("tower", Vector3.new(cx - 3, 111, cz))
+
+	for i = 0, 12 do
+		local a = i * 0.62 + 0.3
+		local x, z = cx + math.cos(a) * 18, cz + math.sin(a) * 18
+		local top = 27 + i * 6.5
+		local step = cyl(x, top - 2, z, 5, 2, i % 2 == 0 and P.WoodLight or P.Stone, i % 2 == 0 and Enum.Material.WoodPlanks or Enum.Material.Slate)
+		if i == 4 or i == 9 then
+			local baseCF = step.CFrame
+			mover(step, function(t)
+				return baseCF + Vector3.new(0, math.sin(t * 1.4 + i) * 2.5, 0)
+			end)
+		end
+		if i % 2 == 0 then
+			carrot(Vector3.new(x, top + 3.5, z))
+		end
+	end
+end
+
+local function buildOak()
+	local cx, cz = 110, 140
+	local canopyTop = 93
+	cyl(cx, -1, cz, 8, canopyTop - 2, P.Wood, Enum.Material.Wood)
+	-- roots
+	for i = 0, 3 do
+		local a = i / 4 * math.pi * 2 + 0.4
+		block(CFrame.new(cx + math.cos(a) * 9, 1.5, cz + math.sin(a) * 9) * CFrame.Angles(0, -a, 0.5), Vector3.new(8, 3, 3), P.Wood, Enum.Material.Wood)
+	end
+	cyl(cx, canopyTop - 3, cz, 16, 3, P.LeafDark, Enum.Material.Grass)
+	for i = 0, 7 do
+		local a = i / 8 * math.pi * 2
+		blob(Vector3.new(cx + math.cos(a) * 15, canopyTop + 1, cz + math.sin(a) * 15), Vector3.new(12, 7, 12), i % 2 == 0 and P.Leaf or P.LeafDark)
+		blob(Vector3.new(cx + math.cos(a) * 12, canopyTop - 5, cz + math.sin(a) * 12), Vector3.new(14, 8, 14), i % 2 == 0 and P.LeafDark or P.Leaf)
+	end
+	golden("oak", Vector3.new(cx, canopyTop + 5, cz))
+
+	for i = 0, 10 do
+		local a = i * 0.6
+		local top = 7 + i * 7.5
+		local x, z = cx + math.cos(a) * 20, cz + math.sin(a) * 20
+		cyl(x, top - 1.5, z, 5, 1.5, P.Leaf, Enum.Material.Grass)
+		-- branch from trunk to pad
+		local mid = Vector3.new(cx + math.cos(a) * 12, top - 2, cz + math.sin(a) * 12)
+		make("Part", {
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(14, 1.6, 1.6),
+			CFrame = CFrame.new(mid) * CFrame.Angles(0, -a, 0),
+			Color = P.Wood,
+			Material = Enum.Material.Wood,
+		})
+		if i % 2 == 1 then
+			carrot(Vector3.new(x, top + 3.5, z))
+		end
+	end
+end
+
+local function buildSkyGarden()
+	local hx, hz = 140, -90
+	terrace(hx, hz, { { 60, 7 }, { 45, 14, P.GrassLight }, { 32, 21 }, { 20, 28, P.GrassLight } })
+	-- carrots up the terraces
+	for i, r in ipairs({ 54, 41, 27 }) do
+		carrot(Vector3.new(hx - r, 7 * i + 3, hz + 8))
+		carrot(Vector3.new(hx - r + 2, 7 * i + 3, hz - 8))
+	end
+
+	-- Bouncy mushroom
+	cyl(hx, 28, hz, 2.6, 4, P.MushroomStem)
+	local cap = blob(Vector3.new(hx, 32.5, hz), Vector3.new(13, 5, 13), P.Mushroom, nil, world, true)
+	cap:SetAttribute("Bounce", Config.MushroomBounce)
+	cap.Name = "BounceMushroom"
+	for i = 0, 5 do
+		local a = i / 6 * math.pi * 2
+		blob(Vector3.new(hx + math.cos(a) * 3.8, 34.4, hz + math.sin(a) * 3.8), Vector3.new(1.8, 0.6, 1.8), P.MushroomStem)
+	end
+
+	local function skyIsland(x, top, z, r)
+		cyl(x, top - 3, z, r, 3, P.Dirt)
+		cyl(x, top - 1, z, r + 0.4, 1, P.Grass)
+		cyl(x, top - 6, z, r * 0.75, 3, P.DirtDark, nil, decor)
+		cyl(x, top - 9, z, r * 0.45, 3, P.DirtDark, nil, decor)
+		cyl(x, top - 11, z, r * 0.2, 2, P.DirtDark, nil, decor)
+	end
+
+	skyIsland(125, 95, -62, 12)
+	carrot(Vector3.new(125, 98.5, -62))
+
+	local slider = block(CFrame.new(100, 96, -40), Vector3.new(14, 2, 14), P.WoodLight, Enum.Material.WoodPlanks)
+	mover(slider, function(t)
+		return CFrame.new(86 + math.sin(t * 0.7) * 14, 96, -40)
+	end)
+
+	skyIsland(45, 99, -25, 11)
+	carrot(Vector3.new(45, 102.5, -25))
+
+	local disc = cyl(15, 99, 0, 13, 2, P.Plaster)
+	for i = 0, 3 do
+		local stripe = make("Part", {
+			Size = Vector3.new(26.2, 2.1, 2.4),
+			CFrame = CFrame.new(15, 100, 0) * CFrame.Angles(0, i * math.pi / 4, 0),
+			Color = P.Roof,
+			Anchored = false,
+			Massless = true,
+		})
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = disc
+		weld.Part1 = stripe
+		weld.Parent = stripe
+	end
+	local discBase = disc.CFrame
+	mover(disc, function(t)
+		return CFrame.new(discBase.Position) * CFrame.Angles(0, t * 0.6, 0) * (discBase - discBase.Position)
+	end)
+	carrot(Vector3.new(15, 104.5, 0))
+
+	skyIsland(-15, 104, 25, 15)
+	golden("sky", Vector3.new(-15, 109, 25))
+	for i = 0, 5 do
+		local a = i * 1.1
+		flower(-15 + math.cos(a) * 9, 104, 25 + math.sin(a) * 9)
+	end
+end
+
+local function buildIslet()
+	local ix, iz = -330, 40
+	cyl(ix, -30, iz, 37, 27, P.Sand)
+	mound(ix, iz, 32, 2, P.Grass, -30)
+	for i = 0, 3 do
+		local a = i / 4 * math.pi * 2 + math.pi / 4
+		cyl(ix + math.cos(a) * 9, 2, iz + math.sin(a) * 9, 1.4, 11, P.Plaster)
+	end
+	block(CFrame.new(ix, 13.5, iz), Vector3.new(18, 1.5, 18), P.Roof, Enum.Material.Slate)
+	cyl(ix, 2, iz, 3, 3, P.Stone, Enum.Material.Slate)
+	golden("islet", Vector3.new(ix, 8.5, iz))
+	pineTree(ix + 18, 2, iz - 14, 1)
+	pineTree(ix - 16, 2, iz + 17, 0.9)
+	carrot(Vector3.new(ix + 14, 5, iz + 12))
+	carrot(Vector3.new(ix - 14, 5, iz - 10))
+	table.insert(info.bugs, Vector3.new(ix + 16, 2, iz + 2))
+
+	-- Stepping stones (two sink below the waves, one drifts sideways)
+	local xs = { -253, -265, -277, -289 }
+	for i, x in ipairs(xs) do
+		local z = iz + math.sin(i * 1.7) * 5
+		local stone = cyl(x, WATER - 6, z, 4, 9, P.Stone, Enum.Material.Slate)
+		local base = stone.CFrame
+		if i == 2 or i == 4 then
+			mover(stone, function(t)
+				return base + Vector3.new(0, math.sin(t * 1.1 + i) * 4 - 1.5, 0)
+			end)
+		elseif i == 3 then
+			mover(stone, function(t)
+				return base + Vector3.new(0, 0, math.sin(t * 0.9) * 10)
+			end)
+		end
+		carrot(Vector3.new(x, 1, z))
+	end
+end
+
+local function scatter()
+	local avoid = {
+		{ Vector3.new(0, 0, 60), 30 },
+		{ Vector3.new(-60, 0, -40), 26 },
+		{ Vector3.new(-130, 0, -120), 56 },
+		{ Vector3.new(110, 0, 140), 28 },
+		{ Vector3.new(140, 0, -90), 64 },
+		{ Vector3.new(12, 0, 40), 8 },
+	}
+	local function ok(p, extra)
+		if p.Magnitude > 205 then
+			return false
+		end
+		for _, a in ipairs(avoid) do
+			if (p - a[1]).Magnitude < a[2] + extra then
+				return false
+			end
+		end
+		return true
+	end
+	local placed = 0
+	for _ = 1, 600 do
+		if placed >= 70 then
+			break
+		end
+		local a = rng:NextNumber(0, math.pi * 2)
+		local r = rng:NextNumber(35, 205)
+		local p = Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)
+		if ok(p, 6) then
+			local s = rng:NextNumber(0.8, 1.4)
+			if rng:NextNumber() < 0.45 then
+				pineTree(p.X, 0, p.Z, s)
+			else
+				roundTree(p.X, 0, p.Z, s)
+			end
+			table.insert(avoid, { p, 8 })
+			placed += 1
+		end
+	end
+	placed = 0
+	for _ = 1, 300 do
+		if placed >= 30 then
+			break
+		end
+		local a = rng:NextNumber(0, math.pi * 2)
+		local r = rng:NextNumber(30, 205)
+		local p = Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)
+		if ok(p, 2) then
+			rock(p.X, 0, p.Z, rng:NextNumber(0.8, 2.2))
+			table.insert(avoid, { p, 5 })
+			placed += 1
+		end
+	end
+	placed = 0
+	for _ = 1, 600 do
+		if placed >= 24 then
+			break
+		end
+		local a = rng:NextNumber(0, math.pi * 2)
+		local r = rng:NextNumber(35, 190)
+		local p = Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)
+		if ok(p, 3) then
+			carrot(p + Vector3.new(0, 3, 0))
+			table.insert(avoid, { p, 10 })
+			placed += 1
+		end
+	end
+	for _ = 1, 220 do
+		local a = rng:NextNumber(0, math.pi * 2)
+		local r = rng:NextNumber(10, 210)
+		local p = Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)
+		if ok(p, 0) then
+			flower(p.X, 0, p.Z)
+		end
+	end
+end
+
+local function buildBugHomes()
+	local homes = {
+		Vector3.new(40, 0, 25), Vector3.new(-40, 0, 10), Vector3.new(60, 0, -30),
+		Vector3.new(-20, 0, 120), Vector3.new(70, 0, 80), Vector3.new(-100, 0, -30),
+		Vector3.new(-150, 7, -70), Vector3.new(185, 7, -70), Vector3.new(45, 0, 160),
+		Vector3.new(-70, 0, 130), Vector3.new(120, 0, 30), Vector3.new(-180, 0, 60),
+	}
+	for _, h in ipairs(homes) do
+		table.insert(info.bugs, h)
+	end
+end
+
+--------------------------------------------------------------------------------
+
+local function setupLighting()
+	local Lighting = game:GetService("Lighting")
+	for _, child in ipairs(Lighting:GetChildren()) do
+		if child:IsA("Atmosphere") or child:IsA("Sky") or child:IsA("PostEffect") then
+			child:Destroy()
+		end
+	end
+	Lighting.ClockTime = 16.3
+	Lighting.GeographicLatitude = 35
+	Lighting.Brightness = 2.2
+	Lighting.Ambient = Color3.fromRGB(96, 90, 84)
+	Lighting.OutdoorAmbient = Color3.fromRGB(132, 124, 112)
+	Lighting.ColorShift_Top = Color3.fromRGB(255, 232, 196)
+	Lighting.ColorShift_Bottom = Color3.fromRGB(0, 0, 0)
+	Lighting.EnvironmentDiffuseScale = 0.2
+	Lighting.EnvironmentSpecularScale = 0
+	Lighting.GlobalShadows = true
+	Lighting.ShadowSoftness = 0.6
+	-- Classic distance fog
+	Lighting.FogColor = Color3.fromRGB(176, 182, 172)
+	Lighting.FogStart = 140
+	Lighting.FogEnd = 720
+
+	local sky = Instance.new("Sky")
+	sky.CelestialBodiesShown = true
+	sky.SunAngularSize = 14
+	sky.StarCount = 0
+	sky.Parent = Lighting
+
+	local cc = Instance.new("ColorCorrectionEffect")
+	cc.Saturation = -0.18
+	cc.Contrast = 0.06
+	cc.Brightness = -0.02
+	cc.TintColor = Color3.fromRGB(255, 244, 228)
+	cc.Parent = Lighting
+
+	local bloom = Instance.new("BloomEffect")
+	bloom.Intensity = 0.15
+	bloom.Size = 20
+	bloom.Threshold = 1.6
+	bloom.Parent = Lighting
+end
+
+function WorldBuilder.Build()
+	local old = workspace:FindFirstChild("Baseplate")
+	if old then
+		old:Destroy()
+	end
+	workspace.Gravity = Config.Gravity
+
+	local root = Instance.new("Folder")
+	root.Name = "Bunny64World"
+	world = Instance.new("Folder")
+	world.Name = "Solid"
+	world.Parent = root
+	decor = Instance.new("Folder")
+	decor.Name = "Decor"
+	decor.Parent = root
+	collectFolder = Instance.new("Folder")
+	collectFolder.Name = "Collectibles"
+	collectFolder.Parent = root
+
+	setupLighting()
+	buildIsland()
+	buildSpawn()
+	buildCottage()
+	buildTower()
+	buildOak()
+	buildSkyGarden()
+	buildIslet()
+	buildBugHomes()
+	scatter()
+
+	-- Reward goldens appear near the start (only visible once earned)
+	golden("collector", Vector3.new(-14, 4, 72))
+	golden("buster", Vector3.new(14, 4, 72))
+
+	root.Parent = workspace
+
+	-- Movers need to be in the workspace before they can be server-owned
+	for _, m in ipairs(movers) do
+		pcall(function()
+			m.part:SetNetworkOwner(nil)
+		end)
+	end
+	RunService.Heartbeat:Connect(function()
+		local t = os.clock()
+		for _, m in ipairs(movers) do
+			local cf = m.fn(t)
+			m.ap.Position = cf.Position
+			m.ao.CFrame = cf
+		end
+	end)
+
+	info.solidFolder = world
+	info.collectFolder = collectFolder
+	return info
+end
+
+return WorldBuilder
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000012"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="CharacterUseJumpPower">true</bool><float name="CharacterJumpPower">58</float><float name="CharacterWalkSpeed">24</float></Properties><Item class="StarterPlayerScripts" referent="RBX00000011"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX00000010"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
+	Bunny 64 - client entry point.
+]]
+
+local Players = game:GetService("Players")
+local StarterGui = game:GetService("StarterGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+local Remotes = Shared:WaitForChild("Remotes")
+
+local Effects = require(script:WaitForChild("Effects"))
+local Hud = require(script:WaitForChild("Hud"))
+local Movement = require(script:WaitForChild("Movement"))
+local Collectibles = require(script:WaitForChild("Collectibles"))
+
+local player = Players.LocalPlayer
+
+-- Hearts replace the default health bar
+task.spawn(function()
+	for _ = 1, 10 do
+		local ok = pcall(function()
+			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Health, false)
+		end)
+		if ok then
+			break
+		end
+		task.wait(0.5)
+	end
+end)
+
+player.CameraMaxZoomDistance = 60
+player.CameraMinZoomDistance = 10
+workspace.CurrentCamera.FieldOfView = 65
+
+local remotes = {
+	Collect = Remotes:WaitForChild("Collect"),
+	Update = Remotes:WaitForChild("Update"),
+	Pound = Remotes:WaitForChild("Pound"),
+	Bounce = Remotes:WaitForChild("Bounce"),
+	Effect = Remotes:WaitForChild("Effect"),
+	GetProfile = Remotes:WaitForChild("GetProfile"),
+}
+
+Hud.Init()
+Movement.Init(Effects, remotes)
+task.spawn(Collectibles.Init, Effects, remotes)
+
+local goldenNames = {}
+for _, g in ipairs(Config.Goldens) do
+	goldenNames[g.id] = g.name
+end
+
+local function handleEvent(snap, event)
+	if not event then
+		return
+	end
+	if event.kind == "carrot" then
+		if event.heal then
+			Hud.Toast("+1 HEART", 1.5, Color3.fromRGB(214, 120, 116))
+		end
+	elseif event.kind == "unlock" then
+		Effects.Jingle()
+		local what = event.id == "collector" and (Config.CollectorGoal .. " CARROTS!") or (Config.BugBusterGoal .. " BUGS BOPPED!")
+		Hud.Toast(what .. "\nA GOLDEN CARROT APPEARED AT THE START", 4, Config.Palette.Gold)
+	elseif event.kind == "golden" then
+		Effects.Jingle()
+		Effects.Shake(0.5, 0.3)
+		Hud.Toast(string.upper(goldenNames[event.id] or "GOLDEN CARROT") .. string.format("\nGOLDEN CARROT %d/%d", snap.goldenCount, #Config.Goldens), 3.5, Config.Palette.Gold)
+	elseif event.kind == "complete" then
+		Effects.Jingle()
+		task.delay(0.6, Effects.Jingle)
+		Hud.Toast("YOU FOUND THEM ALL!", 3, Config.Palette.Gold)
+		task.delay(2, Hud.ShowEnding, snap)
+	elseif event.kind == "bop" then
+		Hud.Toast("BOP!", 0.8)
+	end
+end
+
+remotes.Update.OnClientEvent:Connect(function(snap)
+	Hud.SetProfile(snap)
+	Collectibles.Sync(snap)
+	handleEvent(snap, snap.event)
+end)
+
+remotes.Effect.OnClientEvent:Connect(function(kind, pos)
+	if kind == "poof" then
+		Effects.Burst(pos, Config.Palette.Cream, 12, 7, 0.8, 5)
+	elseif kind == "pound" then
+		Effects.Ring(pos, Config.Palette.Path, 13)
+	elseif kind == "splash" then
+		Effects.Burst(pos, Color3.fromRGB(150, 182, 186), 16, 6, 0.7, 9)
+		Effects.Play("Splash")
+	end
+end)
+
+-- Hearts follow the humanoid's health
+local function watchHealth(character)
+	local humanoid = character:WaitForChild("Humanoid")
+	local last = humanoid.Health
+	Hud.SetHearts(humanoid.Health, humanoid.MaxHealth)
+	humanoid:GetPropertyChangedSignal("MaxHealth"):Connect(function()
+		Hud.SetHearts(humanoid.Health, humanoid.MaxHealth)
+	end)
+	humanoid.HealthChanged:Connect(function(h)
+		Hud.SetHearts(h, humanoid.MaxHealth)
+		if h <= 0 and last > 0 then
+			Hud.Toast("OUCH! BACK TO THE MEADOW...", 3)
+		end
+		last = h
+	end)
+end
+if player.Character then
+	task.spawn(watchHealth, player.Character)
+end
+player.CharacterAdded:Connect(watchHealth)
+
+-- Load progress, then show the title screen
+local profile = nil
+pcall(function()
+	profile = remotes.GetProfile:InvokeServer()
+end)
+if profile then
+	Hud.SetProfile(profile)
+	Collectibles.Sync(profile)
+end
+
+Hud.ShowTitle(profile, function()
+	Effects.Play("Start", 1.2)
+	Movement.SetEnabled(true)
+	if profile and profile.completedTime == nil and profile.goldenCount == 0 then
+		Hud.Toast("FIND THE 7 GOLDEN CARROTS", 3.5, Config.Palette.Gold)
+	end
+end)
+]]></ProtectedString></Properties><Item class="ModuleScript" referent="RBX0000000C"><Properties><string name="Name">Collectibles</string><ProtectedString name="Source"><![CDATA[--[[
+	Collectibles - spins the carrots, hides the ones this player already has,
+	and asks the server to collect carrots the bunny touches.
+	Each player has their own set of carrots, so pickups are client-side
+	visuals backed by server validation and saving.
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+
+local player = Players.LocalPlayer
+local Collectibles = {}
+
+local items = {} -- [Model] = item
+local folder
+local profile = nil
+local Effects, Remotes
+local combo, lastPickup = 0, 0
+
+local function isLocked(id)
+	if not profile then
+		return true
+	end
+	if id == "collector" then
+		return profile.carrotCount < Config.CollectorGoal
+	elseif id == "buster" then
+		return profile.bugs < Config.BugBusterGoal
+	end
+	return false
+end
+
+local function isCollected(item)
+	if not profile then
+		return false
+	end
+	if item.kind == "golden" then
+		return profile.goldens[item.id] == true
+	end
+	return profile.carrots[item.id] == true
+end
+
+local function shouldShow(item)
+	if isCollected(item) then
+		return false
+	end
+	if item.kind == "golden" and isLocked(item.id) then
+		return false
+	end
+	if os.clock() - item.pendingAt < 2 then
+		return false
+	end
+	return true
+end
+
+local function apply(model, item)
+	local show = shouldShow(item)
+	if show and model.Parent ~= folder then
+		model.Parent = folder
+	elseif not show and model.Parent ~= nil then
+		model.Parent = nil
+	end
+end
+
+local function register(model)
+	if not model:IsA("Model") or items[model] then
+		return
+	end
+	local id = model:GetAttribute("CollectId")
+	if not id then
+		return
+	end
+	local item = {
+		id = id,
+		kind = model:GetAttribute("Kind") or "carrot",
+		pivot = model:GetPivot(),
+		phase = math.random() * 6,
+		pendingAt = -10,
+	}
+	items[model] = item
+	apply(model, item)
+end
+
+function Collectibles.Sync(snap)
+	profile = snap
+	for model, item in pairs(items) do
+		apply(model, item)
+	end
+end
+
+function Collectibles.Init(effects, remotes)
+	Effects, Remotes = effects, remotes
+	folder = workspace:WaitForChild("Bunny64World"):WaitForChild("Collectibles")
+	for _, child in ipairs(folder:GetChildren()) do
+		register(child)
+	end
+	folder.ChildAdded:Connect(register)
+
+	local nextResync = 0
+	RunService.RenderStepped:Connect(function()
+		local t = os.clock()
+		if t > nextResync and profile then
+			-- re-show anything the server didn't accept (e.g. a locked golden carrot)
+			nextResync = t + 1
+			Collectibles.Sync(profile)
+		end
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		local alive = root and hum and hum.Health > 0
+		for model, item in pairs(items) do
+			if model.Parent == folder then
+				local golden = item.kind == "golden"
+				local bob = math.sin(t * 2.5 + item.phase) * (golden and 0.8 or 0.4)
+				model:PivotTo(item.pivot * CFrame.new(0, bob, 0) * CFrame.Angles(0, t * (golden and 1.2 or 2.2) + item.phase, 0))
+				if alive and profile then
+					local reach = golden and 7 or 5.5
+					if (root.Position - item.pivot.Position).Magnitude < reach then
+						item.pendingAt = t
+						model.Parent = nil
+						Remotes.Collect:FireServer(item.id)
+						if golden then
+							Effects.Burst(item.pivot.Position, Config.Palette.Gold, 24, 12, 0.9, 10)
+						else
+							combo = (t - lastPickup < 1.5) and math.min(combo + 1, 10) or 0
+							lastPickup = t
+							Effects.Play("Carrot", 1 + combo * 0.06)
+							Effects.Burst(item.pivot.Position, Config.Palette.Carrot, 7, 5, 0.5, 4)
+						end
+					end
+				end
+			end
+		end
+	end)
+end
+
+return Collectibles
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000D"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
+	Effects - local sounds, chunky block particles and camera shake.
+]]
+
+local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+
+local Effects = {}
+
+local sounds = {}
+for name, def in pairs(Config.Sounds) do
+	local s = Instance.new("Sound")
+	s.Name = "Bunny64_" .. name
+	s.SoundId = def.id
+	s.Volume = def.volume or 0.5
+	s.Parent = SoundService
+	sounds[name] = s
+end
+
+function Effects.Play(name, speed)
+	local base = sounds[name]
+	if not base or base.SoundId == "" then
+		return
+	end
+	local s = base:Clone()
+	s.PlaybackSpeed = speed or 1
+	s.Parent = SoundService
+	s:Play()
+	Debris:AddItem(s, 4)
+end
+
+-- A short rising jingle for golden carrots
+function Effects.Jingle()
+	for i, speed in ipairs({ 0.8, 1.0, 1.2, 1.6 }) do
+		task.delay((i - 1) * 0.12, function()
+			Effects.Play("Golden", speed)
+		end)
+	end
+end
+
+local fxFolder = Instance.new("Folder")
+fxFolder.Name = "Bunny64LocalFX"
+fxFolder.Parent = workspace
+
+local function cube(pos, color, size)
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.Material = Enum.Material.SmoothPlastic
+	p.Color = color
+	p.Size = Vector3.one * size
+	p.CFrame = CFrame.new(pos) * CFrame.Angles(math.random() * 6, math.random() * 6, math.random() * 6)
+	p.Parent = fxFolder
+	return p
+end
+
+-- Burst of little tumbling cubes
+function Effects.Burst(pos, color, count, speed, size, rise)
+	count = count or 8
+	speed = speed or 6
+	size = size or 0.6
+	rise = rise or 4
+	for _ = 1, count do
+		local p = cube(pos, color, size * (0.6 + math.random() * 0.8))
+		local a = math.random() * math.pi * 2
+		local dist = speed * (0.4 + math.random() * 0.6)
+		local target = pos + Vector3.new(math.cos(a) * dist, rise * (0.3 + math.random()), math.sin(a) * dist)
+		local t = 0.45 + math.random() * 0.3
+		TweenService:Create(p, TweenInfo.new(t, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			CFrame = CFrame.new(target) * CFrame.Angles(math.random() * 6, math.random() * 6, 0),
+			Size = Vector3.one * 0.05,
+			Transparency = 0.6,
+		}):Play()
+		Debris:AddItem(p, t + 0.05)
+	end
+end
+
+-- Flat ring of dust (ground pound / landing)
+function Effects.Ring(pos, color, radius)
+	radius = radius or 12
+	for i = 1, 16 do
+		local a = i / 16 * math.pi * 2
+		local p = cube(pos + Vector3.new(0, 0.5, 0), color, 1.2)
+		local target = pos + Vector3.new(math.cos(a) * radius, 1.2, math.sin(a) * radius)
+		TweenService:Create(p, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			CFrame = CFrame.new(target),
+			Size = Vector3.one * 0.1,
+			Transparency = 0.7,
+		}):Play()
+		Debris:AddItem(p, 0.45)
+	end
+end
+
+-- Camera shake ------------------------------------------------------------------
+local shakeAmount, shakeUntil, shakeLen = 0, 0, 0.001
+function Effects.Shake(amount, duration)
+	shakeAmount = math.max(amount, shakeAmount * math.max(0, (shakeUntil - os.clock()) / shakeLen))
+	shakeLen = duration
+	shakeUntil = os.clock() + duration
+end
+
+RunService:BindToRenderStep("Bunny64Shake", Enum.RenderPriority.Camera.Value + 1, function()
+	local left = shakeUntil - os.clock()
+	if left <= 0 then
+		return
+	end
+	local k = shakeAmount * (left / shakeLen)
+	local cam = workspace.CurrentCamera
+	cam.CFrame = cam.CFrame * CFrame.new((math.random() - 0.5) * k, (math.random() - 0.5) * k, 0)
+end)
+
+-- Optional music ---------------------------------------------------------------------
+if Config.MusicId ~= "" then
+	local music = Instance.new("Sound")
+	music.Name = "Bunny64Music"
+	music.SoundId = Config.MusicId
+	music.Volume = Config.MusicVolume
+	music.Looped = true
+	music.Parent = SoundService
+	music:Play()
+	Effects.Music = music
+end
+
+return Effects
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000E"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
+	Hud - chunky late-90s interface: title screen, hearts, counters, toasts,
+	the Carrot Log (golden carrot checklist) and the ending card.
+]]
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local ContextActionService = game:GetService("ContextActionService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+local P = Config.Palette
+
+local player = Players.LocalPlayer
+local Hud = {}
+
+local gui, heartsFrame, carrotLabel, goldenLabel, toastLabel, saveLabel
+local titleFrame, journalFrame, journalList, endFrame
+local hearts = {}
+local profile = nil
+local toastToken = 0
+
+local FONT = Enum.Font.Arcade
+
+local function label(parent, props)
+	local t = Instance.new("TextLabel")
+	t.BackgroundTransparency = 1
+	t.Font = FONT
+	t.TextColor3 = P.UiText
+	t.TextStrokeTransparency = 1
+	t.TextScaled = false
+	for k, v in pairs(props) do
+		if k ~= "StrokeThickness" then
+			t[k] = v
+		end
+	end
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = P.Ink
+	stroke.Thickness = props.StrokeThickness or 2
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	stroke.Parent = t
+	t.Parent = parent
+	return t
+end
+
+local function panel(parent, size, pos)
+	local f = Instance.new("Frame")
+	f.Size = size
+	f.Position = pos
+	f.AnchorPoint = Vector2.new(0.5, 0.5)
+	f.BackgroundColor3 = Color3.fromRGB(46, 36, 30)
+	f.BackgroundTransparency = 0.08
+	f.BorderSizePixel = 0
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 6)
+	corner.Parent = f
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(150, 120, 84)
+	stroke.Thickness = 4
+	stroke.Parent = f
+	f.Parent = parent
+	return f
+end
+
+local function formatTime(seconds)
+	seconds = math.floor(seconds or 0)
+	local h = math.floor(seconds / 3600)
+	local m = math.floor((seconds % 3600) / 60)
+	local s = seconds % 60
+	if h > 0 then
+		return string.format("%d:%02d:%02d", h, m, s)
+	end
+	return string.format("%d:%02d", m, s)
+end
+Hud.FormatTime = formatTime
+
+local function countKeys(t)
+	local n = 0
+	for _ in pairs(t or {}) do
+		n += 1
+	end
+	return n
+end
+
+-- Little carrot icon drawn with frames
+local function carrotIcon(parent, color, pos)
+	local holder = Instance.new("Frame")
+	holder.BackgroundTransparency = 1
+	holder.Size = UDim2.fromOffset(22, 30)
+	holder.Position = pos
+	holder.Parent = parent
+	local body = Instance.new("Frame")
+	body.BorderSizePixel = 0
+	body.BackgroundColor3 = color
+	body.Size = UDim2.fromOffset(10, 18)
+	body.Position = UDim2.fromOffset(6, 10)
+	body.Parent = holder
+	local tip = Instance.new("Frame")
+	tip.BorderSizePixel = 0
+	tip.BackgroundColor3 = color
+	tip.Size = UDim2.fromOffset(4, 4)
+	tip.Position = UDim2.fromOffset(9, 27)
+	tip.Parent = holder
+	for i, x in ipairs({ 4, 9, 14 }) do
+		local leaf = Instance.new("Frame")
+		leaf.BorderSizePixel = 0
+		leaf.BackgroundColor3 = P.CarrotLeaf
+		leaf.Size = UDim2.fromOffset(4, i == 2 and 10 or 7)
+		leaf.Position = UDim2.fromOffset(x, i == 2 and 0 or 3)
+		leaf.Parent = holder
+	end
+	for _, f in ipairs(holder:GetChildren()) do
+		local s = Instance.new("UIStroke")
+		s.Color = P.Ink
+		s.Thickness = 2
+		s.Parent = f
+	end
+	return holder
+end
+
+--------------------------------------------------------------------------------
+
+function Hud.Init()
+	gui = Instance.new("ScreenGui")
+	gui.Name = "Bunny64Hud"
+	gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	gui.Parent = player:WaitForChild("PlayerGui")
+
+	-- Hearts
+	heartsFrame = Instance.new("Frame")
+	heartsFrame.BackgroundTransparency = 1
+	heartsFrame.Position = UDim2.fromOffset(20, 56)
+	heartsFrame.Size = UDim2.fromOffset(200, 44)
+	heartsFrame.Parent = gui
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Horizontal
+	layout.Padding = UDim.new(0, 4)
+	layout.Parent = heartsFrame
+	for i = 1, Config.MaxHearts do
+		hearts[i] = label(heartsFrame, {
+			Text = "♥",
+			Font = Enum.Font.SourceSansBold,
+			TextSize = 46,
+			Size = UDim2.fromOffset(40, 44),
+			TextColor3 = Color3.fromRGB(176, 64, 60),
+			StrokeThickness = 3,
+		})
+	end
+
+	-- Counters (top right)
+	local counters = Instance.new("Frame")
+	counters.BackgroundTransparency = 1
+	counters.AnchorPoint = Vector2.new(1, 0)
+	counters.Position = UDim2.new(1, -20, 0, 56)
+	counters.Size = UDim2.fromOffset(240, 80)
+	counters.Parent = gui
+	carrotIcon(counters, P.Carrot, UDim2.fromOffset(40, 2))
+	carrotLabel = label(counters, {
+		Text = "000",
+		TextSize = 30,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		Size = UDim2.fromOffset(170, 34),
+		Position = UDim2.fromOffset(70, 0),
+		StrokeThickness = 3,
+	})
+	carrotIcon(counters, P.Gold, UDim2.fromOffset(40, 42))
+	goldenLabel = label(counters, {
+		Text = "0/7",
+		TextSize = 30,
+		TextColor3 = P.Gold,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		Size = UDim2.fromOffset(170, 34),
+		Position = UDim2.fromOffset(70, 40),
+		StrokeThickness = 3,
+	})
+
+	saveLabel = label(gui, {
+		Text = "",
+		TextSize = 14,
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 20, 1, -16),
+		Size = UDim2.fromOffset(400, 20),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTransparency = 0.3,
+	})
+
+	-- Log button
+	local logButton = Instance.new("TextButton")
+	logButton.Text = "LOG [J]"
+	logButton.Font = FONT
+	logButton.TextSize = 18
+	logButton.TextColor3 = P.UiText
+	logButton.BackgroundColor3 = Color3.fromRGB(46, 36, 30)
+	logButton.AnchorPoint = Vector2.new(1, 0)
+	logButton.Position = UDim2.new(1, -20, 0, 140)
+	logButton.Size = UDim2.fromOffset(110, 32)
+	logButton.Parent = gui
+	local lbStroke = Instance.new("UIStroke")
+	lbStroke.Color = Color3.fromRGB(150, 120, 84)
+	lbStroke.Thickness = 3
+	lbStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	lbStroke.Parent = logButton
+	logButton.Activated:Connect(function()
+		Hud.ToggleJournal()
+	end)
+
+	-- Toast
+	toastLabel = label(gui, {
+		Text = "",
+		TextSize = 34,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 0.24, 0),
+		Size = UDim2.new(0.9, 0, 0, 90),
+		TextWrapped = true,
+		TextTransparency = 1,
+		StrokeThickness = 3,
+	})
+
+	-- Carrot Log
+	journalFrame = panel(gui, UDim2.fromOffset(520, 430), UDim2.fromScale(0.5, 0.5))
+	journalFrame.Visible = false
+	label(journalFrame, { Text = "CARROT LOG", TextSize = 36, TextColor3 = P.Gold, Size = UDim2.new(1, 0, 0, 50), Position = UDim2.fromOffset(0, 10), StrokeThickness = 3 })
+	journalList = Instance.new("Frame")
+	journalList.BackgroundTransparency = 1
+	journalList.Position = UDim2.fromOffset(24, 66)
+	journalList.Size = UDim2.new(1, -48, 1, -80)
+	journalList.Parent = journalFrame
+	local jl = Instance.new("UIListLayout")
+	jl.Padding = UDim.new(0, 6)
+	jl.Parent = journalList
+	local sizeLimit = Instance.new("UISizeConstraint")
+	sizeLimit.MaxSize = Vector2.new(520, 430)
+	sizeLimit.Parent = journalFrame
+	journalFrame.Size = UDim2.new(0.92, 0, 0, 430)
+
+	ContextActionService:BindAction("Bunny64Log", function(_, inputState)
+		if inputState == Enum.UserInputState.Begin then
+			Hud.ToggleJournal()
+		end
+		return Enum.ContextActionResult.Sink
+	end, false, Enum.KeyCode.J, Enum.KeyCode.ButtonY)
+end
+
+function Hud.SetHearts(health, max)
+	for i, h in ipairs(hearts) do
+		local full = i <= math.ceil(health - 0.01)
+		h.TextColor3 = full and Color3.fromRGB(176, 64, 60) or Color3.fromRGB(70, 56, 50)
+		h.Visible = i <= max
+	end
+end
+
+function Hud.Toast(text, seconds, color)
+	toastToken += 1
+	local token = toastToken
+	toastLabel.Text = text
+	toastLabel.TextColor3 = color or P.UiText
+	toastLabel.TextTransparency = 0
+	toastLabel.Position = UDim2.new(0.5, 0, 0.22, 0)
+	TweenService:Create(toastLabel, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Position = UDim2.new(0.5, 0, 0.24, 0) }):Play()
+	task.delay(seconds or 2.5, function()
+		if token == toastToken then
+			TweenService:Create(toastLabel, TweenInfo.new(0.4), { TextTransparency = 1 }):Play()
+		end
+	end)
+end
+
+local function refreshJournal()
+	for _, c in ipairs(journalList:GetChildren()) do
+		if c:IsA("TextLabel") then
+			c:Destroy()
+		end
+	end
+	for _, g in ipairs(Config.Goldens) do
+		local got = profile and profile.goldens[g.id]
+		label(journalList, {
+			Text = got and ("* " .. string.upper(g.name)) or ("- ??? : " .. g.hint),
+			TextSize = got and 22 or 16,
+			TextColor3 = got and P.Gold or P.UiText,
+			TextWrapped = true,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Size = UDim2.new(1, 0, 0, 38),
+		})
+	end
+	if profile then
+		label(journalList, {
+			Text = string.format("CARROTS %d/%d   BUGS BOPPED %d   TIME %s", profile.carrotCount, profile.totalCarrots or 0, profile.bugs, formatTime(profile.playTime)),
+			TextSize = 16,
+			TextTransparency = 0.2,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Size = UDim2.new(1, 0, 0, 30),
+		})
+	end
+end
+
+function Hud.ToggleJournal()
+	journalFrame.Visible = not journalFrame.Visible
+	if journalFrame.Visible then
+		refreshJournal()
+	end
+end
+
+function Hud.SetProfile(snap)
+	profile = snap
+	if not snap then
+		return
+	end
+	carrotLabel.Text = string.format("%03d/%03d", snap.carrotCount, snap.totalCarrots or 0)
+	goldenLabel.Text = string.format("%d/%d", snap.goldenCount, #Config.Goldens)
+	saveLabel.Text = snap.canSave and "PROGRESS SAVES AUTOMATICALLY" or "SAVING OFF (STUDIO / DATASTORE UNAVAILABLE)"
+	if journalFrame.Visible then
+		refreshJournal()
+	end
+end
+
+-- Title screen ------------------------------------------------------------------------
+function Hud.ShowTitle(snap, onStart)
+	titleFrame = Instance.new("Frame")
+	titleFrame.Size = UDim2.fromScale(1, 1)
+	titleFrame.BackgroundColor3 = Color3.fromRGB(22, 18, 16)
+	titleFrame.BackgroundTransparency = 0.35
+	titleFrame.BorderSizePixel = 0
+	titleFrame.ZIndex = 10
+	titleFrame.Parent = gui
+
+	-- letterbox bars
+	for _, y in ipairs({ 0, 1 }) do
+		local bar = Instance.new("Frame")
+		bar.BorderSizePixel = 0
+		bar.BackgroundColor3 = Color3.fromRGB(10, 8, 8)
+		bar.AnchorPoint = Vector2.new(0, y)
+		bar.Position = UDim2.fromScale(0, y)
+		bar.Size = UDim2.new(1, 0, 0.12, 0)
+		bar.ZIndex = 11
+		bar.Parent = titleFrame
+	end
+
+	local logo = label(titleFrame, {
+		Text = "BUNNY 64",
+		TextSize = 96,
+		TextColor3 = P.Carrot,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.33),
+		Size = UDim2.new(1, 0, 0, 110),
+		StrokeThickness = 6,
+		ZIndex = 12,
+	})
+	local sizer = Instance.new("UITextSizeConstraint")
+	sizer.MaxTextSize = 96
+	sizer.Parent = logo
+	logo.TextScaled = true
+
+	label(titleFrame, {
+		Text = "A PLUSH TEDDY ADVENTURE",
+		TextSize = 22,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.45),
+		Size = UDim2.new(1, 0, 0, 30),
+		ZIndex = 12,
+	})
+
+	local progress = "NEW GAME"
+	if snap and (snap.carrotCount > 0 or snap.goldenCount > 0) then
+		progress = string.format("CONTINUE   CARROTS %d   GOLDEN %d/%d", snap.carrotCount, snap.goldenCount, #Config.Goldens)
+	end
+	label(titleFrame, {
+		Text = progress,
+		TextSize = 20,
+		TextColor3 = P.Gold,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.52),
+		Size = UDim2.new(1, 0, 0, 26),
+		ZIndex = 12,
+	})
+
+	local press = label(titleFrame, {
+		Text = "PRESS START",
+		TextSize = 34,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.64),
+		Size = UDim2.new(1, 0, 0, 40),
+		StrokeThickness = 3,
+		ZIndex = 12,
+	})
+
+	local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+	label(titleFrame, {
+		Text = touch and "STICK MOVE   JUMP TWICE TO DOUBLE JUMP   POUND IN THE AIR TO GROUND POUND"
+			or "WASD MOVE   SPACE JUMP (AGAIN IN AIR = DOUBLE JUMP)   E / CTRL GROUND POUND   J CARROT LOG",
+		TextSize = 14,
+		TextWrapped = true,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.78),
+		Size = UDim2.new(0.9, 0, 0, 40),
+		TextTransparency = 0.15,
+		ZIndex = 12,
+	})
+
+	local started = false
+	task.spawn(function()
+		while not started do
+			press.Visible = not press.Visible
+			task.wait(0.5)
+		end
+	end)
+
+	local conn
+	local function start()
+		if started then
+			return
+		end
+		started = true
+		conn:Disconnect()
+		press.Visible = true
+		TweenService:Create(titleFrame, TweenInfo.new(0.5), { BackgroundTransparency = 1 }):Play()
+		for _, d in ipairs(titleFrame:GetDescendants()) do
+			if d:IsA("TextLabel") then
+				TweenService:Create(d, TweenInfo.new(0.4), { TextTransparency = 1 }):Play()
+			elseif d:IsA("Frame") then
+				TweenService:Create(d, TweenInfo.new(0.5), { BackgroundTransparency = 1 }):Play()
+			elseif d:IsA("UIStroke") then
+				TweenService:Create(d, TweenInfo.new(0.4), { Transparency = 1 }):Play()
+			end
+		end
+		task.delay(0.6, function()
+			titleFrame:Destroy()
+		end)
+		onStart()
+	end
+	conn = UserInputService.InputBegan:Connect(function(input)
+		local t = input.UserInputType
+		if t == Enum.UserInputType.Keyboard or t == Enum.UserInputType.MouseButton1 or t == Enum.UserInputType.Touch
+			or t == Enum.UserInputType.Gamepad1 then
+			start()
+		end
+	end)
+end
+
+-- Ending card ------------------------------------------------------------------------------
+function Hud.ShowEnding(snap)
+	if endFrame then
+		endFrame:Destroy()
+	end
+	endFrame = panel(gui, UDim2.new(0.92, 0, 0, 300), UDim2.fromScale(0.5, 0.5))
+	local limit = Instance.new("UISizeConstraint")
+	limit.MaxSize = Vector2.new(560, 300)
+	limit.Parent = endFrame
+	label(endFrame, { Text = "THE END?", TextSize = 48, TextColor3 = P.Gold, Size = UDim2.new(1, 0, 0, 60), Position = UDim2.fromOffset(0, 20), StrokeThickness = 4 })
+	label(endFrame, {
+		Text = "EVERY GOLDEN CARROT IS BACK IN THE BURROW.\nTHANKS FOR PLAYING!",
+		TextSize = 18,
+		TextWrapped = true,
+		Size = UDim2.new(1, -40, 0, 60),
+		Position = UDim2.fromOffset(20, 90),
+	})
+	label(endFrame, {
+		Text = string.format("CLEAR TIME %s   CARROTS %d/%d", formatTime(snap.completedTime), snap.carrotCount, snap.totalCarrots or 0),
+		TextSize = 20,
+		TextColor3 = P.Gold,
+		Size = UDim2.new(1, 0, 0, 30),
+		Position = UDim2.fromOffset(0, 170),
+	})
+	local close = Instance.new("TextButton")
+	close.Text = "KEEP EXPLORING"
+	close.Font = FONT
+	close.TextSize = 22
+	close.TextColor3 = P.UiText
+	close.BackgroundColor3 = P.Bow
+	close.AnchorPoint = Vector2.new(0.5, 0)
+	close.Position = UDim2.new(0.5, 0, 0, 225)
+	close.Size = UDim2.fromOffset(240, 44)
+	close.Parent = endFrame
+	close.Activated:Connect(function()
+		endFrame:Destroy()
+		endFrame = nil
+	end)
+end
+
+return Hud
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000F"><Properties><string name="Name">Movement</string><ProtectedString name="Source"><![CDATA[--[[
+	Movement - the bunny's extra moves on top of Roblox's humanoid:
+	  * Double jump (press jump again in the air)
+	  * Ground pound (E / Ctrl / B button / on-screen button while airborne)
+	  * Springy mushrooms
+	  * Knockback, stomp bounces and water resets sent by the server
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ContextActionService = game:GetService("ContextActionService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+
+local player = Players.LocalPlayer
+local HST = Enum.HumanoidStateType
+
+local Movement = {}
+
+local Effects
+local Remotes
+local enabled = false
+local controls = nil
+
+local character, humanoid, root
+local usedDouble = false
+local lastGrounded = 0
+local lastJumpRequest = 0
+local pounding = false
+local poundStart = 0
+local lastBounce = 0
+
+local function inAir()
+	if not humanoid then
+		return false
+	end
+	local s = humanoid:GetState()
+	return s == HST.Freefall or s == HST.Jumping
+end
+
+local function launch(velocity, kind)
+	if not root then
+		return
+	end
+	pounding = false
+	usedDouble = false
+	root.AssemblyLinearVelocity = velocity
+	if humanoid and velocity.Y > 0 then
+		humanoid:ChangeState(HST.Freefall)
+	end
+	if kind == "stomp" then
+		Effects.Play("Stomp", 1.3)
+	elseif kind == "hurt" then
+		Effects.Play("Hurt", 0.8)
+		Effects.Shake(0.8, 0.3)
+	end
+end
+
+local function tryDoubleJump()
+	if not enabled or not root or pounding or usedDouble then
+		return
+	end
+	if not inAir() or os.clock() - lastGrounded < 0.15 then
+		return
+	end
+	usedDouble = true
+	local v = root.AssemblyLinearVelocity
+	root.AssemblyLinearVelocity = Vector3.new(v.X, Config.DoubleJumpPower, v.Z)
+	Effects.Play("DoubleJump", 1.1)
+	Effects.Burst(root.Position - Vector3.new(0, 2.5, 0), Config.Palette.Cream, 6, 4, 0.5, -1)
+end
+
+local function startPound()
+	if not enabled or not root or pounding or not inAir() or os.clock() - lastGrounded < 0.1 then
+		return
+	end
+	pounding = true
+	poundStart = os.clock()
+	Remotes.Pound:FireServer("start")
+	Effects.Play("Pound", 1.4)
+end
+
+local function landPound()
+	pounding = false
+	local pos = root.Position - Vector3.new(0, 3, 0)
+	Remotes.Pound:FireServer("land", pos)
+	Effects.Shake(1.2, 0.3)
+	Effects.Play("Land", 0.8)
+end
+
+local function onBounceTouch(part, hit)
+	if not character or not hit:IsDescendantOf(character) then
+		return
+	end
+	local now = os.clock()
+	if now - lastBounce < 0.4 then
+		return
+	end
+	lastBounce = now
+	local power = part:GetAttribute("Bounce") or Config.MushroomBounce
+	if pounding then
+		power *= 1.15
+	end
+	local v = root.AssemblyLinearVelocity
+	launch(Vector3.new(v.X, power, v.Z), "bounce")
+	Effects.Play("Boing", 0.7)
+	Effects.Burst(part.Position + Vector3.new(0, part.Size.Y / 2, 0), part.Color, 10, 8, 0.7, 3)
+end
+
+local function watchBouncers()
+	local worldFolder = workspace:WaitForChild("Bunny64World")
+	local function hook(d)
+		if d:IsA("BasePart") and d:GetAttribute("Bounce") then
+			d.Touched:Connect(function(hit)
+				onBounceTouch(d, hit)
+			end)
+		end
+	end
+	for _, d in ipairs(worldFolder:GetDescendants()) do
+		hook(d)
+	end
+	worldFolder.DescendantAdded:Connect(hook)
+end
+
+local function onCharacter(char)
+	character = char
+	humanoid = char:WaitForChild("Humanoid")
+	root = char:WaitForChild("HumanoidRootPart")
+	usedDouble = false
+	pounding = false
+	humanoid.StateChanged:Connect(function(_, new)
+		if new == HST.Landed or new == HST.Running then
+			usedDouble = false
+			lastGrounded = os.clock()
+		elseif new == HST.Jumping then
+			lastGrounded = os.clock()
+			Effects.Play("Jump", 1 + math.random() * 0.1)
+		end
+	end)
+end
+
+function Movement.SetEnabled(on)
+	enabled = on
+	if controls then
+		if on then
+			controls:Enable()
+		else
+			controls:Disable()
+		end
+	end
+end
+
+function Movement.Init(effects, remotes)
+	Effects = effects
+	Remotes = remotes
+
+	task.spawn(function()
+		local ok, module = pcall(function()
+			return require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
+		end)
+		if ok and module then
+			controls = module:GetControls()
+			if not enabled then
+				controls:Disable()
+			end
+		end
+	end)
+
+	if player.Character then
+		task.spawn(onCharacter, player.Character)
+	end
+	player.CharacterAdded:Connect(onCharacter)
+
+	UserInputService.JumpRequest:Connect(function()
+		local now = os.clock()
+		local fresh = now - lastJumpRequest > 0.2
+		lastJumpRequest = now
+		if fresh then
+			tryDoubleJump()
+		end
+	end)
+
+	ContextActionService:BindAction("Bunny64Pound", function(_, inputState)
+		if inputState == Enum.UserInputState.Begin then
+			startPound()
+		end
+		return Enum.ContextActionResult.Sink
+	end, true, Enum.KeyCode.E, Enum.KeyCode.LeftControl, Enum.KeyCode.ButtonB)
+	ContextActionService:SetTitle("Bunny64Pound", "POUND")
+	ContextActionService:SetPosition("Bunny64Pound", UDim2.new(1, -170, 1, -90))
+
+	remotes.Bounce.OnClientEvent:Connect(function(vel, keepHorizontal, kind)
+		if not root then
+			return
+		end
+		if kind == "reset" then
+			pounding = false
+			root.AssemblyLinearVelocity = Vector3.zero
+			return
+		end
+		local v = root.AssemblyLinearVelocity
+		if keepHorizontal then
+			vel = Vector3.new(v.X, vel.Y, v.Z)
+		end
+		launch(vel, kind)
+	end)
+
+	RunService.Heartbeat:Connect(function()
+		if not root or not humanoid then
+			return
+		end
+		local now = os.clock()
+		if humanoid.FloorMaterial ~= Enum.Material.Air then
+			lastGrounded = now
+		end
+		if pounding then
+			local t = now - poundStart
+			if t < Config.PoundHang then
+				root.AssemblyLinearVelocity = Vector3.zero
+			else
+				root.AssemblyLinearVelocity = Vector3.new(0, -Config.PoundSpeed, 0)
+				if humanoid.FloorMaterial ~= Enum.Material.Air then
+					landPound()
+				elseif t > 4 then
+					pounding = false
+				end
+			end
+		end
+	end)
+
+	task.spawn(watchBouncers)
+end
+
+function Movement.IsPounding()
+	return pounding
+end
+
+return Movement
+]]></ProtectedString></Properties></Item></Item></Item></Item></roblox>

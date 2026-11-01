@@ -1,0 +1,34 @@
+{
+  "name": "Bunny64",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Bunny64": { "$path": "src/shared" }
+    },
+    "ServerScriptService": {
+      "Bunny64Server": { "$path": "src/server" }
+    },
+    "StarterPlayer": {
+      "$properties": {
+        "LoadCharacterAppearance": false,
+        "CharacterUseJumpPower": true,
+        "CharacterJumpPower": 58,
+        "CharacterWalkSpeed": 24
+      },
+      "StarterPlayerScripts": {
+        "Bunny64Client": { "$path": "src/client" }
+      }
+    },
+    "Workspace": {
+      "$properties": {
+        "StreamingEnabled": false,
+        "Gravity": 170
+      }
+    },
+    "Lighting": {
+      "$properties": {
+        "Technology": "Voxel"
+      }
+    }
+  }
+}
