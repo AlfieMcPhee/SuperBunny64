@@ -44,6 +44,7 @@ Config.RolloutPower = 46       -- jump during a dive to roll out of it
 Config.BackflipPower = 82      -- hold crouch while standing still, then jump (~20 studs)
 Config.BackflipBack = 13
 Config.PoundJumpPower = 76     -- jump the moment a ground pound lands
+Config.ZipSpeed = 74           -- top speed on a zipline
 -- Stamina: rolls, dives and long jumps use a pip; pips refill while you're on the ground.
 -- You earn extra pips as you find golden carrots.
 Config.Stamina = {
@@ -126,6 +127,9 @@ Config.Goldens = {
 	{ id = "oak", region = "meadow", name = "Old Oak Crown", hint = "Climb the great oak's leafy branches." },
 	{ id = "sky", region = "meadow", name = "Cloud Garden", hint = "A springy mushroom tops the big hill..." },
 	{ id = "islet", region = "meadow", name = "Lonely Islet", hint = "Hop the stepping stones out west. Mind the sinking ones." },
+	{ id = "falls", region = "meadow", name = "Willow Falls", hint = "Climb the cliff by the waterfall, south-west of the spawn. Or find a quicker way up." },
+	{ id = "grotto", region = "meadow", name = "Secret Grotto", hint = "Waterfalls are good at hiding things." },
+	{ id = "windmill", region = "meadow", name = "Windmill Lookout", hint = "Ride the mill wheel to the top of the windmill, out west." },
 	{ id = "collector", region = "meadow", name = "Carrot Collector", hint = "Gather 100 carrots. It appears at the meadow spawn.", req = "carrots" },
 	{ id = "buster", region = "meadow", name = "Bug Buster", hint = "Bop 20 baddies of any kind. It appears at the meadow spawn.", req = "bugs" },
 	-- Frostbite Peaks
@@ -133,16 +137,19 @@ Config.Goldens = {
 	{ id = "chute", region = "peaks", name = "Slippery Slope", hint = "Slide down the ice chute from high on the mountain." },
 	{ id = "snowman", region = "peaks", name = "Snowman's Hat", hint = "Ice pillars spiral up to a very big hat." },
 	{ id = "floes", region = "peaks", name = "Frozen Pond", hint = "Ride the drifting ice floes. The water is freezing!" },
+	{ id = "lift", region = "peaks", name = "Chairlift Pylon", hint = "Hop off the chairlift half way up, onto the pylon." },
 	-- Dustbowl Canyon
 	{ id = "leap", region = "canyon", name = "Canyon Leap", hint = "Roll, then jump, to long jump across the pillars." },
 	{ id = "mesa", region = "canyon", name = "Eagle's Mesa", hint = "Climb the ledges of the tallest mesa." },
 	{ id = "boulder", region = "canyon", name = "Boulder Run", hint = "Dodge the boulders up the long ramp to the temple." },
+	{ id = "geyser", region = "canyon", name = "Geyser Gulch", hint = "Ride the steam vents up three pillars, east of the rock arch." },
 	-- Infernal Castle
 	{ id = "firebar", region = "castle", name = "Firebar Gauntlet", hint = "Cross the lava pool in the courtyard. Time your jumps." },
 	{ id = "thwomp", region = "castle", name = "Crusher Hall", hint = "Run the corridor of crushing stones in the courtyard." },
 	{ id = "dungeon", region = "castle", name = "Lava Dungeon", hint = "The dungeon is outside the east wall. Bring patience." },
 	{ id = "rampart", region = "castle", name = "Rampart Watch", hint = "Walk the castle walls to the north-east tower." },
 	{ id = "keep", region = "castle", name = "Keep Climb", hint = "Climb the ledges inside the keep. Don't touch the lava." },
+	{ id = "magma", region = "castle", name = "Magma Wheel", hint = "Ride the wheel over the lava lake outside the west wall." },
 	{ id = "boss", region = "castle", name = "King Grumble's Crown", hint = "Defeat King Grumble in the throne room above the castle.", req = "boss" },
 	-- Whisperwood
 	{ id = "eldertree", region = "forest", name = "Elder Tree Crown", hint = "Climb the shelf fungus spiralling up the Elder Tree." },
@@ -326,6 +333,8 @@ Config.Emotes = {
 -- {jump} {roll} {crouch} {menu} become the player's own key names.
 Config.Tips = {
 	{ id = "stamina", pos = Vector3.new(-30, 4, 10), radius = 22, text = "The green pips under your hearts are stamina. Rolls, dives and long jumps use one; they refill while you're on the ground." },
+	{ id = "zipline", pos = Vector3.new(-121, 108, -112), radius = 16, text = "Jump up and grab the zipline! Press {jump} to let go, or {crouch} to drop." },
+	{ id = "spring", pos = Vector3.new(-120, 4, 160), radius = 14, text = "Spring pads throw you where the arrow points. Step on and enjoy the ride!" },
 	{ id = "dive", pos = Vector3.new(-250, 4, 40), radius = 22, text = "In mid-air, press {roll} to dive forward. Press {jump} during a dive to roll out of it!" },
 	{ id = "backflip", pos = Vector3.new(140, 10, -90), radius = 40, text = "Hold {crouch} while standing still, then press {jump} for a backflip - your highest jump. Jump just as a ground pound lands for a pound jump!" },
 	{ id = "move", pos = Vector3.new(0, 4, 60), radius = 26, text = "Press {jump} to jump, and again in mid-air to double jump. Tap it for a little hop, hold it to jump higher." },

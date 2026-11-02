@@ -351,7 +351,8 @@ function Castle.Build(B)
 		local p = V(math.cos(a) * r, 0, 800 + math.sin(a) * r)
 		local inDungeon = p.X > 120 and p.X < 240 and p.Z > 710 and p.Z < 890
 		local onApproach = math.abs(p.X) < 40 and p.Z < 700
-		if not inDungeon and not onApproach and (p.Z < 680 or p.Z > 920 or math.abs(p.X) > 125) then
+		local nearRevamp = (p - V(-185, 0, 780)).Magnitude < 70 or (p - V(-160, 0, 640)).Magnitude < 24
+		if not inDungeon and not onApproach and not nearRevamp and (p.Z < 680 or p.Z > 920 or math.abs(p.X) > 125) then
 			B.rock(p.X, B.groundY(p.X, p.Z, 60), p.Z, rng:NextNumber(1.5, 3.5), rng:NextNumber() < 0.5 and P.Basalt or P.BasaltLight)
 		end
 	end

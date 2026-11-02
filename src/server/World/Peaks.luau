@@ -27,7 +27,7 @@ function Peaks.Build(B)
 		local near = function(ang, w)
 			return math.abs(((a - ang + math.pi) % (2 * math.pi)) - math.pi) < w
 		end
-		if not (near(0, 0.32) or near(1.0, 0.25) or near(0.6 * math.pi + 0.08, 0.25) or near(math.pi / 2, 0.15)) then
+		if not (near(0, 0.32) or near(1.0, 0.25) or near(0.6 * math.pi + 0.08, 0.25) or near(math.pi / 2, 0.15) or near(3.5, 0.16) or near(3.0, 0.12)) then
 			local p = C + V(math.cos(a) * r, 0, math.sin(a) * r)
 			if i % 3 == 0 then
 				B.outcrop(p + V(0, -2, 0), rng:NextNumber(4, 7), Enum.Material.Rock)
@@ -217,6 +217,10 @@ function Peaks.Build(B)
 			return d < width
 		end
 		if near(0, 0.3) or near(1.0, 0.25) or near(0.6 * math.pi + 0.08, 0.25) or near(math.pi / 2, 0.15) then
+			return false
+		end
+		-- the chairlift and the hot spring (see World/Revamp)
+		if near(3.5, 0.16) or near(3.0, 0.12) then
 			return false
 		end
 		return true

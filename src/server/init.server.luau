@@ -616,7 +616,7 @@ end)
 local VALID_MOVES = {
 	[""] = true, roll = true, slide = true, longjump = true, pound = true, flip = true, fly = true,
 	walljump = true, cheer = true, talk = true, wave = true, dance = true, sit = true,
-	dive = true, crouch = true, backflip = true, skid = true,
+	dive = true, crouch = true, backflip = true, skid = true, zip = true, spring = true,
 }
 SetMove.OnServerEvent:Connect(function(player, move)
 	local char = player.Character
@@ -995,8 +995,18 @@ RunService.Heartbeat:Connect(function(dt)
 				st.safe = CFrame.new(hit.Position + Vector3.new(0, 3, 0)) * (root.CFrame - root.CFrame.Position)
 			end
 
-			-- time trials
+			-- healing spots (the Peaks hot spring): a heart every couple of seconds
 			local now = os.clock()
+			for _, z in ipairs(info.healZones or {}) do
+				local flat = Vector3.new(pos.X - z.pos.X, 0, pos.Z - z.pos.Z).Magnitude
+				if flat < z.radius and pos.Y < z.pos.Y + 8 and now > (st.healAt or 0) and hum.Health < hum.MaxHealth then
+					st.healAt = now + 2.5
+					heal(player, 1)
+					Effect:FireClient(player, "heart", Vector3.zero)
+				end
+			end
+
+			-- time trials
 			if st.trial then
 				local trial = Config.Trials[st.trial.id]
 				local elapsed = now - st.trial.t0

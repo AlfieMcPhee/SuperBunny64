@@ -22,6 +22,7 @@ local Castle = require(folder:WaitForChild("Castle"))
 local Forest = require(folder:WaitForChild("Forest"))
 local Sky = require(folder:WaitForChild("Sky"))
 local Secret = require(folder:WaitForChild("Secret"))
+local Revamp = require(folder:WaitForChild("Revamp"))
 
 local WorldBuilder = {}
 WorldBuilder.Castle = Castle
@@ -108,7 +109,7 @@ function WorldBuilder.Build()
 	setupLighting()
 	buildSea()
 	-- each region builds in protected mode: one mistake can't wipe out the world
-	for _, region in ipairs({ { "Meadow", Meadow }, { "Peaks", Peaks }, { "Canyon", Canyon }, { "Castle", Castle }, { "Forest", Forest }, { "Sky", Sky }, { "Secret", Secret } }) do
+	for _, region in ipairs({ { "Meadow", Meadow }, { "Peaks", Peaks }, { "Canyon", Canyon }, { "Castle", Castle }, { "Forest", Forest }, { "Sky", Sky }, { "Secret", Secret }, { "Revamp", Revamp } }) do
 		local ok, err = pcall(region[2].Build, B)
 		if not ok then
 			warn("[Bunny64] Building " .. region[1] .. " failed: " .. tostring(err))

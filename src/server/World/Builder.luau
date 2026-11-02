@@ -42,6 +42,7 @@ function B.Init(root)
 	B.collect = folder("Collectibles")
 	B.hazards = folder("Hazards")
 	B.winds = folder("Winds")
+	B.zips = folder("Ziplines")
 	B.info.solidFolder = B.solid
 	B.info.collectFolder = B.collect
 	B.info.hazardFolder = B.hazards
@@ -525,6 +526,94 @@ function B.wind(cf, size, force)
 	e.LightEmission = 0.3
 	e.Parent = p
 	return p
+end
+
+--------------------------------------------------------------------------------
+-- Traversal toys
+--------------------------------------------------------------------------------
+
+-- A zipline from `a` (high end) to `b` (low end): jump up and grab the rope to
+-- whizz down it (client/Movement). Posts stand on whatever ground is there.
+function B.zipline(a, b)
+	for _, p in ipairs({ a, b }) do
+		local gy = B.groundY(p.X, p.Z, p.Y + 1)
+		local h = math.max(2, p.Y + 1.5 - gy)
+		B.block(CFrame.new(p.X, gy + h / 2, p.Z), Vector3.new(1.2, h, 1.2), P.Wood, Enum.Material.Wood)
+		B.block(CFrame.new(p.X, p.Y + 1.6, p.Z), Vector3.new(2.4, 0.6, 2.4), P.WoodLight, Enum.Material.Wood)
+	end
+	local rope = B.make("Part", {
+		Name = "Zipline",
+		Size = Vector3.new(0.35, 0.35, (b - a).Magnitude),
+		CFrame = CFrame.lookAt((a + b) / 2, b),
+		Color = Color3.fromRGB(150, 128, 92),
+		Material = Enum.Material.Fabric,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		CastShadow = false,
+	}, B.zips)
+	rope:SetAttribute("ZipA", a)
+	rope:SetAttribute("ZipB", b)
+	-- a little handle waiting at the top
+	B.make("Part", {
+		Size = Vector3.new(1.6, 0.4, 0.4),
+		CFrame = CFrame.lookAt(a, b) * CFrame.new(0, -0.6, -2),
+		Color = Config.Palette.Roof,
+		CanCollide = false,
+		CanQuery = false,
+	}, B.decor)
+	return rope
+end
+
+-- A spring pad: land on it and you're flung along `velocity`
+function B.springPad(pos, velocity, color)
+	local y = B.groundY(pos.X, pos.Z, pos.Y + 4)
+	B.cyl(pos.X, y - 0.2, pos.Z, 3.4, 0.8, P.StoneDark, Enum.Material.Slate)
+	local pad = B.cyl(pos.X, y + 0.6, pos.Z, 2.8, 0.6, color or Color3.fromRGB(214, 120, 70), Enum.Material.SmoothPlastic)
+	pad.Name = "SpringPad"
+	pad:SetAttribute("Launch", velocity)
+	-- an arrow showing which way it throws you
+	local flat = Vector3.new(velocity.X, 0, velocity.Z)
+	if flat.Magnitude > 1 then
+		B.make("Part", {
+			Size = Vector3.new(0.6, 0.2, 2.6),
+			CFrame = CFrame.lookAt(Vector3.new(pos.X, y + 1.25, pos.Z), Vector3.new(pos.X, y + 1.25, pos.Z) + flat),
+			Color = Color3.fromRGB(250, 236, 180),
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			CanQuery = false,
+		}, B.decor)
+	end
+	return pad
+end
+
+-- A wheel of level platforms turning about a horizontal axis (a Ferris wheel /
+-- water-wheel / windmill ride). `across` is the horizontal direction the wheel spans.
+function B.wheel(center, radius, across, count, speed, size, color, material)
+	across = Vector3.new(across.X, 0, across.Z).Unit
+	local platforms = {}
+	for i = 0, count - 1 do
+		local phase = i / count * math.pi * 2
+		local p = B.block(CFrame.new(center), size or Vector3.new(8, 1.4, 8), color or P.WoodLight, material or Enum.Material.WoodPlanks)
+		B.mover(p, function(t)
+			local a = t * speed + phase
+			return CFrame.new(center + across * math.cos(a) * radius + Vector3.new(0, math.sin(a) * radius, 0))
+		end)
+		table.insert(platforms, p)
+	end
+	return platforms
+end
+
+-- A slide: a run of planks you belly-slide down automatically (like the ice chutes)
+function B.slideRun(points, width, color, material)
+	for i = 1, #points - 1 do
+		local plank = B.plank(points[i], points[i + 1], width, 1.2, color or P.GrassLight, material or Enum.Material.Grass)
+		plank:SetAttribute("Slide", true)
+		for _, s in ipairs({ -1, 1 }) do
+			local side = (points[i + 1] - points[i]):Cross(Vector3.new(0, 1, 0)).Unit * s * (width / 2 + 0.4)
+			B.plank(points[i] + side + Vector3.new(0, 4.6, 0), points[i + 1] + side + Vector3.new(0, 4.6, 0), 0.8, 5.4, P.Wood, Enum.Material.Wood)
+		end
+	end
 end
 
 -- A glowing start pad for a time trial

@@ -516,6 +516,7 @@ Config.RolloutPower = 46       -- jump during a dive to roll out of it
 Config.BackflipPower = 82      -- hold crouch while standing still, then jump (~20 studs)
 Config.BackflipBack = 13
 Config.PoundJumpPower = 76     -- jump the moment a ground pound lands
+Config.ZipSpeed = 74           -- top speed on a zipline
 -- Stamina: rolls, dives and long jumps use a pip; pips refill while you're on the ground.
 -- You earn extra pips as you find golden carrots.
 Config.Stamina = {
@@ -598,6 +599,9 @@ Config.Goldens = {
 	{ id = "oak", region = "meadow", name = "Old Oak Crown", hint = "Climb the great oak's leafy branches." },
 	{ id = "sky", region = "meadow", name = "Cloud Garden", hint = "A springy mushroom tops the big hill..." },
 	{ id = "islet", region = "meadow", name = "Lonely Islet", hint = "Hop the stepping stones out west. Mind the sinking ones." },
+	{ id = "falls", region = "meadow", name = "Willow Falls", hint = "Climb the cliff by the waterfall, south-west of the spawn. Or find a quicker way up." },
+	{ id = "grotto", region = "meadow", name = "Secret Grotto", hint = "Waterfalls are good at hiding things." },
+	{ id = "windmill", region = "meadow", name = "Windmill Lookout", hint = "Ride the mill wheel to the top of the windmill, out west." },
 	{ id = "collector", region = "meadow", name = "Carrot Collector", hint = "Gather 100 carrots. It appears at the meadow spawn.", req = "carrots" },
 	{ id = "buster", region = "meadow", name = "Bug Buster", hint = "Bop 20 baddies of any kind. It appears at the meadow spawn.", req = "bugs" },
 	-- Frostbite Peaks
@@ -605,16 +609,19 @@ Config.Goldens = {
 	{ id = "chute", region = "peaks", name = "Slippery Slope", hint = "Slide down the ice chute from high on the mountain." },
 	{ id = "snowman", region = "peaks", name = "Snowman's Hat", hint = "Ice pillars spiral up to a very big hat." },
 	{ id = "floes", region = "peaks", name = "Frozen Pond", hint = "Ride the drifting ice floes. The water is freezing!" },
+	{ id = "lift", region = "peaks", name = "Chairlift Pylon", hint = "Hop off the chairlift half way up, onto the pylon." },
 	-- Dustbowl Canyon
 	{ id = "leap", region = "canyon", name = "Canyon Leap", hint = "Roll, then jump, to long jump across the pillars." },
 	{ id = "mesa", region = "canyon", name = "Eagle's Mesa", hint = "Climb the ledges of the tallest mesa." },
 	{ id = "boulder", region = "canyon", name = "Boulder Run", hint = "Dodge the boulders up the long ramp to the temple." },
+	{ id = "geyser", region = "canyon", name = "Geyser Gulch", hint = "Ride the steam vents up three pillars, east of the rock arch." },
 	-- Infernal Castle
 	{ id = "firebar", region = "castle", name = "Firebar Gauntlet", hint = "Cross the lava pool in the courtyard. Time your jumps." },
 	{ id = "thwomp", region = "castle", name = "Crusher Hall", hint = "Run the corridor of crushing stones in the courtyard." },
 	{ id = "dungeon", region = "castle", name = "Lava Dungeon", hint = "The dungeon is outside the east wall. Bring patience." },
 	{ id = "rampart", region = "castle", name = "Rampart Watch", hint = "Walk the castle walls to the north-east tower." },
 	{ id = "keep", region = "castle", name = "Keep Climb", hint = "Climb the ledges inside the keep. Don't touch the lava." },
+	{ id = "magma", region = "castle", name = "Magma Wheel", hint = "Ride the wheel over the lava lake outside the west wall." },
 	{ id = "boss", region = "castle", name = "King Grumble's Crown", hint = "Defeat King Grumble in the throne room above the castle.", req = "boss" },
 	-- Whisperwood
 	{ id = "eldertree", region = "forest", name = "Elder Tree Crown", hint = "Climb the shelf fungus spiralling up the Elder Tree." },
@@ -798,6 +805,8 @@ Config.Emotes = {
 -- {jump} {roll} {crouch} {menu} become the player's own key names.
 Config.Tips = {
 	{ id = "stamina", pos = Vector3.new(-30, 4, 10), radius = 22, text = "The green pips under your hearts are stamina. Rolls, dives and long jumps use one; they refill while you're on the ground." },
+	{ id = "zipline", pos = Vector3.new(-121, 108, -112), radius = 16, text = "Jump up and grab the zipline! Press {jump} to let go, or {crouch} to drop." },
+	{ id = "spring", pos = Vector3.new(-120, 4, 160), radius = 14, text = "Spring pads throw you where the arrow points. Step on and enjoy the ride!" },
 	{ id = "dive", pos = Vector3.new(-250, 4, 40), radius = 22, text = "In mid-air, press {roll} to dive forward. Press {jump} during a dive to roll out of it!" },
 	{ id = "backflip", pos = Vector3.new(140, 10, -90), radius = 40, text = "Hold {crouch} while standing still, then press {jump} for a backflip - your highest jump. Jump just as a ground pound lands for a pound jump!" },
 	{ id = "move", pos = Vector3.new(0, 4, 60), radius = 26, text = "Press {jump} to jump, and again in mid-air to double jump. Tap it for a little hop, hold it to jump higher." },
@@ -1255,7 +1264,7 @@ function HazardMath.SegmentDistance(p, a, b)
 end
 
 return HazardMath
-]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX00000021"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX00000020"><Properties><string name="Name">Bunny64Server</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX00000022"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX00000021"><Properties><string name="Name">Bunny64Server</string><ProtectedString name="Source"><![CDATA[--[[
 	Bunny 64 - server entry point.
 	Builds the world, runs save files, pickups, hearts, hazards, checkpoints,
 	warps, enemies, the boss and customisation.
@@ -1873,7 +1882,7 @@ end)
 local VALID_MOVES = {
 	[""] = true, roll = true, slide = true, longjump = true, pound = true, flip = true, fly = true,
 	walljump = true, cheer = true, talk = true, wave = true, dance = true, sit = true,
-	dive = true, crouch = true, backflip = true, skid = true,
+	dive = true, crouch = true, backflip = true, skid = true, zip = true, spring = true,
 }
 SetMove.OnServerEvent:Connect(function(player, move)
 	local char = player.Character
@@ -2252,8 +2261,18 @@ RunService.Heartbeat:Connect(function(dt)
 				st.safe = CFrame.new(hit.Position + Vector3.new(0, 3, 0)) * (root.CFrame - root.CFrame.Position)
 			end
 
-			-- time trials
+			-- healing spots (the Peaks hot spring): a heart every couple of seconds
 			local now = os.clock()
+			for _, z in ipairs(info.healZones or {}) do
+				local flat = Vector3.new(pos.X - z.pos.X, 0, pos.Z - z.pos.Z).Magnitude
+				if flat < z.radius and pos.Y < z.pos.Y + 8 and now > (st.healAt or 0) and hum.Health < hum.MaxHealth then
+					st.healAt = now + 2.5
+					heal(player, 1)
+					Effect:FireClient(player, "heart", Vector3.zero)
+				end
+			end
+
+			-- time trials
 			if st.trial then
 				local trial = Config.Trials[st.trial.id]
 				local elapsed = now - st.trial.t0
@@ -6686,7 +6705,7 @@ function NPCService.Start(info)
 end
 
 return NPCService
-]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX0000001E"><Properties><string name="Name">World</string></Properties><Item class="ModuleScript" referent="RBX00000016"><Properties><string name="Name">Builder</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX0000001F"><Properties><string name="Name">World</string></Properties><Item class="ModuleScript" referent="RBX00000016"><Properties><string name="Name">Builder</string><ProtectedString name="Source"><![CDATA[--[[
 	Builder - shared helpers for constructing the world out of chunky parts,
 	plus the registry of collectibles, enemies, hazards and checkpoints that
 	the rest of the server reads.
@@ -6730,6 +6749,7 @@ function B.Init(root)
 	B.collect = folder("Collectibles")
 	B.hazards = folder("Hazards")
 	B.winds = folder("Winds")
+	B.zips = folder("Ziplines")
 	B.info.solidFolder = B.solid
 	B.info.collectFolder = B.collect
 	B.info.hazardFolder = B.hazards
@@ -7213,6 +7233,94 @@ function B.wind(cf, size, force)
 	e.LightEmission = 0.3
 	e.Parent = p
 	return p
+end
+
+--------------------------------------------------------------------------------
+-- Traversal toys
+--------------------------------------------------------------------------------
+
+-- A zipline from `a` (high end) to `b` (low end): jump up and grab the rope to
+-- whizz down it (client/Movement). Posts stand on whatever ground is there.
+function B.zipline(a, b)
+	for _, p in ipairs({ a, b }) do
+		local gy = B.groundY(p.X, p.Z, p.Y + 1)
+		local h = math.max(2, p.Y + 1.5 - gy)
+		B.block(CFrame.new(p.X, gy + h / 2, p.Z), Vector3.new(1.2, h, 1.2), P.Wood, Enum.Material.Wood)
+		B.block(CFrame.new(p.X, p.Y + 1.6, p.Z), Vector3.new(2.4, 0.6, 2.4), P.WoodLight, Enum.Material.Wood)
+	end
+	local rope = B.make("Part", {
+		Name = "Zipline",
+		Size = Vector3.new(0.35, 0.35, (b - a).Magnitude),
+		CFrame = CFrame.lookAt((a + b) / 2, b),
+		Color = Color3.fromRGB(150, 128, 92),
+		Material = Enum.Material.Fabric,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		CastShadow = false,
+	}, B.zips)
+	rope:SetAttribute("ZipA", a)
+	rope:SetAttribute("ZipB", b)
+	-- a little handle waiting at the top
+	B.make("Part", {
+		Size = Vector3.new(1.6, 0.4, 0.4),
+		CFrame = CFrame.lookAt(a, b) * CFrame.new(0, -0.6, -2),
+		Color = Config.Palette.Roof,
+		CanCollide = false,
+		CanQuery = false,
+	}, B.decor)
+	return rope
+end
+
+-- A spring pad: land on it and you're flung along `velocity`
+function B.springPad(pos, velocity, color)
+	local y = B.groundY(pos.X, pos.Z, pos.Y + 4)
+	B.cyl(pos.X, y - 0.2, pos.Z, 3.4, 0.8, P.StoneDark, Enum.Material.Slate)
+	local pad = B.cyl(pos.X, y + 0.6, pos.Z, 2.8, 0.6, color or Color3.fromRGB(214, 120, 70), Enum.Material.SmoothPlastic)
+	pad.Name = "SpringPad"
+	pad:SetAttribute("Launch", velocity)
+	-- an arrow showing which way it throws you
+	local flat = Vector3.new(velocity.X, 0, velocity.Z)
+	if flat.Magnitude > 1 then
+		B.make("Part", {
+			Size = Vector3.new(0.6, 0.2, 2.6),
+			CFrame = CFrame.lookAt(Vector3.new(pos.X, y + 1.25, pos.Z), Vector3.new(pos.X, y + 1.25, pos.Z) + flat),
+			Color = Color3.fromRGB(250, 236, 180),
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			CanQuery = false,
+		}, B.decor)
+	end
+	return pad
+end
+
+-- A wheel of level platforms turning about a horizontal axis (a Ferris wheel /
+-- water-wheel / windmill ride). `across` is the horizontal direction the wheel spans.
+function B.wheel(center, radius, across, count, speed, size, color, material)
+	across = Vector3.new(across.X, 0, across.Z).Unit
+	local platforms = {}
+	for i = 0, count - 1 do
+		local phase = i / count * math.pi * 2
+		local p = B.block(CFrame.new(center), size or Vector3.new(8, 1.4, 8), color or P.WoodLight, material or Enum.Material.WoodPlanks)
+		B.mover(p, function(t)
+			local a = t * speed + phase
+			return CFrame.new(center + across * math.cos(a) * radius + Vector3.new(0, math.sin(a) * radius, 0))
+		end)
+		table.insert(platforms, p)
+	end
+	return platforms
+end
+
+-- A slide: a run of planks you belly-slide down automatically (like the ice chutes)
+function B.slideRun(points, width, color, material)
+	for i = 1, #points - 1 do
+		local plank = B.plank(points[i], points[i + 1], width, 1.2, color or P.GrassLight, material or Enum.Material.Grass)
+		plank:SetAttribute("Slide", true)
+		for _, s in ipairs({ -1, 1 }) do
+			local side = (points[i + 1] - points[i]):Cross(Vector3.new(0, 1, 0)).Unit * s * (width / 2 + 0.4)
+			B.plank(points[i] + side + Vector3.new(0, 4.6, 0), points[i + 1] + side + Vector3.new(0, 4.6, 0), 0.8, 5.4, P.Wood, Enum.Material.Wood)
+		end
+	end
 end
 
 -- A glowing start pad for a time trial
@@ -7845,6 +7953,9 @@ function Canyon.Build(B)
 		if (p - V(650, 0, 110)).Magnitude < 45 or math.abs(p.Z - 160) < 22 or (p - V(775, 0, 60)).Magnitude < 28 then
 			return false
 		end
+		if (p - V(830, 0, 110)).Magnitude < 48 or (p - V(680, 0, -170)).Magnitude < 22 then
+			return false -- Geyser Gulch and the fossil (World/Revamp)
+		end
 		if math.abs(p.Z) < 16 and p.X < 600 then
 			return false
 		end
@@ -8237,7 +8348,8 @@ function Castle.Build(B)
 		local p = V(math.cos(a) * r, 0, 800 + math.sin(a) * r)
 		local inDungeon = p.X > 120 and p.X < 240 and p.Z > 710 and p.Z < 890
 		local onApproach = math.abs(p.X) < 40 and p.Z < 700
-		if not inDungeon and not onApproach and (p.Z < 680 or p.Z > 920 or math.abs(p.X) > 125) then
+		local nearRevamp = (p - V(-185, 0, 780)).Magnitude < 70 or (p - V(-160, 0, 640)).Magnitude < 24
+		if not inDungeon and not onApproach and not nearRevamp and (p.Z < 680 or p.Z > 920 or math.abs(p.X) > 125) then
 			B.rock(p.X, B.groundY(p.X, p.Z, 60), p.Z, rng:NextNumber(1.5, 3.5), rng:NextNumber() < 0.5 and P.Basalt or P.BasaltLight)
 		end
 	end
@@ -8779,6 +8891,7 @@ function Meadow.Build(B)
 	local keepFlat = {
 		{ V(0, 0, 60), 34 }, { V(-60, 0, -40), 30 }, { V(-130, 0, -120), 60 }, { V(110, 0, 140), 32 },
 		{ V(140, 0, -90), 68 }, { V(12, 0, 40), 10 }, { V(-24, 0, 44), 12 }, { V(-145, 0, 125), 28 }, { V(40, 0, -120), 14 },
+		{ V(-80, 0, 175), 36 }, { V(-185, 0, -35), 28 }, { V(180, 0, -70), 30 }, { V(170, 0, 70), 18 }, { V(90, 0, 190), 14 }, { V(-120, 0, 160), 8 }, { V(185, 0, 140), 18 }, { V(-82, 0, -14), 8 }, { V(48, 0, 100), 6 },
 	}
 	local function flatOK(p, radius)
 		if p.Magnitude + radius > 200 then
@@ -9224,6 +9337,7 @@ function Meadow.Build(B)
 	local avoid = {
 		{ V(0, 0, 60), 30 }, { V(-60, 0, -40), 26 }, { V(-130, 0, -120), 56 }, { V(110, 0, 140), 28 },
 		{ V(140, 0, -90), 64 }, { V(12, 0, 40), 8 }, { V(-24, 0, 44), 10 }, { V(-145, 0, 125), 26 }, { V(40, 0, -120), 12 },
+		{ V(-80, 0, 175), 36 }, { V(-185, 0, -35), 28 }, { V(180, 0, -70), 30 }, { V(170, 0, 70), 18 }, { V(90, 0, 190), 14 }, { V(-120, 0, 160), 8 }, { V(185, 0, 140), 18 }, { V(-82, 0, -14), 8 }, { V(48, 0, 100), 6 },
 	}
 	local function ok(p, extra)
 		if p.Magnitude > 205 then
@@ -9332,7 +9446,7 @@ function Peaks.Build(B)
 		local near = function(ang, w)
 			return math.abs(((a - ang + math.pi) % (2 * math.pi)) - math.pi) < w
 		end
-		if not (near(0, 0.32) or near(1.0, 0.25) or near(0.6 * math.pi + 0.08, 0.25) or near(math.pi / 2, 0.15)) then
+		if not (near(0, 0.32) or near(1.0, 0.25) or near(0.6 * math.pi + 0.08, 0.25) or near(math.pi / 2, 0.15) or near(3.5, 0.16) or near(3.0, 0.12)) then
 			local p = C + V(math.cos(a) * r, 0, math.sin(a) * r)
 			if i % 3 == 0 then
 				B.outcrop(p + V(0, -2, 0), rng:NextNumber(4, 7), Enum.Material.Rock)
@@ -9524,6 +9638,10 @@ function Peaks.Build(B)
 		if near(0, 0.3) or near(1.0, 0.25) or near(0.6 * math.pi + 0.08, 0.25) or near(math.pi / 2, 0.15) then
 			return false
 		end
+		-- the chairlift and the hot spring (see World/Revamp)
+		if near(3.5, 0.16) or near(3.0, 0.12) then
+			return false
+		end
 		return true
 	end
 	local placed = 0
@@ -9562,7 +9680,452 @@ function Peaks.Build(B)
 end
 
 return Peaks
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001C"><Properties><string name="Name">Secret</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001C"><Properties><string name="Name">Revamp</string><ProtectedString name="Source"><![CDATA[--[[
+	Revamp - new landscape and traversal circuits layered onto the four
+	original lands, so getting around is half the fun.
+
+	  Carrot Meadow   Willow Falls (a cliff to climb, a waterfall and a secret
+	                  grotto behind it), the Windmill and its mill-wheel ride,
+	                  the Slide on the big hill, ziplines from the Lookout Tower
+	                  and the Old Oak, spring pads, Carrot Henge, a shipwreck and
+	                  the Old Stone Bunny
+	  Frostbite Peaks the Chairlift up the mountain, a zipline from the summit,
+	                  a healing hot spring
+	  Dustbowl Canyon Geyser Gulch (steam vents fling you up the pillars), a
+	                  zipline off Eagle's Mesa, a giant fossil
+	  Infernal Castle the Magma Wheel over a lava lake, the King's toppled statue
+
+	Traversal toys (B.zipline, B.springPad, B.wheel, B.slideRun) live in Builder
+	and are ridden by client/Movement.
+]]
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+local BunnyModel = require(Shared:WaitForChild("BunnyModel"))
+
+local Revamp = {}
+
+local V = Vector3.new
+local M = Enum.Material
+
+-- A velocity that throws you from `from` to land on `to` (with the game's
+-- heavier falling), peaking `extra` studs above the higher of the two
+local function throwTo(from, to, extra)
+	local g = Config.Gravity
+	local gFall = g * Config.FallGravityMult
+	local apex = math.max(from.Y, to.Y) + (extra or 8)
+	local up = apex - from.Y
+	local down = apex - to.Y
+	local vy = math.sqrt(2 * g * up)
+	local t = vy / g + math.sqrt(2 * down / gFall)
+	local flat = V(to.X - from.X, 0, to.Z - from.Z)
+	return flat / t + V(0, vy, 0)
+end
+Revamp.throwTo = throwTo
+
+local function steam(part, rate)
+	local e = Instance.new("ParticleEmitter")
+	e.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	e.Rate = rate or 8
+	e.Lifetime = NumberRange.new(1.5, 2.5)
+	e.Speed = NumberRange.new(4, 8)
+	e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.5), NumberSequenceKeypoint.new(1, 5) })
+	e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(1, 1) })
+	e.Color = ColorSequence.new(Color3.fromRGB(240, 240, 236))
+	e.EmissionDirection = Enum.NormalId.Top
+	e.Parent = part
+	return e
+end
+
+--------------------------------------------------------------------------------
+-- Carrot Meadow
+--------------------------------------------------------------------------------
+
+local function meadow(B)
+	local P = B.P
+	local T = B.Terrain
+	local rng = B.rng
+
+	----------------------------------------------------------------- Willow Falls
+	do
+		local fx, fz, top, r = -80, 175, 32, 24
+		-- a rocky plateau with a grassy top, bulging rock at its foot
+		T:FillCylinder(CFrame.new(fx, top / 2 - 2, fz), top + 4, r, M.Rock)
+		T:FillCylinder(CFrame.new(fx, top - 1.5, fz), 3, r, M.LeafyGrass)
+		for i = 1, 9 do -- (not on the east face: that's where the grotto opens)
+			local a = i / 10 * math.pi * 2
+			T:FillBall(V(fx + math.cos(a) * (r - 2), rng:NextNumber(4, 18), fz + math.sin(a) * (r - 2)), rng:NextNumber(5, 8), M.Rock)
+		end
+		-- the grotto: a cave behind where the waterfall pours down the east face
+		T:FillBall(V(fx + 18, 7, fz), 8, M.Air)
+		T:FillBlock(CFrame.new(fx + 18, -1, fz), V(16, 2, 16), M.Ground)
+		-- the waterfall (walk-through) and the pool it fills
+		local fallX = fx + r + 1
+		local fall = B.make("Part", {
+			Name = "Waterfall",
+			Size = V(1.2, top + 2, 10),
+			CFrame = CFrame.new(fallX, top / 2, fz),
+			Color = Color3.fromRGB(150, 196, 214),
+			Material = M.Glass,
+			Transparency = 0.35,
+			CanCollide = false,
+			CanQuery = false,
+			CastShadow = false,
+		}, B.decor)
+		local spray = Instance.new("ParticleEmitter")
+		spray.Texture = "rbxasset://textures/particles/smoke_main.dds"
+		spray.Rate = 14
+		spray.Lifetime = NumberRange.new(1, 1.6)
+		spray.Speed = NumberRange.new(2, 4)
+		spray.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 2), NumberSequenceKeypoint.new(1, 6) })
+		spray.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 1) })
+		spray.Color = ColorSequence.new(Color3.fromRGB(230, 240, 245))
+		spray.Parent = fall
+		B.pond(fallX + 10, fz, 9, 3)
+		-- the secret grotto
+		B.golden("grotto", V(fx + 15, 6, fz))
+		for i = 0, 4 do
+			local a = i / 5 * math.pi * 2
+			local c = B.make("Part", {
+				Size = V(1, 2.6, 1),
+				CFrame = CFrame.new(fx + 17 + math.cos(a) * 5.5, 1.3, fz + math.sin(a) * 5.5) * CFrame.Angles(0.2, a, 0.15),
+				Color = Color3.fromRGB(140, 200, 230),
+				Material = M.Neon,
+				CanCollide = false,
+				CanQuery = false,
+			}, B.decor)
+			if i % 2 == 0 then
+				local l = Instance.new("PointLight")
+				l.Color = c.Color
+				l.Range = 12
+				l.Parent = c
+			end
+		end
+		B.carrotRing(V(fx + 17, 3, fz), 4, 5)
+		-- ledges spiralling up the south and west faces
+		for i = 0, 6 do
+			local a = 1.9 + i * 0.42
+			local lt = 5 + i * 4.6
+			local p = V(fx + math.cos(a) * (r + 3), lt - 1, fz + math.sin(a) * (r + 3))
+			B.block(CFrame.new(p) * CFrame.Angles(0, -a, 0), V(7, 2, 6), P.Stone, M.Slate)
+			if i % 2 == 1 then
+				B.carrot(p + V(0, 4, 0))
+			end
+		end
+		-- the willow on top
+		B.cyl(fx - 6, top - 1, fz - 4, 1.8, 14, P.Wood, M.Wood)
+		for i = 0, 7 do
+			local a = i / 8 * math.pi * 2
+			local leaf = B.blob(V(fx - 6 + math.cos(a) * 6, top + 9, fz - 4 + math.sin(a) * 6), V(5, 12, 5), i % 2 == 0 and P.Leaf or P.LeafDark)
+			leaf.CFrame = leaf.CFrame * CFrame.Angles(0, 0, 0.1)
+		end
+		B.blob(V(fx - 6, top + 14, fz - 4), V(16, 6, 16), P.Leaf)
+		B.golden("falls", V(fx + 4, top + 4, fz + 6))
+		for i = 0, 8 do
+			B.flower(fx + rng:NextNumber(-14, 14), top, fz + rng:NextNumber(-14, 14))
+		end
+		-- a spring pad up the west side, and a zipline down toward the spawn
+		B.springPad(V(-120, 0, 160), throwTo(V(-120, 1, 160), V(-92, top, 170), 8))
+		B.zipline(V(fx + 8, top + 6, fz - 16), V(-45, 7, 112))
+		B.sign(V(-60, 0, 145), V(0.4, 0, -1).Unit, "WILLOW FALLS", "Climb, slide or spring")
+	end
+
+	----------------------------------------------------------------- the Windmill
+	do
+		local wx, wz = -185, -35
+		B.cyl(wx, -1, wz, 7, 30, P.Plaster)
+		B.cyl(wx, 28, wz, 8.5, 2, P.Roof, M.Slate)
+		B.cyl(wx, 30, wz, 6, 4, P.Roof, M.Slate)
+		B.cyl(wx, 34, wz, 8, 1.4, P.WoodLight, M.WoodPlanks) -- the lookout on top
+		B.block(CFrame.new(wx + 7.1, 4, wz), V(0.4, 7, 3.6), P.Wood, M.Wood)
+		-- sails turning on the north face (scenery)
+		local hub = B.block(CFrame.new(wx, 24, wz - 8), V(2, 2, 2), P.Wood, M.Wood)
+		hub.CanCollide = false
+		for i = 0, 3 do
+			local sail = B.make("Part", {
+				Size = V(3.4, 13, 0.3),
+				CFrame = hub.CFrame * CFrame.Angles(0, 0, i * math.pi / 2) * CFrame.new(0, 7.5, -0.5),
+				Color = P.Plaster,
+				Material = M.Fabric,
+				CanCollide = false,
+				CanQuery = false,
+				Anchored = false,
+				Massless = true,
+			}, B.decor)
+			local weld = Instance.new("WeldConstraint")
+			weld.Part0 = hub
+			weld.Part1 = sail
+			weld.Parent = sail
+		end
+		local hubBase = hub.CFrame
+		B.mover(hub, function(t)
+			return hubBase * CFrame.Angles(0, 0, t * 0.6)
+		end)
+		-- the mill wheel: ride a platform up to the lookout
+		B.wheel(V(wx + 17, 20, wz), 16, V(0, 0, 1), 4, 0.32, V(8, 1.4, 8))
+		B.golden("windmill", V(wx, 39, wz))
+		B.carrotRing(V(wx, 38, wz), 5, 6)
+		B.sign(V(wx + 14, 0, wz + 26), V(1, 0, 0), "THE WINDMILL", "Ride the wheel to the top")
+	end
+
+	----------------------------------------------------------------- the Slide (big hill)
+	do
+		local pts = { V(152, 29.5, -96), V(166, 23, -92), V(180, 16, -80), V(193, 9, -66), V(203, 3, -50), V(208, 1.5, -40) }
+		B.slideRun(pts, 9, P.GrassLight, M.Grass)
+		for i = 2, #pts - 1 do
+			B.carrot(pts[i] + V(0, 3, 0))
+		end
+		B.sign(V(150, 28, -104), V(-1, 0, 0), "THE SLIDE", "Wheee!")
+	end
+
+	----------------------------------------------------------------- ziplines
+	-- Lookout Tower down past the cottage, and the Old Oak down to the spawn
+	B.zipline(V(-121, 110, -112), V(-82, 7, -14))
+	B.zipline(V(100, 97, 133), V(48, 7, 100))
+
+	----------------------------------------------------------------- Carrot Henge
+	do
+		local hx, hz = 170, 70
+		for i = 0, 7 do
+			local a = i / 8 * math.pi * 2
+			local p = V(hx + math.cos(a) * 12, 0, hz + math.sin(a) * 12)
+			B.block(CFrame.new(p + V(0, 5, 0)) * CFrame.Angles(0, -a, 0), V(2.4, 10, 3.6), P.Stone, M.Slate)
+			if i % 2 == 0 then
+				local n = (i + 1) / 8 * math.pi * 2
+				local q = V(hx + math.cos(n) * 12, 0, hz + math.sin(n) * 12)
+				B.plank(p + V(0, 10.6, 0), q + V(0, 10.6, 0), 3.4, 1.4, P.StoneDark, M.Slate)
+			end
+		end
+		B.cyl(hx, -0.4, hz, 3, 1.4, P.StoneDark, M.Slate)
+		B.carrotRing(V(hx, 13.5, hz), 12, 8)
+		B.sign(V(hx - 18, 0, hz), V(-1, 0, 0), "CARROT HENGE", "Nobody knows who built it")
+	end
+
+	----------------------------------------------------------------- the shipwreck
+	do
+		local sx, sz = 185, 140
+		local hull = CFrame.new(sx, 1, sz) * CFrame.Angles(0, 0.7, 0.35)
+		B.block(hull, V(9, 6, 26), P.Wood, M.WoodPlanks)
+		B.block(hull * CFrame.new(0, 3.2, 0), V(8, 0.6, 24), P.WoodLight, M.WoodPlanks)
+		B.block(hull * CFrame.new(0, 9, 2) * CFrame.Angles(0.15, 0, 0), V(0.9, 14, 0.9), P.Wood, M.Wood)
+		B.block(hull * CFrame.new(0, 13, 2), V(7, 0.5, 0.5), P.Wood, M.Wood)
+		local chest = B.block(hull * CFrame.new(0, 4.6, -6), V(3, 2.2, 2), P.WoodLight, M.Wood)
+		B.block(chest.CFrame * CFrame.new(0, 1.2, 0), V(3.1, 0.4, 2.1), P.Gold, M.Metal)
+		B.carrotLine(V(sx - 6, 4, sz - 6), V(sx + 6, 6, sz + 6), 4)
+	end
+
+	----------------------------------------------------------------- the Old Stone Bunny
+	do
+		local statue = BunnyModel.BuildPreview({ fur = 3, accent = 3, hat = "none", neck = "none" })
+		statue.Name = "OldStoneBunny"
+		for _, d in ipairs(statue:GetDescendants()) do
+			if d:IsA("BasePart") then
+				d.Anchored = true
+				d.CanCollide = d.Transparency < 1
+				d.Color = Color3.fromRGB(150, 148, 138):Lerp(Color3.fromRGB(96, 120, 70), (d.Position.Y > 4) and 0.15 or 0.35)
+				d.Material = M.Slate
+			end
+		end
+		statue:ScaleTo(4)
+		local cf, size = statue:GetBoundingBox()
+		local base = V(90, 0, 190)
+		statue:PivotTo(statue:GetPivot() + (base - V(cf.Position.X, cf.Position.Y - size.Y / 2, cf.Position.Z)) + V(0, 1, 0))
+		statue:PivotTo(CFrame.new(statue:GetPivot().Position) * CFrame.Angles(0, math.pi * 0.85, 0))
+		statue.Parent = B.solid
+		B.cyl(base.X, -0.5, base.Z, 9, 1.6, P.StoneDark, M.Slate)
+		B.carrot(V(base.X, size.Y + 4, base.Z))
+		B.sign(V(base.X + 12, 0, base.Z - 8), V(1, 0, -0.4).Unit, "THE OLD STONE BUNNY", "Climb to the top of the ears!")
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Frostbite Peaks
+--------------------------------------------------------------------------------
+
+local function peaks(B)
+	local P = B.P
+	local C = V(0, 0, -720)
+
+	----------------------------------------------------------------- the Chairlift
+	do
+		local a = 3.5
+		local dir = V(math.cos(a), 0, math.sin(a))
+		local side = dir:Cross(V(0, 1, 0)).Unit * 5
+		local low = C + dir * 172 + V(0, 8, 0)
+		local high = C + dir * 70 + V(0, 68, 0)
+		-- stations (the chairs stop beside them; the line stays clear of the mountain tiers)
+		B.block(CFrame.new(low.X, 3, low.Z) * CFrame.Angles(0, -a, 0), V(16, 6, 18), P.WoodLight, M.WoodPlanks)
+		B.block(CFrame.new(high.X, 63, high.Z) * CFrame.Angles(0, -a, 0), V(14, 6, 18), P.WoodLight, M.WoodPlanks)
+		for _, p in ipairs({ low, high }) do
+			for _, s in ipairs({ -1, 1 }) do
+				B.block(CFrame.new(p + side * s * 1.6 + V(0, 6, 0)), V(1, 14, 1), P.StoneDark, M.Metal)
+			end
+		end
+		-- cables (scenery)
+		for _, s in ipairs({ -1, 1 }) do
+			local a1, b1 = low + side * s + V(0, 8, 0), high + side * s + V(0, 8, 0)
+			B.make("Part", {
+				Size = V(0.3, 0.3, (b1 - a1).Magnitude), CFrame = CFrame.lookAt((a1 + b1) / 2, b1),
+				Color = Color3.fromRGB(60, 60, 66), Material = M.Metal, CanCollide = false, CanQuery = false,
+			}, B.decor)
+		end
+		-- chairs ride up one side and down the other, pausing at each station
+		local count = 6
+		local period = 44
+		for i = 0, count - 1 do
+			local seat = B.block(CFrame.new(low), V(6, 1, 6), P.Roof, M.WoodPlanks)
+			B.mover(seat, function(t)
+				local u = ((t / period) + i / count) % 1
+				local p
+				if u < 0.05 then
+					p = low + side -- waiting at the bottom
+				elseif u < 0.47 then
+					p = (low + side):Lerp(high + side, (u - 0.05) / 0.42)
+				elseif u < 0.5 then
+					p = high + side -- waiting at the top
+				elseif u < 0.53 then
+					p = (high + side):Lerp(high - side, (u - 0.5) / 0.03)
+				elseif u < 0.95 then
+					p = (high - side):Lerp(low - side, (u - 0.53) / 0.42)
+				else
+					p = (low - side):Lerp(low + side, (u - 0.95) / 0.05)
+				end
+				return CFrame.new(p) * CFrame.Angles(0, -a, 0)
+			end)
+		end
+		-- a pylon half way up with a prize on top: hop off a moving chair to reach it
+		local mid = low:Lerp(high, 0.5)
+		local gy = B.groundY(mid.X, mid.Z, mid.Y)
+		B.block(CFrame.new(mid.X, (gy + mid.Y + 14) / 2, mid.Z), V(2.4, mid.Y + 14 - gy, 2.4), P.StoneDark, M.Metal)
+		B.block(CFrame.new(mid + V(0, 13.5, 0)), V(7, 1, 7), P.StoneDark, M.Metal)
+		B.golden("lift", mid + V(0, 18, 0))
+		B.sign(low + dir * 10 - V(0, 4, 0), dir, "CHAIRLIFT", "Hop on!")
+	end
+
+	----------------------------------------------------------------- summit zipline
+	B.zipline(C + V(0, 124, 18), V(-40, 7, -560))
+
+	----------------------------------------------------------------- the Hot Spring
+	do
+		local a = 3.0
+		local p = C + V(math.cos(a) * 182, 0, math.sin(a) * 182)
+		B.pond(p.X, p.Z, 10, 2)
+		local water = B.cyl(p.X, -1, p.Z, 9.5, 1.3, Color3.fromRGB(120, 180, 190), M.Glass, B.decor)
+		water.Transparency = 0.3
+		water.CanCollide = false
+		steam(water, 10)
+		for i = 0, 9 do
+			local r = i / 10 * math.pi * 2
+			B.rock(p.X + math.cos(r) * 11, 0, p.Z + math.sin(r) * 11, 0.9)
+		end
+		B.sign(p + V(0, 0, 14), V(0, 0, 1), "HOT SPRING", "Sit a while: it heals!")
+		B.info.healZones = B.info.healZones or {}
+		table.insert(B.info.healZones, { pos = p, radius = 9 })
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Dustbowl Canyon
+--------------------------------------------------------------------------------
+
+local function canyon(B)
+	local P = B.P
+	local SAND = M.Sandstone
+
+	----------------------------------------------------------------- Geyser Gulch
+	do
+		local pillars = { { 800, 110, 30, 6 }, { 830, 122, 55, 6 }, { 862, 104, 80, 7 } }
+		for _, pl in ipairs(pillars) do
+			B.cyl(pl[1], -2, pl[2], pl[4], pl[3] + 2, P.Sandstone, SAND)
+			B.cyl(pl[1], pl[3] - 0.6, pl[2], pl[4] + 0.3, 0.8, Color3.fromRGB(196, 150, 104), SAND)
+			for y = 8, pl[3] - 6, 9 do
+				B.cyl(pl[1], y, pl[2], pl[4] + 0.3, 1.6, P.SandstoneDark, SAND)
+			end
+		end
+		local function vent(from, to)
+			local pad = B.springPad(from, throwTo(from + V(0, 1, 0), to, 6), Color3.fromRGB(196, 170, 140))
+			steam(pad, 6)
+		end
+		vent(V(782, 0, 108), V(800, 30, 110))
+		vent(V(802, 30, 113), V(830, 55, 122))
+		vent(V(833, 55, 118), V(862, 80, 104))
+		B.golden("geyser", V(862, 85, 104))
+		B.sign(V(772, 0, 98), V(-1, 0, 0), "GEYSER GULCH", "Stand on a vent... if you dare")
+		B.carrot(V(815, 52, 117))
+		B.carrot(V(846, 78, 113))
+	end
+
+	----------------------------------------------------------------- zipline off Eagle's Mesa
+	B.zipline(V(664, 95, 104), V(760, 27, 60))
+
+	----------------------------------------------------------------- the fossil
+	do
+		local fx, fz = 680, -170
+		local bone = Color3.fromRGB(226, 214, 186)
+		for i = 0, 7 do
+			local z = fz - 14 + i * 4
+			local h = 9 - math.abs(i - 3.5) * 1.2
+			for _, s in ipairs({ -1, 1 }) do
+				B.block(CFrame.new(fx + s * 3, h / 2, z) * CFrame.Angles(0, 0, s * 0.35), V(0.9, h, 0.9), bone, M.SmoothPlastic)
+			end
+		end
+		B.block(CFrame.new(fx, 9.5, fz), V(1.4, 1.4, 34), bone)
+		B.block(CFrame.new(fx, 4, fz - 22) * CFrame.Angles(0.3, 0, 0), V(5, 4, 8), bone)
+		B.carrotLine(V(fx, 13, fz - 12), V(fx, 13, fz + 12), 4)
+		B.sign(V(fx + 12, 0, fz), V(1, 0, 0), "THE FOSSIL", "A very old, very big lizard")
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Infernal Castle
+--------------------------------------------------------------------------------
+
+local function castle(B)
+	local P = B.P
+
+	----------------------------------------------------------------- the Magma Wheel
+	do
+		local lx, lz = -185, 780
+		B.lava(CFrame.new(lx, 0.3, lz), V(60, 0.8, 80))
+		B.block(CFrame.new(lx, 1, lz - 46), V(24, 2, 12), P.CastleDark, M.Slate) -- the near shore (facing the gate)
+		B.wheel(V(lx, 14, lz - 28), 11, V(0, 0, 1), 4, 0.5, V(7, 1.2, 7), P.CastleStone, M.Slate)
+		-- bobbing stepping stones on to the island
+		for i, z in ipairs({ lz - 9, lz + 3, lz + 15 }) do
+			local stone = B.block(CFrame.new(lx + ((i % 2 == 0) and 5 or -5), 4, z), V(6, 1.4, 6), P.CastleStone, M.Slate)
+			B.bobber(stone, 2.2, 1.3, i)
+		end
+		B.cyl(lx, -1, lz + 30, 7, 6, P.CastleDark, M.Slate)
+		B.firebar(V(lx, 6.6, lz + 30), 6.5, 1.5, 0)
+		B.golden("magma", V(lx, 10, lz + 34))
+		B.torch(V(lx + 10, 3.2, lz - 46))
+		B.torch(V(lx - 10, 3.2, lz - 46))
+		B.sign(V(lx + 14, 0, lz - 52), V(0, 0, -1), "THE MAGMA WHEEL", "Mind your step", P.CastleDark, Color3.fromRGB(230, 200, 170))
+	end
+
+	----------------------------------------------------------------- the King's toppled statue
+	do
+		local sx, sz = -160, 640
+		local stone = Color3.fromRGB(110, 102, 100)
+		B.block(CFrame.new(sx, 3, sz) * CFrame.Angles(0, 0.4, 1.2), V(10, 18, 12), stone, M.Slate)
+		B.ball(V(sx + 9, 4, sz + 3), 5, stone, M.Slate)
+		for i = 0, 4 do
+			B.block(CFrame.new(sx + 9 + math.cos(i) * 3, 9, sz + 3 + math.sin(i) * 3), V(1, 2.4, 1), P.GoldDark, M.Metal)
+		end
+		B.block(CFrame.new(sx - 10, 1.5, sz - 6), V(8, 3, 8), stone, M.Slate)
+		B.carrotLine(V(sx - 6, 10, sz), V(sx + 8, 12, sz + 3), 3)
+		B.sign(V(sx, 0, sz - 16), V(0, 0, -1), "KING GRUMBLE", "(he was taller in real life)", P.CastleDark, Color3.fromRGB(230, 200, 170))
+	end
+end
+
+function Revamp.Build(B)
+	meadow(B)
+	peaks(B)
+	canyon(B)
+	castle(B)
+end
+
+return Revamp
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001D"><Properties><string name="Name">Secret</string><ProtectedString name="Source"><![CDATA[--[[
 	The Underburrow - a secret dungeon floating in the dark, far from every
 	other land. You get here by ground-pounding through the lid of the old well
 	in the meadow (Config.SecretGate golden carrots), and it is meant to be HARD.
@@ -9743,7 +10306,7 @@ function Secret.Build(B)
 end
 
 return Secret
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001D"><Properties><string name="Name">Sky</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001E"><Properties><string name="Name">Sky</string><ProtectedString name="Source"><![CDATA[--[[
 	Cloudtop Heights - floating islands high above the meadow, reached by
 	climbing the beanstalk (Config.SkyGate golden carrots).
 	  * Cloud Hop: drifting clouds heading east
@@ -10057,7 +10620,7 @@ function Sky.Build(B)
 end
 
 return Sky
-]]></ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX0000001F"><Properties><string name="Name">WorldBuilder</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX00000020"><Properties><string name="Name">WorldBuilder</string><ProtectedString name="Source"><![CDATA[--[[
 	WorldBuilder - builds the whole world at server start.
 
 	  Carrot Meadow (hub)      centre            World/Meadow
@@ -10081,6 +10644,7 @@ local Castle = require(folder:WaitForChild("Castle"))
 local Forest = require(folder:WaitForChild("Forest"))
 local Sky = require(folder:WaitForChild("Sky"))
 local Secret = require(folder:WaitForChild("Secret"))
+local Revamp = require(folder:WaitForChild("Revamp"))
 
 local WorldBuilder = {}
 WorldBuilder.Castle = Castle
@@ -10167,7 +10731,7 @@ function WorldBuilder.Build()
 	setupLighting()
 	buildSea()
 	-- each region builds in protected mode: one mistake can't wipe out the world
-	for _, region in ipairs({ { "Meadow", Meadow }, { "Peaks", Peaks }, { "Canyon", Canyon }, { "Castle", Castle }, { "Forest", Forest }, { "Sky", Sky }, { "Secret", Secret } }) do
+	for _, region in ipairs({ { "Meadow", Meadow }, { "Peaks", Peaks }, { "Canyon", Canyon }, { "Castle", Castle }, { "Forest", Forest }, { "Sky", Sky }, { "Secret", Secret }, { "Revamp", Revamp } }) do
 		local ok, err = pcall(region[2].Build, B)
 		if not ok then
 			warn("[Bunny64] Building " .. region[1] .. " failed: " .. tostring(err))
@@ -10200,7 +10764,7 @@ function WorldBuilder.Build()
 end
 
 return WorldBuilder
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000036"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="EnableMouseLockOption">false</bool></Properties><Item class="StarterPlayerScripts" referent="RBX00000032"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX00000031"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000037"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="EnableMouseLockOption">false</bool></Properties><Item class="StarterPlayerScripts" referent="RBX00000033"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX00000032"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
 	Bunny 64 - client entry point. Wires together menus, HUD, movement,
 	animation, collectibles and world effects, and reacts to server events.
 ]]
@@ -10663,7 +11227,7 @@ task.spawn(function()
 		applySnapshot(s)
 	end
 end)
-]]></ProtectedString></Properties><Item class="ModuleScript" referent="RBX00000022"><Properties><string name="Name">AdminPanel</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties><Item class="ModuleScript" referent="RBX00000023"><Properties><string name="Name">AdminPanel</string><ProtectedString name="Source"><![CDATA[--[[
 	AdminPanel - the admin perks menu (press P, or the ADMIN button).
 	Only shows for admins; the server checks every command anyway.
 
@@ -11059,7 +11623,7 @@ function AdminPanel.Init(dependencies)
 end
 
 return AdminPanel
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000023"><Properties><string name="Name">Animator</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000024"><Properties><string name="Name">Animator</string><ProtectedString name="Source"><![CDATA[--[[
 	Animator - procedural animation for every bunny in the server.
 
 	No animation assets: each frame we compute a pose from the bunny's
@@ -11217,6 +11781,14 @@ local function poseFor(rig, char, dt, now, isLocal)
 		p.lArm, p.rArm = A(0, 0, -2.6), A(0, 0, 2.6)
 		p.root = A(0.15, 0, 0)
 		earTarget = -0.6
+	elseif move == "zip" then
+		-- hanging from the rope by both paws, legs swinging
+		p.lArm, p.rArm = A(0, 0, -2.95), A(0, 0, 2.95)
+		p.lLeg = A(0.5 + math.sin(t * 6) * 0.35, 0, -0.1)
+		p.rLeg = A(0.5 - math.sin(t * 6) * 0.35, 0, 0.1)
+		p.root = A(0.15, 0, 0)
+		p.neck = A(-0.2, 0, 0)
+		earTarget = 1.2
 	elseif move == "dive" then
 		-- arms out in front, belly first
 		p.root = A(-1.4, 0, 0)
@@ -11360,7 +11932,7 @@ function Animator.Init(movement)
 end
 
 return Animator
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000024"><Properties><string name="Name">Baddies</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000025"><Properties><string name="Name">Baddies</string><ProtectedString name="Source"><![CDATA[--[[
 	Baddies - draws every baddie smoothly on this player's screen.
 
 	The server runs their brains and publishes, a few times a second:
@@ -11648,7 +12220,7 @@ function Baddies.Init()
 end
 
 return Baddies
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000025"><Properties><string name="Name">Chiptune</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000026"><Properties><string name="Name">Chiptune</string><ProtectedString name="Source"><![CDATA[--[[
 	Chiptune - Bunny 64's 8-bit music engine and soundtrack.
 
 	Roblox can't synthesise sound, so this little "tracker" plays one short
@@ -12174,7 +12746,7 @@ function Chiptune.Has(name)
 end
 
 return Chiptune
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000026"><Properties><string name="Name">Collectibles</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">Collectibles</string><ProtectedString name="Source"><![CDATA[--[[
 	Collectibles - spins the carrots, hides the ones this file already has,
 	and asks the server to collect carrots the bunny touches.
 	Each player has their own carrots, so pickups are client-side visuals
@@ -12354,7 +12926,7 @@ function Collectibles.Init(effects, remotes)
 end
 
 return Collectibles
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">Dialogue</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000028"><Properties><string name="Name">Dialogue</string><ProtectedString name="Source"><![CDATA[--[[
 	Dialogue - talk to friendly characters.
 
 	A chunky text box types each line out letter by letter, with a little
@@ -12541,7 +13113,7 @@ function Dialogue.Init(dependencies)
 end
 
 return Dialogue
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000028"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000029"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
 	Effects - local sounds, music, chunky block particles and camera shake.
 ]]
 
@@ -12808,7 +13380,7 @@ RunService:BindToRenderStep("Bunny64Shake", Enum.RenderPriority.Camera.Value + 1
 end)
 
 return Effects
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000029"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002A"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
 	Hud - in-game overlay: hearts, golden carrot and carrot counters,
 	region title cards, toasts, the boss health bar and the MENU button.
 ]]
@@ -13362,7 +13934,7 @@ function Hud.WatchBoss(arenaBossFn)
 end
 
 return Hud
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002A"><Properties><string name="Name">Menus</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002B"><Properties><string name="Name">Menus</string><ProtectedString name="Source"><![CDATA[--[[
 	Menus - every full-screen menu:
 	  Title (PRESS START) -> File Select (File A/B/C, erase) -> game
 	  Customise (fur, accent colour, hat, neckwear with a live 3D preview)
@@ -14577,7 +15149,7 @@ function Menus.Init(dependencies)
 end
 
 return Menus
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002B"><Properties><string name="Name">Movement</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002C"><Properties><string name="Name">Movement</string><ProtectedString name="Source"><![CDATA[--[[
 	Movement - the bunny's moveset on top of Roblox's humanoid.
 
 	  Jump            Space / A / jump button
@@ -14651,6 +15223,10 @@ local lastPoundLand = -10
 local divedSinceGround = false
 local stamina, staminaMax = 3, 3
 local staminaRegenAt = 0
+local zipFolder = nil -- workspace.Bunny64World.Ziplines
+local zip = nil -- { a, b, dir, len, t, speed } while riding a zipline
+local zipReleasedAt = -10
+local lastLaunch = 0
 local COYOTE_TIME = 0.13
 local BUFFER_TIME = 0.15
 local DUST = Color3.fromRGB(206, 196, 176)
@@ -14674,7 +15250,7 @@ local function setMove(name)
 	move = name
 	moveStart = os.clock()
 	if lv then
-		lv.Enabled = (name == "roll" or name == "longjump" or name == "slide" or name == "walljump" or name == "dive" or name == "backflip")
+		lv.Enabled = (name == "roll" or name == "longjump" or name == "slide" or name == "walljump" or name == "dive" or name == "backflip" or name == "spring")
 	end
 	if name == "" then
 		sendMove(os.clock() - flipAt < 0.5 and "flip" or "")
@@ -14893,6 +15469,14 @@ local function crouch()
 	if flying or not enabled or not root then
 		return
 	end
+	if move == "zip" and zip then
+		-- drop off the zipline
+		zip = nil
+		zipReleasedAt = os.clock()
+		setMove("")
+		humanoid:ChangeState(HST.Freefall)
+		return
+	end
 	if move == "" or move == "longjump" or move == "dive" or move == "backflip" then
 		if inAir() and not grounded() then
 			if move == "dive" or move == "backflip" then
@@ -14956,6 +15540,20 @@ local function tryJumpMove()
 	local now = os.clock()
 	if move == "roll" or (move == "slide" and now - moveStart > 0.08) then
 		startLongJump(moveSpeed + 10, move == "roll") -- out of a roll it's included in the roll's cost
+		return
+	end
+	if move == "zip" and zip then
+		-- let go of the zipline with a hop
+		local v = zip.dir * zip.speed * 0.8
+		zip = nil
+		zipReleasedAt = now
+		setMove("")
+		usedDouble = false
+		flipAt = now
+		sendMove("flip")
+		humanoid:ChangeState(HST.Freefall)
+		root.AssemblyLinearVelocity = v + Vector3.new(0, 46, 0)
+		Effects.Play("Jump", 1.1)
 		return
 	end
 	if move == "dive" then
@@ -15056,6 +15654,7 @@ local function onCharacter(char)
 	humanoid = char:WaitForChild("Humanoid")
 	root = char:WaitForChild("HumanoidRootPart")
 	move = ""
+	zip = nil
 	usedDouble = false
 	divedSinceGround = false
 	sentMove = nil
@@ -15391,6 +15990,78 @@ local function step(dt)
 		end
 	end
 
+	-- spring pads fling you
+	if root.AssemblyLinearVelocity.Y < 5 and now - lastLaunch > 0.5 then
+		local under = floorHit()
+		local launchVel = under and under.Instance:GetAttribute("Launch")
+		if typeof(launchVel) == "Vector3" and root.Position.Y - under.Position.Y < 3.8 then
+			lastLaunch = now
+			launch(launchVel, "bounce")
+			flipAt = now
+			sendMove("flip")
+			if Vector3.new(launchVel.X, 0, launchVel.Z).Magnitude > 5 then
+				-- carry the throw exactly, so the pad lands you where it aims
+				moveDir = Vector3.new(launchVel.X, 0, launchVel.Z).Unit
+				moveSpeed = Vector3.new(launchVel.X, 0, launchVel.Z).Magnitude
+				setMove("spring")
+				setPlane(moveDir * moveSpeed)
+				usedDouble = false
+			end
+			Effects.Play("Boing", 1.1)
+			Effects.Burst(under.Position, under.Instance.Color, 10, 6, 0.6, 4)
+		end
+	end
+
+	-- ziplines: jump up into the rope to grab it
+	if not zipFolder then
+		local world = workspace:FindFirstChild("Bunny64World")
+		zipFolder = world and world:FindFirstChild("Ziplines")
+	end
+	if zipFolder and not zip and (move == "" or move == "longjump" or move == "dive" or move == "walljump" or move == "backflip")
+		and now - zipReleasedAt > 0.6 then
+		local hands = root.Position + Vector3.new(0, 3, 0)
+		for _, rope in ipairs(zipFolder:GetChildren()) do
+			local a, b = rope:GetAttribute("ZipA"), rope:GetAttribute("ZipB")
+			if typeof(a) == "Vector3" and typeof(b) == "Vector3" then
+				local ab = b - a
+				local t = math.clamp((hands - a):Dot(ab) / ab:Dot(ab), 0, 1)
+				local closest = a + ab * t
+				if t < 0.95 and (hands - closest).Magnitude < 2.8 then
+					zip = { a = a, b = b, dir = ab.Unit, len = ab.Magnitude, t = t, speed = math.max(flatVelocity().Magnitude * 0.6, 18) }
+					setMove("zip")
+					humanoid:ChangeState(HST.Physics)
+					Effects.Play("Roll", 1.3)
+					break
+				end
+			end
+		end
+	end
+	if move == "zip" and zip then
+		local slope = math.max(0, -zip.dir.Y)
+		zip.speed = math.min(Config.ZipSpeed, zip.speed + (14 + 60 * slope) * dt)
+		zip.t += zip.speed * dt / zip.len
+		local flatDir = Vector3.new(zip.dir.X, 0, zip.dir.Z)
+		if zip.t >= 1 then
+			-- off the end, flying
+			local v = zip.dir * zip.speed
+			zip = nil
+			zipReleasedAt = now
+			setMove("")
+			usedDouble = false
+			humanoid:ChangeState(HST.Freefall)
+			root.AssemblyLinearVelocity = Vector3.new(v.X, math.max(v.Y, 0) + 20, v.Z)
+		else
+			local p = zip.a:Lerp(zip.b, zip.t) - Vector3.new(0, 3.3, 0)
+			root.CFrame = flatDir.Magnitude > 0.01 and CFrame.lookAt(p, p + flatDir) or CFrame.new(p)
+			root.AssemblyLinearVelocity = zip.dir * zip.speed
+			if now > nextDust then
+				nextDust = now + 0.08
+				Effects.Burst(zip.a:Lerp(zip.b, zip.t), Color3.fromRGB(255, 220, 150), 1, 2, 0.3, -1, Enum.Material.Neon)
+			end
+		end
+		return
+	end
+
 	-- rising winds and gusts (Cloudtop Heights): parts in the world's Winds folder
 	if not windFolder then
 		local world = workspace:FindFirstChild("Bunny64World")
@@ -15478,6 +16149,11 @@ local function step(dt)
 			Effects.Burst(root.Position - Vector3.new(0, 2.5, 0), DUST, 8, 5, 0.6, 1)
 			Effects.Play("Land", 1.1)
 		elseif t > 3 then
+			setMove("")
+		end
+	elseif move == "spring" then
+		setPlane(moveDir * moveSpeed)
+		if (onGround and now - moveStart > 0.15) or now - moveStart > 4 then
 			setMove("")
 		end
 	elseif move == "backflip" then
@@ -15713,7 +16389,7 @@ function Movement.Init(effects, remotes)
 end
 
 return Movement
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002C"><Properties><string name="Name">PhotoMode</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002D"><Properties><string name="Name">PhotoMode</string><ProtectedString name="Source"><![CDATA[--[[
 	PhotoMode - a free camera for screenshots (Pause > PHOTO MODE).
 
 	  WASD / left stick       fly
@@ -15841,7 +16517,7 @@ function PhotoMode.IsActive()
 end
 
 return PhotoMode
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002D"><Properties><string name="Name">Shadows</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002E"><Properties><string name="Name">Shadows</string><ProtectedString name="Source"><![CDATA[--[[
 	Shadows - a round "blob" shadow straight under every bunny.
 
 	In a 3D platformer the sun's shadow is rarely directly beneath you, so
@@ -15918,7 +16594,7 @@ function Shadows.Init()
 end
 
 return Shadows
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002E"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002F"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--[[
 	UI - shared building blocks for Bunny 64's late-90s console look:
 	chunky beveled panels with gold trim, gradient title lettering, a bouncing
 	carrot cursor, and menu navigation that works with keyboard, gamepad,
@@ -16310,7 +16986,7 @@ function UI.list(parent, padding)
 end
 
 return UI
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002F"><Properties><string name="Name">Weather</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000030"><Properties><string name="Name">Weather</string><ProtectedString name="Source"><![CDATA[--[[
 	Weather - a little atmosphere for each region, drawn around the camera:
 	  meadow  drifting pollen motes
 	  peaks   gentle snowfall
@@ -16439,7 +17115,7 @@ function Weather.Init()
 end
 
 return Weather
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000030"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000031"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--[[
 	WorldFX - client-side world behaviour:
 	  * animates firebars and crushers from the shared server clock
 	  * opens golden-carrot gates for players who have enough golden carrots
@@ -16821,8 +17497,8 @@ function WorldFX.Region()
 end
 
 return WorldFX
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterCharacterScripts" referent="RBX00000035"><Properties><string name="Name">StarterCharacterScripts</string></Properties><Item class="LocalScript" referent="RBX00000033"><Properties><string name="Name">Animate</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default "Animate" script.
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterCharacterScripts" referent="RBX00000036"><Properties><string name="Name">StarterCharacterScripts</string></Properties><Item class="LocalScript" referent="RBX00000034"><Properties><string name="Name">Animate</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default "Animate" script.
 -- The bunny is animated procedurally by StarterPlayerScripts.Bunny64Client.Animator.
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX00000034"><Properties><string name="Name">Health</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default health regeneration.
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX00000035"><Properties><string name="Name">Health</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default health regeneration.
 -- In Bunny 64 hearts only come back from carrots and golden carrots.
 ]]></ProtectedString><token name="RunContext">0</token></Properties></Item></Item></Item></roblox>

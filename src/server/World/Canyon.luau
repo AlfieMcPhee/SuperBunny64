@@ -144,6 +144,9 @@ function Canyon.Build(B)
 		if (p - V(650, 0, 110)).Magnitude < 45 or math.abs(p.Z - 160) < 22 or (p - V(775, 0, 60)).Magnitude < 28 then
 			return false
 		end
+		if (p - V(830, 0, 110)).Magnitude < 48 or (p - V(680, 0, -170)).Magnitude < 22 then
+			return false -- Geyser Gulch and the fossil (World/Revamp)
+		end
 		if math.abs(p.Z) < 16 and p.X < 600 then
 			return false
 		end

@@ -156,6 +156,14 @@ local function poseFor(rig, char, dt, now, isLocal)
 		p.lArm, p.rArm = A(0, 0, -2.6), A(0, 0, 2.6)
 		p.root = A(0.15, 0, 0)
 		earTarget = -0.6
+	elseif move == "zip" then
+		-- hanging from the rope by both paws, legs swinging
+		p.lArm, p.rArm = A(0, 0, -2.95), A(0, 0, 2.95)
+		p.lLeg = A(0.5 + math.sin(t * 6) * 0.35, 0, -0.1)
+		p.rLeg = A(0.5 - math.sin(t * 6) * 0.35, 0, 0.1)
+		p.root = A(0.15, 0, 0)
+		p.neck = A(-0.2, 0, 0)
+		earTarget = 1.2
 	elseif move == "dive" then
 		-- arms out in front, belly first
 		p.root = A(-1.4, 0, 0)
