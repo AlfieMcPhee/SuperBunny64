@@ -1,8 +1,8 @@
 --[[
-	Collectibles - spins the carrots, hides the ones this player already has,
+	Collectibles - spins the carrots, hides the ones this file already has,
 	and asks the server to collect carrots the bunny touches.
-	Each player has their own set of carrots, so pickups are client-side
-	visuals backed by server validation and saving.
+	Each player has their own carrots, so pickups are client-side visuals
+	backed by server validation and saving.
 ]]
 
 local Players = game:GetService("Players")
@@ -16,43 +16,42 @@ local Collectibles = {}
 
 local items = {} -- [Model] = item
 local folder
-local profile = nil
+local slot = nil -- the active file's progress (nil on the title screen)
 local Effects, Remotes
 local combo, lastPickup = 0, 0
 
+local reqOf = {}
+for _, g in ipairs(Config.Goldens) do
+	reqOf[g.id] = g.req
+end
+
 local function isLocked(id)
-	if not profile then
+	if not slot then
 		return true
 	end
-	if id == "collector" then
-		return profile.carrotCount < Config.CollectorGoal
-	elseif id == "buster" then
-		return profile.bugs < Config.BugBusterGoal
+	local req = reqOf[id]
+	if req == "carrots" then
+		return slot.carrotCount < Config.CollectorGoal
+	elseif req == "bugs" then
+		return slot.bugs < Config.BugBusterGoal
+	elseif req == "boss" then
+		return not slot.bossDefeated
 	end
 	return false
 end
 
-local function isCollected(item)
-	if not profile then
-		return false
+local function shouldShow(item)
+	if not slot then
+		return true -- the title screen shows the world as it is
 	end
 	if item.kind == "golden" then
-		return profile.goldens[item.id] == true
-	end
-	return profile.carrots[item.id] == true
-end
-
-local function shouldShow(item)
-	if isCollected(item) then
+		if slot.goldens[item.id] or isLocked(item.id) then
+			return false
+		end
+	elseif slot.carrots[item.id] then
 		return false
 	end
-	if item.kind == "golden" and isLocked(item.id) then
-		return false
-	end
-	if os.clock() - item.pendingAt < 2 then
-		return false
-	end
-	return true
+	return os.clock() - item.pendingAt >= 2
 end
 
 local function apply(model, item)
@@ -83,8 +82,11 @@ local function register(model)
 	apply(model, item)
 end
 
-function Collectibles.Sync(snap)
-	profile = snap
+function Collectibles.Sync(slotSnap)
+	slot = slotSnap
+	if not folder then
+		return
+	end
 	for model, item in pairs(items) do
 		apply(model, item)
 	end
@@ -101,21 +103,20 @@ function Collectibles.Init(effects, remotes)
 	local nextResync = 0
 	RunService.RenderStepped:Connect(function()
 		local t = os.clock()
-		if t > nextResync and profile then
-			-- re-show anything the server didn't accept (e.g. a locked golden carrot)
+		if t > nextResync then
 			nextResync = t + 1
-			Collectibles.Sync(profile)
+			Collectibles.Sync(slot)
 		end
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart")
 		local hum = char and char:FindFirstChildOfClass("Humanoid")
-		local alive = root and hum and hum.Health > 0
+		local alive = root and hum and hum.Health > 0 and slot ~= nil
 		for model, item in pairs(items) do
 			if model.Parent == folder then
 				local golden = item.kind == "golden"
 				local bob = math.sin(t * 2.5 + item.phase) * (golden and 0.8 or 0.4)
 				model:PivotTo(item.pivot * CFrame.new(0, bob, 0) * CFrame.Angles(0, t * (golden and 1.2 or 2.2) + item.phase, 0))
-				if alive and profile then
+				if alive then
 					local reach = golden and 7 or 5.5
 					if (root.Position - item.pivot.Position).Magnitude < reach then
 						item.pendingAt = t

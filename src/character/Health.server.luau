@@ -1,0 +1,2 @@
+-- Intentionally empty: replaces Roblox's default health regeneration.
+-- In Bunny 64 hearts only come back from carrots and golden carrots.

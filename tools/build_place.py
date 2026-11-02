@@ -63,10 +63,11 @@ def main():
         item("ServerScriptService", "ServerScriptService", children=tree(src / "server", "Bunny64Server")),
         item("StarterPlayer", "StarterPlayer",
              '<bool name="LoadCharacterAppearance">false</bool>'
-             '<bool name="CharacterUseJumpPower">true</bool>'
-             '<float name="CharacterJumpPower">58</float>'
-             '<float name="CharacterWalkSpeed">24</float>',
-             item("StarterPlayerScripts", "StarterPlayerScripts", children=tree(src / "client", "Bunny64Client"))),
+             '<bool name="EnableMouseLockOption">false</bool>',
+             item("StarterPlayerScripts", "StarterPlayerScripts", children=tree(src / "client", "Bunny64Client"))
+             + item("StarterCharacterScripts", "StarterCharacterScripts",
+                    children=script("LocalScript", "Animate", (src / "character" / "Animate.client.luau").read_text())
+                    + script("Script", "Health", (src / "character" / "Health.server.luau").read_text()))),
     ])
     xml = ('<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" '
            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '

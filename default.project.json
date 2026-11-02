@@ -3,20 +3,33 @@
   "tree": {
     "$className": "DataModel",
     "ReplicatedStorage": {
-      "Bunny64": { "$path": "src/shared" }
+      "Bunny64": {
+        "$path": "src/shared"
+      }
     },
     "ServerScriptService": {
-      "Bunny64Server": { "$path": "src/server" }
+      "Bunny64Server": {
+        "$path": "src/server"
+      }
     },
     "StarterPlayer": {
       "$properties": {
         "LoadCharacterAppearance": false,
-        "CharacterUseJumpPower": true,
-        "CharacterJumpPower": 58,
-        "CharacterWalkSpeed": 24
+        "EnableMouseLockOption": false
       },
       "StarterPlayerScripts": {
-        "Bunny64Client": { "$path": "src/client" }
+        "Bunny64Client": {
+          "$path": "src/client"
+        }
+      },
+      "StarterCharacterScripts": {
+        "$className": "StarterCharacterScripts",
+        "Animate": {
+          "$path": "src/character/Animate.client.luau"
+        },
+        "Health": {
+          "$path": "src/character/Health.server.luau"
+        }
       }
     },
     "Workspace": {

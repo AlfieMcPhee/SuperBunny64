@@ -1,11 +1,18 @@
 --[[
 	DataService - loads and saves each player's progress with DataStoreService.
 
-	* Session locking: a save records which server owns it, so two servers can't
-	  overwrite each other if a player hops servers quickly.
-	* Retries with back-off, autosave, save on leave and on server shutdown.
-	* In Studio without "Enable Studio Access to API Services" the game still
-	  runs; progress just isn't saved (the HUD tells the player).
+	Save layout (one DataStore key per player):
+	  {
+	    version = 2,
+	    slots = { ["1"] = slot, ["2"] = slot, ["3"] = slot },   -- File A / B / C
+	    custom = { fur, accent, hat, neck },                     -- shared look
+	    options = { sfx, music, shake },
+	  }
+
+	* Session locking so two servers can't overwrite each other.
+	* Retries with back-off, autosave, save on leave and on shutdown.
+	* Saves from the first version are moved into File A automatically.
+	* In Studio without API access the game still runs; nothing is saved.
 ]]
 
 local DataStoreService = game:GetService("DataStoreService")
@@ -17,8 +24,8 @@ local Config = require(Shared:WaitForChild("Config"))
 
 local DataService = {}
 
-local SCHEMA_VERSION = 1
-local LOCK_TIMEOUT = 600 -- seconds before a stale lock may be taken over
+local SCHEMA_VERSION = 2
+local LOCK_TIMEOUT = 600
 
 local store = nil
 do
@@ -34,34 +41,77 @@ end
 
 local profiles = {} -- [Player] = profile
 
-local function defaultData()
+function DataService.NewSlot()
 	return {
-		version = SCHEMA_VERSION,
-		carrots = {}, -- [carrotId] = true
-		goldens = {}, -- [goldenId] = true
+		carrots = {},
+		goldens = {},
 		carrotCount = 0,
 		bugs = 0,
 		playTime = 0,
 		completedTime = nil,
-		firstJoin = os.time(),
+		checkpoint = "meadow",
+		warps = { meadow = true },
+		bossDefeated = false,
+		created = os.time(),
 	}
+end
+
+local function defaultData()
+	return {
+		version = SCHEMA_VERSION,
+		slots = {},
+		custom = table.clone(Config.DefaultCustom),
+		options = { sfx = 8, music = 6, shake = true },
+	}
+end
+
+local function reconcileSlot(slot)
+	if type(slot) ~= "table" then
+		return nil
+	end
+	for k, v in pairs(DataService.NewSlot()) do
+		if slot[k] == nil and k ~= "completedTime" then
+			slot[k] = v
+		end
+	end
+	local n = 0
+	for _ in pairs(slot.carrots) do
+		n += 1
+	end
+	slot.carrotCount = n
+	if not Config.Checkpoints[slot.checkpoint] then
+		slot.checkpoint = "meadow"
+	end
+	return slot
 end
 
 local function reconcile(data)
 	if type(data) ~= "table" then
 		return defaultData()
 	end
-	for key, value in pairs(defaultData()) do
-		if data[key] == nil then
-			data[key] = value
+	if data.version == nil or data.version < 2 then
+		-- version 1 kept a single game at the top level: move it into File A
+		local legacy = {
+			carrots = data.carrots or {},
+			goldens = data.goldens or {},
+			bugs = data.bugs or 0,
+			playTime = data.playTime or 0,
+			completedTime = nil, -- the game grew; the old ending no longer counts
+		}
+		data = defaultData()
+		if next(legacy.carrots) or next(legacy.goldens) then
+			data.slots["1"] = reconcileSlot(legacy)
 		end
 	end
-	-- Recount in case of older saves
-	local count = 0
-	for _ in pairs(data.carrots) do
-		count += 1
+	for k, v in pairs(defaultData()) do
+		if data[k] == nil then
+			data[k] = v
+		end
 	end
-	data.carrotCount = count
+	for i = 1, Config.SaveSlots do
+		local key = tostring(i)
+		data.slots[key] = reconcileSlot(data.slots[key])
+	end
 	return data
 end
 
@@ -84,15 +134,18 @@ local function keyFor(player)
 	return "player_" .. player.UserId
 end
 
--- Load ------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- Load / save
+--------------------------------------------------------------------------------
+
 function DataService.Load(player)
 	local profile = {
 		player = player,
 		data = defaultData(),
 		canSave = false,
 		loaded = false,
+		active = nil, -- "1" / "2" / "3" while playing a file
 		lastTick = os.clock(),
-		sessionStart = os.clock(),
 	}
 	profiles[player] = profile
 
@@ -109,7 +162,7 @@ function DataService.Load(player)
 					local lock = old.lock
 					if lock and lock.job ~= game.JobId and os.time() - (lock.time or 0) < LOCK_TIMEOUT and attempt < attempts then
 						locked = true
-						return nil -- cancel: another server still owns this save
+						return nil
 					end
 					old.lock = { job = game.JobId, time = os.time() }
 					return old
@@ -137,10 +190,12 @@ function DataService.Load(player)
 	return profile
 end
 
--- Save ------------------------------------------------------------------------
 local function tickPlayTime(profile)
 	local now = os.clock()
-	profile.data.playTime += now - profile.lastTick
+	local slot = profile.active and profile.data.slots[profile.active]
+	if slot then
+		slot.playTime += now - profile.lastTick
+	end
 	profile.lastTick = now
 end
 
@@ -162,7 +217,7 @@ function DataService.Save(player, release)
 			store:UpdateAsync(keyFor(player), function(old)
 				if type(old) == "table" and old.lock and old.lock.job ~= game.JobId then
 					stolen = true
-					return nil -- another server took over; don't clobber its data
+					return nil
 				end
 				return payload
 			end)
@@ -206,15 +261,112 @@ function DataService.WaitFor(player, timeout)
 	return nil
 end
 
-function DataService.GetPlayTime(player)
-	local profile = profiles[player]
-	if not profile then
-		return 0
+--------------------------------------------------------------------------------
+-- Files (save slots)
+--------------------------------------------------------------------------------
+
+function DataService.ActiveSlot(player)
+	local profile = DataService.Get(player)
+	if profile and profile.active then
+		return profile.data.slots[profile.active], profile
 	end
-	return profile.data.playTime + (os.clock() - profile.lastTick)
+	return nil, profile
 end
 
--- Autosave & shutdown -----------------------------------------------------------
+function DataService.SelectSlot(player, index)
+	local profile = DataService.Get(player)
+	if not profile or type(index) ~= "number" or index < 1 or index > Config.SaveSlots or index % 1 ~= 0 then
+		return nil
+	end
+	tickPlayTime(profile)
+	local key = tostring(index)
+	if not profile.data.slots[key] then
+		profile.data.slots[key] = DataService.NewSlot()
+	end
+	profile.active = key
+	profile.lastTick = os.clock()
+	return profile.data.slots[key]
+end
+
+function DataService.ClearActive(player)
+	local profile = DataService.Get(player)
+	if profile then
+		tickPlayTime(profile)
+		profile.active = nil
+	end
+end
+
+function DataService.EraseSlot(player, index)
+	local profile = DataService.Get(player)
+	if not profile or type(index) ~= "number" or index < 1 or index > Config.SaveSlots then
+		return false
+	end
+	local key = tostring(math.floor(index))
+	if profile.active == key then
+		return false
+	end
+	profile.data.slots[key] = nil
+	return true
+end
+
+function DataService.GetPlayTime(player)
+	local profile = profiles[player]
+	local slot = profile and profile.active and profile.data.slots[profile.active]
+	if not slot then
+		return 0
+	end
+	return slot.playTime + (os.clock() - profile.lastTick)
+end
+
+local function count(t)
+	local n = 0
+	for _ in pairs(t or {}) do
+		n += 1
+	end
+	return n
+end
+DataService.Count = count
+
+function DataService.Summaries(player)
+	local profile = DataService.Get(player)
+	local out = {}
+	for i = 1, Config.SaveSlots do
+		local slot = profile and profile.data.slots[tostring(i)]
+		if slot then
+			out[i] = {
+				exists = true,
+				goldens = count(slot.goldens),
+				carrots = slot.carrotCount,
+				playTime = (profile.active == tostring(i)) and DataService.GetPlayTime(player) or slot.playTime,
+				completed = slot.completedTime ~= nil,
+			}
+		else
+			out[i] = { exists = false, goldens = 0, carrots = 0, playTime = 0, completed = false }
+		end
+	end
+	return out
+end
+
+-- Best progress across all files (unlocks cosmetics)
+function DataService.Progress(player)
+	local profile = DataService.Get(player)
+	local best, boss = 0, false
+	if profile then
+		for i = 1, Config.SaveSlots do
+			local slot = profile.data.slots[tostring(i)]
+			if slot then
+				best = math.max(best, count(slot.goldens))
+				boss = boss or slot.bossDefeated == true
+			end
+		end
+	end
+	return { goldens = best, boss = boss }
+end
+
+--------------------------------------------------------------------------------
+-- Autosave & shutdown
+--------------------------------------------------------------------------------
+
 task.spawn(function()
 	while true do
 		task.wait(Config.AutosaveSeconds)

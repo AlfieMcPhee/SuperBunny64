@@ -1,0 +1,2 @@
+-- Intentionally empty: replaces Roblox's default "Animate" script.
+-- The bunny is animated procedurally by StarterPlayerScripts.Bunny64Client.Animator.
