@@ -439,7 +439,8 @@ end
 -- A line of carrots between two points
 -- A carrot hovering 3 studs above whatever ground is at (x, z)
 function B.carrotOnGround(x, z, nominalY)
-	B.carrot(Vector3.new(x, nominalY or 3, z), Vector3.new(x, B.groundY(x, z) + 3, z))
+	-- cast from just above head height so floating platforms overhead don't count
+	B.carrot(Vector3.new(x, nominalY or 3, z), Vector3.new(x, B.groundY(x, z, 60) + 3, z))
 end
 
 function B.carrotLine(a, b, n)

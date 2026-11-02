@@ -718,6 +718,11 @@ return HazardMath
 ]]
 
 local Players = game:GetService("Players")
+-- First thing: never auto-spawn default avatars. Bunnies are spawned when a
+-- save file is picked, so even if something below fails nobody gets dropped
+-- into an empty world.
+Players.CharacterAutoLoads = false
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local StarterPlayer = game:GetService("StarterPlayer")
@@ -728,12 +733,33 @@ local BunnyModel = require(Shared:WaitForChild("BunnyModel"))
 
 local DataService = require(script:WaitForChild("DataService"))
 local WorldBuilder = require(script:WaitForChild("WorldBuilder"))
-local EnemyService = require(script:WaitForChild("EnemyService"))
-local HazardService = require(script:WaitForChild("HazardService"))
-local BossService = require(script:WaitForChild("BossService"))
-local AdminService = require(script:WaitForChild("AdminService"))
 
-Players.CharacterAutoLoads = false
+-- Optional systems load in protected mode: if one is broken it logs a warning
+-- and the rest of the game keeps working.
+local function optional(name, stub)
+	local ok, mod = pcall(function()
+		return require(script:WaitForChild(name))
+	end)
+	if ok then
+		return mod
+	end
+	warn("[Bunny64] " .. name .. " failed to load and is switched off: " .. tostring(mod))
+	return stub
+end
+local noop = function() end
+local EnemyService = optional("EnemyService", { Start = noop, MarkPounding = noop, Shockwave = noop })
+local HazardService = optional("HazardService", { Start = noop, Burn = noop })
+local BossService = optional("BossService", { Start = noop, Reset = noop })
+local AdminService = optional("AdminService", { Start = noop, IsAdmin = function()
+	return false
+end })
+
+local function safeStart(name, fn, ...)
+	local ok, err = pcall(fn, ...)
+	if not ok then
+		warn("[Bunny64] " .. name .. " failed to start: " .. tostring(err))
+	end
+end
 
 -- The plush bunny is everyone's character
 do
@@ -1215,14 +1241,14 @@ Warp.OnServerEvent:Connect(function(player, id)
 end)
 
 -- Hazards, enemies, boss ------------------------------------------------------------------------
-HazardService.Start(info, {
+safeStart("HazardService", HazardService.Start, info, {
 	burn = burn,
 	hurt = function(player, fromPos, velocity)
 		hurt(player, fromPos, velocity, false)
 	end,
 })
 
-EnemyService.Start(info, {
+safeStart("EnemyService", EnemyService.Start, info, {
 	effect = function(kind, pos)
 		Effect:FireAllClients(kind, pos)
 	end,
@@ -1235,7 +1261,7 @@ EnemyService.Start(info, {
 	end,
 })
 
-BossService.Start(info, {
+safeStart("BossService", BossService.Start, info, {
 	effect = function(kind, pos, extra)
 		Effect:FireAllClients(kind, pos, extra)
 	end,
@@ -1258,7 +1284,7 @@ BossService.Start(info, {
 })
 
 -- Admin perks ------------------------------------------------------------------------------------
-AdminService.Start({
+safeStart("AdminService", AdminService.Start, {
 	remotes = remotes,
 	info = info,
 	push = push,
@@ -1490,7 +1516,7 @@ function COMMANDS.tp(admin, where)
 	return true, "WHOOSH!"
 end
 
-function COMMANDS["goto"](admin, targetId)
+COMMANDS["goto"] = function(admin, targetId)
 	local target = findPlayer(targetId)
 	local troot = rootOf(target)
 	if not troot then
@@ -3771,7 +3797,8 @@ end
 -- A line of carrots between two points
 -- A carrot hovering 3 studs above whatever ground is at (x, z)
 function B.carrotOnGround(x, z, nominalY)
-	B.carrot(Vector3.new(x, nominalY or 3, z), Vector3.new(x, B.groundY(x, z) + 3, z))
+	-- cast from just above head height so floating platforms overhead don't count
+	B.carrot(Vector3.new(x, nominalY or 3, z), Vector3.new(x, B.groundY(x, z, 60) + 3, z))
 end
 
 function B.carrotLine(a, b, n)
@@ -5567,15 +5594,19 @@ function WorldBuilder.Build()
 	root.Name = "Bunny64World"
 	B.Init(root)
 	workspace.Terrain:Clear()
+	-- in the workspace while building, so ground checks see platforms too
+	root.Parent = workspace
 
 	setupLighting()
 	buildSea()
-	Meadow.Build(B)
-	Peaks.Build(B)
-	Canyon.Build(B)
-	Castle.Build(B)
+	-- each region builds in protected mode: one mistake can't wipe out the world
+	for _, region in ipairs({ { "Meadow", Meadow }, { "Peaks", Peaks }, { "Canyon", Canyon }, { "Castle", Castle } }) do
+		local ok, err = pcall(region[2].Build, B)
+		if not ok then
+			warn("[Bunny64] Building " .. region[1] .. " failed: " .. tostring(err))
+		end
+	end
 
-	root.Parent = workspace
 	B.Finish()
 
 	local info = B.info
@@ -5789,6 +5820,10 @@ if player.Character then
 	task.spawn(watchHealth, player.Character)
 end
 player.CharacterAdded:Connect(watchHealth)
+
+Movement.OnLoading = function()
+	Hud.Toast("LOADING THE WORLD...", 2)
+end
 
 -- Start everything -----------------------------------------------------------------
 Hud.Init(function()
@@ -8528,6 +8563,43 @@ end
 -- Character setup
 --------------------------------------------------------------------------------
 
+-- The world (especially terrain) reaches each player a moment after they join.
+-- Hold the bunny in place until there's ground under it, so a fresh spawn or a
+-- teleport can never drop it through a world that hasn't loaded yet.
+local holdToken = nil
+local function holdUntilGround(minTime)
+	if not root then
+		return
+	end
+	local token = {}
+	holdToken = token
+	local myRoot = root
+	myRoot.Anchored = true
+	task.spawn(function()
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = { character, Effects.Folder }
+		local start = os.clock()
+		task.wait(minTime or 0.5) -- let the server move us to the checkpoint first
+		local shown = false
+		while holdToken == token and myRoot.Parent and os.clock() - start < 20 do
+			local hit = workspace:Raycast(myRoot.Position + Vector3.new(0, 2, 0), Vector3.new(0, -24, 0), params)
+			if hit then
+				break
+			end
+			if not shown and os.clock() - start > 1.5 and Movement.OnLoading then
+				shown = true
+				Movement.OnLoading()
+			end
+			task.wait(0.1)
+		end
+		if holdToken == token and myRoot.Parent then
+			myRoot.AssemblyLinearVelocity = Vector3.zero
+			myRoot.Anchored = false
+		end
+	end)
+end
+
 local function onCharacter(char)
 	character = char
 	flying = false
@@ -8551,6 +8623,7 @@ local function onCharacter(char)
 	lv.MaxForce = 200000
 	lv.Enabled = false
 	lv.Parent = root
+	holdUntilGround(0.5)
 
 	humanoid.StateChanged:Connect(function(_, new)
 		if new == HST.Landed or new == HST.Running then
@@ -8866,6 +8939,7 @@ function Movement.Init(effects, remotes)
 				setMove("")
 			end
 			root.AssemblyLinearVelocity = Vector3.zero
+			holdUntilGround(0.15) -- teleported: wait for the ground there
 			return
 		end
 		local v = root.AssemblyLinearVelocity

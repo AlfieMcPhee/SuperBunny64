@@ -96,15 +96,19 @@ function WorldBuilder.Build()
 	root.Name = "Bunny64World"
 	B.Init(root)
 	workspace.Terrain:Clear()
+	-- in the workspace while building, so ground checks see platforms too
+	root.Parent = workspace
 
 	setupLighting()
 	buildSea()
-	Meadow.Build(B)
-	Peaks.Build(B)
-	Canyon.Build(B)
-	Castle.Build(B)
+	-- each region builds in protected mode: one mistake can't wipe out the world
+	for _, region in ipairs({ { "Meadow", Meadow }, { "Peaks", Peaks }, { "Canyon", Canyon }, { "Castle", Castle } }) do
+		local ok, err = pcall(region[2].Build, B)
+		if not ok then
+			warn("[Bunny64] Building " .. region[1] .. " failed: " .. tostring(err))
+		end
+	end
 
-	root.Parent = workspace
 	B.Finish()
 
 	local info = B.info

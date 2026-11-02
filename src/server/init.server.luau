@@ -5,6 +5,11 @@
 ]]
 
 local Players = game:GetService("Players")
+-- First thing: never auto-spawn default avatars. Bunnies are spawned when a
+-- save file is picked, so even if something below fails nobody gets dropped
+-- into an empty world.
+Players.CharacterAutoLoads = false
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local StarterPlayer = game:GetService("StarterPlayer")
@@ -15,12 +20,33 @@ local BunnyModel = require(Shared:WaitForChild("BunnyModel"))
 
 local DataService = require(script:WaitForChild("DataService"))
 local WorldBuilder = require(script:WaitForChild("WorldBuilder"))
-local EnemyService = require(script:WaitForChild("EnemyService"))
-local HazardService = require(script:WaitForChild("HazardService"))
-local BossService = require(script:WaitForChild("BossService"))
-local AdminService = require(script:WaitForChild("AdminService"))
 
-Players.CharacterAutoLoads = false
+-- Optional systems load in protected mode: if one is broken it logs a warning
+-- and the rest of the game keeps working.
+local function optional(name, stub)
+	local ok, mod = pcall(function()
+		return require(script:WaitForChild(name))
+	end)
+	if ok then
+		return mod
+	end
+	warn("[Bunny64] " .. name .. " failed to load and is switched off: " .. tostring(mod))
+	return stub
+end
+local noop = function() end
+local EnemyService = optional("EnemyService", { Start = noop, MarkPounding = noop, Shockwave = noop })
+local HazardService = optional("HazardService", { Start = noop, Burn = noop })
+local BossService = optional("BossService", { Start = noop, Reset = noop })
+local AdminService = optional("AdminService", { Start = noop, IsAdmin = function()
+	return false
+end })
+
+local function safeStart(name, fn, ...)
+	local ok, err = pcall(fn, ...)
+	if not ok then
+		warn("[Bunny64] " .. name .. " failed to start: " .. tostring(err))
+	end
+end
 
 -- The plush bunny is everyone's character
 do
@@ -502,14 +528,14 @@ Warp.OnServerEvent:Connect(function(player, id)
 end)
 
 -- Hazards, enemies, boss ------------------------------------------------------------------------
-HazardService.Start(info, {
+safeStart("HazardService", HazardService.Start, info, {
 	burn = burn,
 	hurt = function(player, fromPos, velocity)
 		hurt(player, fromPos, velocity, false)
 	end,
 })
 
-EnemyService.Start(info, {
+safeStart("EnemyService", EnemyService.Start, info, {
 	effect = function(kind, pos)
 		Effect:FireAllClients(kind, pos)
 	end,
@@ -522,7 +548,7 @@ EnemyService.Start(info, {
 	end,
 })
 
-BossService.Start(info, {
+safeStart("BossService", BossService.Start, info, {
 	effect = function(kind, pos, extra)
 		Effect:FireAllClients(kind, pos, extra)
 	end,
@@ -545,7 +571,7 @@ BossService.Start(info, {
 })
 
 -- Admin perks ------------------------------------------------------------------------------------
-AdminService.Start({
+safeStart("AdminService", AdminService.Start, {
 	remotes = remotes,
 	info = info,
 	push = push,

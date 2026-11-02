@@ -239,6 +239,43 @@ end
 -- Character setup
 --------------------------------------------------------------------------------
 
+-- The world (especially terrain) reaches each player a moment after they join.
+-- Hold the bunny in place until there's ground under it, so a fresh spawn or a
+-- teleport can never drop it through a world that hasn't loaded yet.
+local holdToken = nil
+local function holdUntilGround(minTime)
+	if not root then
+		return
+	end
+	local token = {}
+	holdToken = token
+	local myRoot = root
+	myRoot.Anchored = true
+	task.spawn(function()
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = { character, Effects.Folder }
+		local start = os.clock()
+		task.wait(minTime or 0.5) -- let the server move us to the checkpoint first
+		local shown = false
+		while holdToken == token and myRoot.Parent and os.clock() - start < 20 do
+			local hit = workspace:Raycast(myRoot.Position + Vector3.new(0, 2, 0), Vector3.new(0, -24, 0), params)
+			if hit then
+				break
+			end
+			if not shown and os.clock() - start > 1.5 and Movement.OnLoading then
+				shown = true
+				Movement.OnLoading()
+			end
+			task.wait(0.1)
+		end
+		if holdToken == token and myRoot.Parent then
+			myRoot.AssemblyLinearVelocity = Vector3.zero
+			myRoot.Anchored = false
+		end
+	end)
+end
+
 local function onCharacter(char)
 	character = char
 	flying = false
@@ -262,6 +299,7 @@ local function onCharacter(char)
 	lv.MaxForce = 200000
 	lv.Enabled = false
 	lv.Parent = root
+	holdUntilGround(0.5)
 
 	humanoid.StateChanged:Connect(function(_, new)
 		if new == HST.Landed or new == HST.Running then
@@ -577,6 +615,7 @@ function Movement.Init(effects, remotes)
 				setMove("")
 			end
 			root.AssemblyLinearVelocity = Vector3.zero
+			holdUntilGround(0.15) -- teleported: wait for the ground there
 			return
 		end
 		local v = root.AssemblyLinearVelocity

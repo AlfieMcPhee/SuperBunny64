@@ -159,3 +159,19 @@ for f in sorted(ROOT.rglob("*.luau")):
         print(f"UNDECLARED {f.relative_to(ROOT.parent)}:{line}: {name}")
 if bad:
     sys.exit(1)
+
+# ---------------------------------------------------------------------------
+# Third pass: full syntax check with the Luau parser in luau_syntax.py
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import luau_syntax  # noqa: E402
+
+syntax_ok = True
+for f in sorted(ROOT.rglob("*.luau")):
+    try:
+        luau_syntax.check(f)
+    except luau_syntax.LuauSyntaxError as e:
+        syntax_ok = False
+        print(f"SYNTAX {f.relative_to(ROOT.parent)}: {e}")
+if not syntax_ok:
+    sys.exit(1)
+print("all checks passed")

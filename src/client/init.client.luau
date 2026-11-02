@@ -203,6 +203,10 @@ if player.Character then
 end
 player.CharacterAdded:Connect(watchHealth)
 
+Movement.OnLoading = function()
+	Hud.Toast("LOADING THE WORLD...", 2)
+end
+
 -- Start everything -----------------------------------------------------------------
 Hud.Init(function()
 	Menus.TogglePause()

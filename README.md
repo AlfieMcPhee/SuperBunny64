@@ -127,8 +127,9 @@ runtime), so avatar settings don't matter.
 
 * **Rojo**: `rojo serve` with the included `default.project.json`.
 * **Rebuild the place file**: `python3 tools/build_place.py`.
-* `python3 tools/check_luau.py` checks script structure and flags names that
-  are used but never declared.
+* `python3 tools/check_luau.py` runs a full Luau syntax check (a real parser),
+  checks block structure, and flags names that are used but never declared.
+  Run it before rebuilding the place file.
 
 ## Sound and music
 

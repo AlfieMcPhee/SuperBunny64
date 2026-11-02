@@ -134,7 +134,7 @@ function COMMANDS.tp(admin, where)
 	return true, "WHOOSH!"
 end
 
-function COMMANDS["goto"](admin, targetId)
+COMMANDS["goto"] = function(admin, targetId)
 	local target = findPlayer(targetId)
 	local troot = rootOf(target)
 	if not troot then
