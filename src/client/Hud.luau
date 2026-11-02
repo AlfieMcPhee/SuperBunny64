@@ -17,6 +17,8 @@ local Hud = {}
 
 local gui, root
 local hearts = {}
+local staminaRow
+local staminaPips = {}
 local goldenLabel, carrotLabel, saveLabel, toastLabel, bannerHolder, bannerFace
 local bossFrame, bossPips, bossName
 local toastToken, bannerToken = 0, 0
@@ -116,6 +118,35 @@ function Hud.Init(menuCallback)
 		hearts[i] = h
 	end
 
+	-- stamina: green pips under the hearts (shown while not full)
+	staminaRow = Instance.new("Frame")
+	staminaRow.BackgroundTransparency = 1
+	staminaRow.Size = UDim2.fromOffset(200, 18)
+	staminaRow.Position = UDim2.fromOffset(6, 88)
+	staminaRow.Parent = root
+	local sLayout = Instance.new("UIListLayout")
+	sLayout.FillDirection = Enum.FillDirection.Horizontal
+	sLayout.Padding = UDim.new(0, 4)
+	sLayout.Parent = staminaRow
+	for i = 1, Config.Stamina.max do
+		local back = Instance.new("Frame")
+		back.Size = UDim2.fromOffset(28, 12)
+		back.BackgroundColor3 = Color3.fromRGB(40, 46, 40)
+		back.BorderSizePixel = 0
+		UI.corner(back, 5)
+		UI.stroke(back, 2, UI.Ink, Enum.ApplyStrokeMode.Border)
+		back.Parent = staminaRow
+		local fill = Instance.new("Frame")
+		fill.Name = "Fill"
+		fill.Size = UDim2.fromScale(1, 1)
+		fill.BackgroundColor3 = Color3.fromRGB(134, 196, 96)
+		fill.BorderSizePixel = 0
+		UI.corner(fill, 5)
+		fill.Parent = back
+		staminaPips[i] = back
+	end
+	staminaRow.Visible = false
+
 	goldenLabel = counter(root, P.Gold, 36)
 	carrotLabel = counter(root, P.Carrot, 84)
 
@@ -132,7 +163,7 @@ function Hud.Init(menuCallback)
 	menu.TextColor3 = UI.Cream
 	menu.BackgroundColor3 = UI.Navy
 	menu.Size = UDim2.fromOffset(92, 34)
-	menu.Position = UDim2.fromOffset(0, 96)
+	menu.Position = UDim2.fromOffset(0, 112)
 	UI.corner(menu, 8)
 	UI.stroke(menu, 3, UI.Gold, Enum.ApplyStrokeMode.Border)
 	UI.stroke(menu, 2)
@@ -162,11 +193,12 @@ function Hud.Init(menuCallback)
 	bossFrame.AnchorPoint = Vector2.new(0.5, 0)
 	bossFrame.Position = UDim2.new(0.5, 0, 0, 18)
 	bossFrame.Size = UDim2.fromOffset(360, 70)
+	bossFrame.AutomaticSize = Enum.AutomaticSize.None
 	bossFrame.Visible = false
 	bossFrame.Parent = gui
 	bossName = UI.label(bossFrame, { Text = "KING GRUMBLE", Font = UI.TITLE, TextSize = 30, Size = UDim2.new(1, 0, 0, 34), TextColor3 = Color3.fromRGB(240, 150, 90), Stroke = 4 })
 	bossPips = {}
-	for i = 1, 3 do
+	for i = 1, 6 do
 		local pip = Instance.new("Frame")
 		pip.Size = UDim2.fromOffset(100, 18)
 		pip.Position = UDim2.fromOffset(12 + (i - 1) * 114, 42)
@@ -393,6 +425,44 @@ function Hud.Pulse(label)
 	TweenService:Create(scale, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 end
 
+local staminaHideAt = 0
+function Hud.SetStamina(cur, max)
+	if not staminaRow then
+		return
+	end
+	for i, pip in ipairs(staminaPips) do
+		pip.Visible = i <= max
+		local f = math.clamp(cur - (i - 1), 0, 1)
+		pip.Fill.Size = UDim2.fromScale(f, 1)
+		pip.Fill.BackgroundColor3 = f >= 1 and Color3.fromRGB(134, 196, 96) or Color3.fromRGB(196, 176, 90)
+	end
+	if cur < max - 0.001 then
+		staminaRow.Visible = true
+		staminaHideAt = math.huge
+	elseif staminaHideAt == math.huge then
+		-- linger a moment once full, then tuck away
+		staminaHideAt = os.clock() + 1.2
+		task.delay(1.25, function()
+			if os.clock() >= staminaHideAt then
+				staminaRow.Visible = false
+			end
+		end)
+	end
+end
+
+-- Tried a move with no stamina left: the meter flashes red
+function Hud.StaminaEmpty()
+	if not staminaRow then
+		return
+	end
+	staminaRow.Visible = true
+	for _, pip in ipairs(staminaPips) do
+		pip.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+		TweenService:Create(pip, TweenInfo.new(0.5), { BackgroundColor3 = Color3.fromRGB(40, 46, 40) }):Play()
+	end
+	Hud.Pulse(staminaRow)
+end
+
 function Hud.SetProgress(slot, canSave)
 	if not slot then
 		return
@@ -445,21 +515,38 @@ function Hud.RegionBanner(text)
 	end)
 end
 
--- Boss bar follows King Grumble's attributes while you're in the arena
-function Hud.WatchBoss(inArenaFn)
+-- Boss bar: shows the boss whose arena you're in (name, one pip per hit left)
+local pipCount = 0
+local function layoutPips(n)
+	if n == pipCount then
+		return
+	end
+	pipCount = n
+	local w = math.floor((336 - (n - 1) * 8) / n)
+	for i, pip in ipairs(bossPips) do
+		pip.Visible = i <= n
+		pip.Size = UDim2.fromOffset(w, 18)
+		pip.Position = UDim2.fromOffset(12 + (i - 1) * (w + 8), 42)
+	end
+end
+
+function Hud.WatchBoss(arenaBossFn)
 	RunService.RenderStepped:Connect(function()
-		local folder = workspace:FindFirstChild("Boss")
-		local boss = folder and folder:FindFirstChild("KingGrumble")
-		local show = boss ~= nil and gui.Enabled and inArenaFn() and boss:GetAttribute("State") ~= "sleep"
+		local boss = arenaBossFn()
+		local state = boss and boss:GetAttribute("State")
+		local show = boss ~= nil and boss.Parent ~= nil and gui.Enabled and state ~= "sleep" and state ~= "dead"
 		bossFrame.Visible = show
 		if show then
-			local hp = boss:GetAttribute("HP") or 3
+			local max = boss:GetAttribute("MaxHP") or 3
+			local hp = boss:GetAttribute("HP") or max
+			layoutPips(math.min(max, #bossPips))
 			for i, pip in ipairs(bossPips) do
 				pip.BackgroundColor3 = i <= hp and Color3.fromRGB(220, 120, 50) or Color3.fromRGB(50, 40, 44)
 			end
+			local name = boss:GetAttribute("BossName") or "BOSS"
 			local exposed = boss:GetAttribute("Exposed")
 			bossName.TextColor3 = exposed and Color3.fromRGB(255, 230, 120) or Color3.fromRGB(240, 150, 90)
-			bossName.Text = exposed and "KING GRUMBLE - JUMP ON HIS BACK!" or "KING GRUMBLE"
+			bossName.Text = exposed and (boss:GetAttribute("Hint") or name) or name
 		end
 	end)
 end

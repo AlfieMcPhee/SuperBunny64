@@ -21,8 +21,10 @@ local Effects, Remotes
 local combo, lastPickup = 0, 0
 
 local reqOf = {}
+local bossOf = {}
 for _, g in ipairs(Config.Goldens) do
 	reqOf[g.id] = g.req
+	bossOf[g.id] = g.boss
 end
 
 local function silverCount(setId)
@@ -51,6 +53,10 @@ local function isLocked(id)
 	elseif req == "bugs" then
 		return slot.bugs < Config.BugBusterGoal
 	elseif req == "boss" then
+		local b = bossOf[id]
+		if b and b ~= "grumble" then
+			return not (slot.bosses and slot.bosses[b])
+		end
 		return not slot.bossDefeated
 	end
 	return false

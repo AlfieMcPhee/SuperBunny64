@@ -37,6 +37,9 @@ local noop = function() end
 local EnemyService = optional("EnemyService", { Start = noop, MarkPounding = noop, Shockwave = noop })
 local HazardService = optional("HazardService", { Start = noop, Burn = noop })
 local BossService = optional("BossService", { Start = noop, Reset = noop })
+local BossRootjaw = optional("BossRootjaw", { Start = noop, Reset = noop })
+local BossThunderhead = optional("BossThunderhead", { Start = noop, Reset = noop })
+local BossShade = optional("BossShade", { Start = noop, Reset = noop })
 local CrateService = optional("CrateService", { Start = noop, Shockwave = noop })
 local NPCService = optional("NPCService", { Start = noop })
 local Leaderboard = optional("Leaderboard", { Start = noop, RecordClear = noop })
@@ -143,6 +146,7 @@ local function snapshot(player, event)
 			checkpoint = slot.checkpoint,
 			warps = slot.warps,
 			bossDefeated = slot.bossDefeated,
+			bosses = slot.bosses or {},
 			tips = slot.tips or {},
 			stamps = slot.stamps or {},
 			silvers = slot.silvers or {},
@@ -434,7 +438,7 @@ Collect.OnServerEvent:Connect(function(player, id)
 			return
 		elseif def.req == "bugs" and slot.bugs < Config.BugBusterGoal then
 			return
-		elseif def.req == "boss" and not slot.bossDefeated then
+		elseif def.req == "boss" and not (def.boss and (slot.bosses or {})[def.boss] or (not def.boss and slot.bossDefeated)) then
 			return
 		elseif def.req == "trial" and not (slot.trials and slot.trials[id]) then
 			return
@@ -607,6 +611,7 @@ end)
 local VALID_MOVES = {
 	[""] = true, roll = true, slide = true, longjump = true, pound = true, flip = true, fly = true,
 	walljump = true, cheer = true, talk = true, wave = true, dance = true, sit = true,
+	dive = true, crouch = true, backflip = true, skid = true,
 }
 SetMove.OnServerEvent:Connect(function(player, move)
 	local char = player.Character
@@ -744,34 +749,61 @@ safeStart("EnemyService", EnemyService.Start, info, {
 	end,
 })
 
-safeStart("BossService", BossService.Start, info, {
-	effect = function(kind, pos, extra)
-		if kind == "bossroar" then
-			table.clear(bossHit) -- a new fight starts clean
-		end
-		Effect:FireAllClients(kind, pos, extra)
-	end,
-	hurt = function(player, fromPos)
-		hurt(player, fromPos, nil, false)
-	end,
-	bounce = function(player, vel)
-		Bounce:FireClient(player, vel, true, "stomp")
-	end,
-	defeated = function(winners)
-		for _, player in ipairs(winners) do
-			local slot = DataService.ActiveSlot(player)
-			if slot then
-				slot.bossDefeated = true
-				awardStamp(player, "boss")
-				if not bossHit[player] then
-					awardStamp(player, "bossnohit")
-				end
-				push(player, { kind = "bossdown" })
-				task.spawn(DataService.Save, player, false)
+-- Every boss shares these callbacks; `id` says which one ("grumble", "rootjaw"...)
+local function bossCallbacks(id)
+	return {
+		effect = function(kind, pos, extra)
+			if kind == "bossroar" and id == "grumble" then
+				table.clear(bossHit) -- a new fight starts clean
 			end
-		end
-	end,
-})
+			Effect:FireAllClients(kind, pos, extra)
+		end,
+		hurt = function(player, fromPos)
+			hurt(player, fromPos, nil, false)
+		end,
+		bounce = function(player, vel)
+			Bounce:FireClient(player, vel, true, "stomp")
+		end,
+		gust = function(player, vel)
+			local char = player.Character
+			if char and char:GetAttribute("Move") ~= "fly" then
+				Bounce:FireClient(player, vel, false, "gust")
+			end
+		end,
+		defeated = function(winners)
+			for _, player in ipairs(winners) do
+				local slot = DataService.ActiveSlot(player)
+				if slot then
+					slot.bosses = slot.bosses or {}
+					slot.bosses[id] = true
+					if id == "grumble" then
+						slot.bossDefeated = true
+						awardStamp(player, "boss")
+						if not bossHit[player] then
+							awardStamp(player, "bossnohit")
+						end
+					end
+					local all = slot.bossDefeated
+					for _, b in ipairs(Config.Bosses) do
+						if not slot.bosses[b.id] and b.id ~= "grumble" then
+							all = false
+						end
+					end
+					if all then
+						awardStamp(player, "allbosses")
+					end
+					push(player, { kind = "bossdown", id = id })
+					task.spawn(DataService.Save, player, false)
+				end
+			end
+		end,
+	}
+end
+
+safeStart("BossService", BossService.Start, info, bossCallbacks("grumble"))
+safeStart("BossRootjaw", BossRootjaw.Start, info, bossCallbacks("rootjaw"))
+safeStart("BossThunderhead", BossThunderhead.Start, info, bossCallbacks("thunderhead"))
+safeStart("BossShade", BossShade.Start, info, bossCallbacks("shade"))
 
 -- Admin perks ------------------------------------------------------------------------------------
 safeStart("CrateService", CrateService.Start, info, {
@@ -843,6 +875,11 @@ safeStart("AdminService", AdminService.Start, {
 	end,
 	DataService = DataService,
 	BossService = BossService,
+	ResetBosses = function()
+		for _, b in ipairs({ BossService, BossRootjaw, BossThunderhead, BossShade }) do
+			pcall(b.Reset)
+		end
+	end,
 })
 
 -- Players -----------------------------------------------------------------------------------------

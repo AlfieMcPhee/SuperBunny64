@@ -5,6 +5,7 @@
 	  * Rainbow Bridge: an arching rainbow south to a pot of gold (mind the gap)
 	  * the Cumulus: Captain Gust's airship, with a crow's nest up the mast
 	  * Updraft Spire: rising winds carry you from ledge to ledge
+	  * the Stormcrown: a floating arena where the Thunderhead broods (boss)
 	Falling off the clouds puts you back where you last stood (see the server).
 ]]
 
@@ -94,7 +95,7 @@ function Sky.Build(B)
 	B.checkpointFlag("sky")
 	B.warpBurrow(Config.Warps[6])
 	B.npc("nimbus", 74, -74, V(-1, 0, 0.3), HY + 20)
-	B.sign(V(64, HY, -48), V(0, 0, 1), "CLOUDTOP HEIGHTS", "Don't look down!")
+	B.sign(V(64, HY, -48), V(0, 0, -1), "CLOUDTOP HEIGHTS", "Don't look down!")
 	B.crate(46, -74, HY + 20)
 	B.carrotRing(V(HX, HY + 3, HZ), 18, 8)
 	for i = 0, 4 do
@@ -276,6 +277,28 @@ function Sky.Build(B)
 		B.enemy("puffer", V(sx + 26, 474, sz + 10), "sky")
 		B.enemy("bat", V(sx - 20, 500, sz), "sky")
 		B.carrot(V(sx, 430, sz + 15))
+	end
+
+	--------------------------------------------------------------- the Stormcrown (Thunderhead's arena)
+	do
+		local ax, ay, az, ar = 60, 445, 95, 32
+		B.info.bossArenas = B.info.bossArenas or {}
+		B.info.bossArenas.thunderhead = { center = V(ax, ay, az), radius = ar }
+		skyIsland(ax, ay, az, ar + 2)
+		T:ReplaceMaterial(Region3.new(V(ax - ar - 4, ay - 4, az - ar - 4), V(ax + ar + 4, ay + 1, az + ar + 4)):ExpandToGrid(4), 4, M.Grass, M.Slate)
+		for _, c in ipairs({ { 60, 423, -12 }, { 64, 427, 6 }, { 58, 431, 24 }, { 62, 435, 42 }, { 60, 440, 58 } }) do
+			cloud(c[1], c[2], c[3])
+			B.carrot(V(c[1], c[2] + 3, c[3]))
+		end
+		-- lightning rods around the rim
+		for i = 0, 3 do
+			local a = i / 4 * math.pi * 2 + math.pi / 4
+			local x, z = ax + math.cos(a) * (ar - 2), az + math.sin(a) * (ar - 2)
+			B.cyl(x, ay - 1, z, 0.5, 18, P.StoneDark, M.Metal)
+			B.ball(V(x, ay + 17.5, z), 1, Color3.fromRGB(190, 200, 220), M.Metal)
+		end
+		B.golden("thunderhead", V(ax, ay + 5, az))
+		B.sign(V(70, HY, -34), V(0, 0, -1), "THE STORMCROWN", "South, if you dare the weather")
 	end
 
 	--------------------------------------------------------------- distant scenery clouds (walk-through)

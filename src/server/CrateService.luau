@@ -12,7 +12,7 @@ local RunService = game:GetService("RunService")
 local CrateService = {}
 
 local RESPAWN = 45
-local BREAK_MOVES = { roll = true, slide = true, longjump = true, pound = true, walljump = true }
+local BREAK_MOVES = { roll = true, slide = true, longjump = true, pound = true, walljump = true, dive = true }
 local crates = {}
 local cb
 

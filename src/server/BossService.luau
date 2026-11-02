@@ -1,31 +1,35 @@
 --[[
 	BossService - King Grumble, the giant crowned Grumblebug in the throne room.
 
-	His three glowing weak points sit on top of his shell. They are only
+	His four glowing weak points sit on top of his shell. They are only
 	exposed while he is dazed: after he charges into a stone pillar, or after
 	a ground slam tires him out. Jump (or ground pound) onto a weak point to
-	break it. Break all three to win.
+	break it. Break all four to win.
 
 	  sleep -> roar -> chase -> windup -> charge -> (stunned | recover -> slam -> tired) -> chase ...
-	Each hit makes him faster; from the second phase he spits fireballs.
-]]
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+	He gets nastier with every weak point you break:
+	  phase 1  charges and slams
+	  phase 2  + spits fireballs, lava bursts up under you while he chases
+	  phase 3  + fireballs come in threes, he slams twice, calls in his bugs
+	  phase 4  ENRAGED: faster, slams three times, rains lava, shorter daze
+	Shared hazards (strikes, shockwaves, shots, minions) live in BossKit.
+]]
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
 local Config = require(Shared:WaitForChild("Config"))
 local BugModel = require(script.Parent:WaitForChild("BugModel"))
+local BossKit = require(script.Parent:WaitForChild("BossKit"))
+local RunService = game:GetService("RunService")
 
 local BossService = {}
 
 local SCALE = 3.4
-local A, RADIUS
+local MAX_HP = 4
+local arena
 local cb
-local boss = {}
+local boss = { minions = {} }
 local pillars = {}
-local fireballs = {}
-local waves = {}
 local folder
 
 local function setState(name)
@@ -38,33 +42,6 @@ end
 
 local function exposed()
 	return boss.state == "stunned" or boss.state == "tired"
-end
-
-local function playersInArena()
-	local list = {}
-	for _, player in ipairs(Players:GetPlayers()) do
-		local char = player.Character
-		local root = char and char:FindFirstChild("HumanoidRootPart")
-		local hum = char and char:FindFirstChildOfClass("Humanoid")
-		if root and hum and hum.Health > 0 then
-			local p = root.Position
-			if (Vector3.new(p.X, 0, p.Z) - Vector3.new(A.X, 0, A.Z)).Magnitude < RADIUS + 10 and p.Y > A.Y - 8 and p.Y < A.Y + 80 then
-				table.insert(list, { player = player, root = root, hum = hum, char = char })
-			end
-		end
-	end
-	return list
-end
-
-local function nearest(list)
-	local best, bestD = nil, math.huge
-	for _, e in ipairs(list) do
-		local d = (e.root.Position - boss.pos).Magnitude
-		if d < bestD then
-			best, bestD = e, d
-		end
-	end
-	return best
 end
 
 local function build()
@@ -101,7 +78,7 @@ local function build()
 	band.Parent = model
 	-- weak points
 	boss.spots = {}
-	for _, lp in ipairs({ Vector3.new(-1.15, 3.2, 1.5), Vector3.new(1.15, 3.2, 1.5), Vector3.new(0, 3.15, -0.6) }) do
+	for _, lp in ipairs({ Vector3.new(-1.15, 3.2, 1.5), Vector3.new(1.15, 3.2, 1.5), Vector3.new(0, 3.15, -0.6), Vector3.new(0, 2.9, 2.9) }) do
 		local s = Instance.new("Part")
 		s.Name = "WeakPoint"
 		s.Anchored = true
@@ -117,25 +94,32 @@ local function build()
 		table.insert(boss.spots, { part = s, alive = true })
 	end
 	boss.shells = {}
+	boss.body = {}
 	for _, d in ipairs(model:GetChildren()) do
 		if d.Name == "Shell" then
 			table.insert(boss.shells, d)
 		end
+		if d:IsA("BasePart") and d.Name ~= "WeakPoint" then
+			boss.body[d] = d.Color
+		end
 	end
 	boss.model = model
 	boss.root = root
-	model:SetAttribute("Boss", true)
+	BossKit.Tag(model, "grumble", "KING GRUMBLE", MAX_HP, arena, "JUMP ON A GLOWING SPOT!")
 	model.Parent = folder
 end
 
 local function reset()
+	BossKit.Clear(boss)
 	build()
-	boss.pos = A
+	boss.pos = arena.center
 	boss.yaw = 0
-	boss.hp = 3
-	boss.model:SetAttribute("HP", 3)
+	boss.hp = MAX_HP
+	boss.model:SetAttribute("HP", MAX_HP)
 	boss.lastFire = 0
+	boss.lastLava = 0
 	boss.slams = 0
+	boss.enraged = false
 	setState("sleep")
 end
 
@@ -156,6 +140,17 @@ local function refreshSpots()
 	end
 end
 
+local function enrage()
+	boss.enraged = true
+	boss.model:SetAttribute("Enraged", true)
+	for part in pairs(boss.body) do
+		if part.Parent then
+			part.Color = part.Color:Lerp(Color3.fromRGB(200, 50, 30), 0.45)
+		end
+	end
+	cb.effect("bossroar", boss.pos, { name = "KING GRUMBLE", title = "...IS FURIOUS!" })
+end
+
 local function faceTo(pos)
 	local d = pos - boss.pos
 	if Vector3.new(d.X, 0, d.Z).Magnitude > 0.1 then
@@ -167,54 +162,34 @@ local function forward()
 	return Vector3.new(-math.sin(boss.yaw), 0, -math.cos(boss.yaw))
 end
 
-local function clampToArena(p)
-	local flat = Vector3.new(p.X - A.X, 0, p.Z - A.Z)
-	if flat.Magnitude > RADIUS - 8 then
-		flat = flat.Unit * (RADIUS - 8)
-		return Vector3.new(A.X + flat.X, A.Y, A.Z + flat.Z), true
-	end
-	return Vector3.new(p.X, A.Y, p.Z), false
-end
-
-local function spitFireball(target)
-	local from = boss.pos + Vector3.new(0, 2 * SCALE, 0) + forward() * 3.4 * SCALE
+local function spitFireball(target, spread)
+	local from = boss.pos + Vector3.new(0, 3, 0) + forward() * 3.4 * SCALE
 	local to = target.root.Position
 	local dir = Vector3.new(to.X - from.X, 0, to.Z - from.Z)
 	if dir.Magnitude < 0.1 then
 		return
 	end
-	local ball = Instance.new("Part")
-	ball.Name = "Fireball"
-	ball.Shape = Enum.PartType.Ball
-	ball.Size = Vector3.one * 3.2
-	ball.Material = Enum.Material.Neon
-	ball.Color = Config.Palette.Ember
-	ball.Anchored = true
-	ball.CanCollide = false
-	ball.CanQuery = false
-	ball.CanTouch = false
-	ball.CFrame = CFrame.new(Vector3.new(from.X, A.Y + 3, from.Z))
-	local light = Instance.new("PointLight")
-	light.Color = Color3.fromRGB(255, 140, 70)
-	light.Range = 14
-	light.Parent = ball
-	ball.Parent = folder
-	table.insert(fireballs, { part = ball, vel = dir.Unit * 36, die = os.clock() + 4 })
+	for _, ang in ipairs(spread and { -0.32, 0, 0.32 } or { 0 }) do
+		local d = (CFrame.Angles(0, ang, 0) * dir.Unit)
+		BossKit.projectile(boss, arena, Vector3.new(from.X, arena.center.Y + 3, from.Z), d * (boss.enraged and 42 or 36), { life = 4 })
+	end
 	cb.effect("fire", from)
 end
 
 local function slamLand()
-	table.insert(waves, { center = boss.pos, t0 = os.clock(), speed = 44, maxR = 64, hit = {} })
-	cb.effect("shockwave", boss.pos, 44)
-end
-
-local function hurtPlayer(e, fromPos)
-	cb.hurt(e.player, fromPos)
+	BossKit.shockwave(boss, arena, boss.pos, boss.enraged and 52 or 44, 64, arena.center.Y)
+	if boss.enraged then
+		-- a ring of lava bursts around him
+		for i = 0, 5 do
+			local a = i / 6 * math.pi * 2 + math.random()
+			BossKit.strike(boss, arena, boss.pos + Vector3.new(math.cos(a) * 20, 0, math.sin(a) * 20), { kind = "lava", radius = 6, delay = 1.1 })
+		end
+	end
 end
 
 -- Admin helper: put King Grumble back to full health, asleep in the middle
 function BossService.Reset()
-	if A then
+	if arena then
 		reset()
 		place(0)
 	end
@@ -222,14 +197,11 @@ end
 
 function BossService.Start(worldInfo, callbacks)
 	cb = callbacks
-	A = worldInfo.arenaCenter
-	RADIUS = worldInfo.arenaRadius
-	folder = Instance.new("Folder")
-	folder.Name = "Boss"
-	folder.Parent = workspace
+	arena = BossKit.Arena(worldInfo.arenaCenter, worldInfo.arenaRadius, 80)
+	folder = BossKit.Init(worldInfo, callbacks)
 	for _, d in ipairs(worldInfo.solidFolder:GetDescendants()) do
 		if d:IsA("BasePart") and d.Name == "ArenaPillar" then
-			table.insert(pillars, Vector3.new(d.Position.X, A.Y, d.Position.Z))
+			table.insert(pillars, Vector3.new(d.Position.X, arena.center.Y, d.Position.Z))
 		end
 	end
 	reset()
@@ -238,19 +210,22 @@ function BossService.Start(worldInfo, callbacks)
 	local emptySince = os.clock()
 	RunService.Heartbeat:Connect(function(dt)
 		local now = os.clock()
-		local list = playersInArena()
+		local list = arena:players()
 		if #list == 0 then
-			if now - emptySince > 8 and (boss.state ~= "sleep" or boss.hp < 3) then
+			if now - emptySince > 8 and (boss.state ~= "sleep" or boss.hp < MAX_HP) and boss.state ~= "dead" then
 				reset()
 				place(0)
+			end
+			if boss.state == "sleep" then
+				return -- nobody here: nothing to do
 			end
 		else
 			emptySince = now
 		end
 		local st = boss.state
 		local age = now - boss.t0
-		local phase = 4 - boss.hp -- 1, 2, 3
-		local target = nearest(list)
+		local phase = MAX_HP - boss.hp + 1 -- 1..4
+		local target = arena:nearest(list, boss.pos)
 		local lift, tilt = 0, 0
 
 		if st == "sleep" then
@@ -258,7 +233,7 @@ function BossService.Start(worldInfo, callbacks)
 			lift = math.sin(now * 1.5) * 0.3
 			if #list > 0 then
 				setState("roar")
-				cb.effect("bossroar", boss.pos)
+				cb.effect("bossroar", boss.pos, { name = "KING GRUMBLE", title = "TYRANT OF THE INFERNAL CASTLE" })
 			end
 		elseif st == "roar" then
 			if target then
@@ -271,15 +246,22 @@ function BossService.Start(worldInfo, callbacks)
 		elseif st == "chase" then
 			if target then
 				faceTo(target.root.Position)
-				local speed = 12 + 4 * phase
-				boss.pos = clampToArena(boss.pos + forward() * speed * dt)
-				if phase >= 2 and now - boss.lastFire > (phase == 2 and 1.5 or 0.9) then
+				local speed = 12 + 4 * phase + (boss.enraged and 4 or 0)
+				boss.pos = arena:clamp(boss.pos + forward() * speed * dt)
+				if phase >= 2 and now - boss.lastFire > (phase == 2 and 1.6 or 1.1) then
 					boss.lastFire = now
-					spitFireball(target)
+					spitFireball(target, phase >= 3)
+				end
+				-- lava bursts up under whoever he's chasing
+				if phase >= 2 and now - boss.lastLava > (boss.enraged and 1.4 or 2.6) then
+					boss.lastLava = now
+					for _, e in ipairs(list) do
+						BossKit.strike(boss, arena, e.root.Position, { kind = "lava", radius = 5, delay = 1.0 })
+					end
 				end
 			end
 			lift = math.abs(math.sin(now * 10)) * 0.6
-			if age > 3.2 - 0.4 * phase then
+			if age > 3.2 - 0.35 * phase then
 				setState("windup")
 			end
 		elseif st == "windup" then
@@ -288,13 +270,13 @@ function BossService.Start(worldInfo, callbacks)
 			end
 			tilt = -0.18
 			lift = math.sin(age * 40) * 0.25
-			if age > 1.0 - 0.15 * phase then
+			if age > 1.0 - 0.13 * phase then
 				setState("charge")
 				cb.effect("bosscharge", boss.pos)
 			end
 		elseif st == "charge" then
 			local speed = 56 + 8 * phase
-			local nextPos, hitEdge = clampToArena(boss.pos + forward() * speed * dt)
+			local nextPos, hitEdge = arena:clamp(boss.pos + forward() * speed * dt)
 			boss.pos = nextPos
 			tilt = -0.08
 			local bonk = false
@@ -311,22 +293,23 @@ function BossService.Start(worldInfo, callbacks)
 				setState("recover")
 			end
 		elseif st == "recover" then
-			if age > 0.8 then
+			if age > 0.8 - 0.1 * phase then
 				boss.slams = 0
 				setState("slam")
 			end
 		elseif st == "slam" then
-			local dur = 1.1
+			local dur = boss.enraged and 0.95 or 1.1
 			local u = math.clamp(age / dur, 0, 1)
 			lift = math.sin(u * math.pi) * 22
 			if target then
 				faceTo(target.root.Position)
-				boss.pos = clampToArena(boss.pos + forward() * 22 * dt)
+				boss.pos = arena:clamp(boss.pos + forward() * (boss.enraged and 30 or 22) * dt)
 			end
 			if age >= dur then
 				slamLand()
 				boss.slams += 1
-				if phase == 3 and boss.slams < 2 then
+				local slams = boss.enraged and 3 or (phase >= 3 and 2 or 1)
+				if boss.slams < slams then
 					setState("slam")
 				else
 					setState("tired")
@@ -339,7 +322,8 @@ function BossService.Start(worldInfo, callbacks)
 			if st == "stunned" then
 				boss.yaw += math.sin(now * 5) * dt * 0.6
 			end
-			if age > (st == "stunned" and 4.2 or 3.2) then
+			local hold = (st == "stunned" and 4.4 or 3.4) - 0.5 * (phase - 1)
+			if age > hold then
 				setState("chase")
 				refreshSpots()
 			end
@@ -348,8 +332,19 @@ function BossService.Start(worldInfo, callbacks)
 			if age > 1.4 then
 				if boss.hp <= 0 then
 					setState("dying")
+					BossKit.Clear(boss)
 					cb.effect("bossdie", boss.pos + Vector3.new(0, 3 * SCALE, 0))
 				else
+					if boss.hp <= 2 and BossKit.minionCount(boss) < 3 then
+						-- "GUARDS!" - a few of his bugs scuttle in from the edge
+						for i = 1, (boss.hp == 1 and 3 or 2) do
+							local a = math.random() * math.pi * 2
+							BossKit.minion(boss, "bug", arena.center + Vector3.new(math.cos(a) * (arena.radius - 10), 0, math.sin(a) * (arena.radius - 10)), "castle")
+						end
+					end
+					if boss.hp == 1 and not boss.enraged then
+						enrage()
+					end
 					setState("chase")
 				end
 			end
@@ -382,71 +377,28 @@ function BossService.Start(worldInfo, callbacks)
 			for _, e in ipairs(list) do
 				local h = e.root.Position
 				local feet = h.Y - 2.6
-				local vy = e.root.AssemblyLinearVelocity.Y
 				local handled = false
 				if exposed() then
 					for _, s in ipairs(boss.spots) do
-						if s.alive then
+						if s.alive and BossKit.stomped(e, s.part.Position, 4.6) then
 							local w = s.part.Position
-							local flat = Vector3.new(h.X - w.X, 0, h.Z - w.Z).Magnitude
-							if flat < 4.6 and feet > w.Y - 2.2 and feet < w.Y + 5 and (vy < 1 or e.char:GetAttribute("Move") == "pound") then
-								s.alive = false
-								s.part.Parent = nil
-								boss.hp -= 1
-								boss.model:SetAttribute("HP", boss.hp)
-								cb.bounce(e.player, Vector3.new(0, 80, 0))
-								cb.effect("bosshit", w)
-								setState("hurt")
-								refreshSpots()
-								handled = true
-								break
-							end
+							s.alive = false
+							s.part.Parent = nil
+							boss.hp -= 1
+							boss.model:SetAttribute("HP", boss.hp)
+							cb.bounce(e.player, Vector3.new(0, 80, 0))
+							cb.effect("bosshit", w)
+							setState("hurt")
+							refreshSpots()
+							handled = true
+							break
 						end
 					end
 				end
 				if not handled and not exposed() and boss.state ~= "hurt" then
 					local flat = Vector3.new(h.X - boss.pos.X, 0, h.Z - boss.pos.Z).Magnitude
 					if flat < 3.2 * SCALE and feet < boss.pos.Y + 3.4 * SCALE then
-						hurtPlayer(e, boss.pos)
-					end
-				end
-			end
-		end
-
-		-- Fireballs ---------------------------------------------------------------
-		for i = #fireballs, 1, -1 do
-			local f = fireballs[i]
-			local p = f.part.Position + f.vel * dt
-			f.part.CFrame = CFrame.new(p)
-			local dead = now > f.die or (Vector3.new(p.X - A.X, 0, p.Z - A.Z)).Magnitude > RADIUS + 4
-			if not dead then
-				for _, e in ipairs(list) do
-					if (e.root.Position - p).Magnitude < 3.6 then
-						hurtPlayer(e, p - f.vel)
-						dead = true
-					end
-				end
-			end
-			if dead then
-				f.part:Destroy()
-				table.remove(fireballs, i)
-			end
-		end
-
-		-- Shockwaves --------------------------------------------------------------
-		for i = #waves, 1, -1 do
-			local w = waves[i]
-			local r = (now - w.t0) * w.speed
-			if r > w.maxR then
-				table.remove(waves, i)
-			else
-				for _, e in ipairs(list) do
-					local h = e.root.Position
-					local flat = Vector3.new(h.X - w.center.X, 0, h.Z - w.center.Z).Magnitude
-					local grounded = h.Y - 2.6 < A.Y + 1.4
-					if grounded and not w.hit[e.player] and math.abs(flat - r) < 2.8 then
-						w.hit[e.player] = true
-						cb.hurt(e.player, w.center)
+						cb.hurt(e.player, boss.pos)
 					end
 				end
 			end

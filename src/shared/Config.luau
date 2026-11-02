@@ -31,6 +31,35 @@ Config.RollCooldown = 0.3
 Config.LongJumpSpeed = 68      -- jump during a roll or slide
 Config.LongJumpUp = 52
 Config.SlideStartSpeed = 42
+-- Weight: you build up to full speed, fall faster than you rise and land with a thump
+Config.RunStartSpeed = 11      -- running starts here and builds up to WalkSpeed
+Config.RunAccel = 60           -- studs/s gained per second while building up speed
+Config.FallGravityMult = 1.3   -- extra pull while falling (snappier, weightier arcs)
+Config.MaxFallSpeed = 150
+Config.HardLanding = 110       -- falling faster than this (a drop of ~27 studs) gives a heavy landing
+-- Extra moves
+Config.DiveSpeed = 54          -- roll button in mid-air: dive forward
+Config.DiveUp = 20
+Config.RolloutPower = 46       -- jump during a dive to roll out of it
+Config.BackflipPower = 82      -- hold crouch while standing still, then jump (~20 studs)
+Config.BackflipBack = 13
+Config.PoundJumpPower = 76     -- jump the moment a ground pound lands
+-- Stamina: rolls, dives and long jumps use a pip; pips refill while you're on the ground.
+-- You earn extra pips as you find golden carrots.
+Config.Stamina = {
+	base = 3, max = 5, bonusAt = { 12, 24 },
+	regen = 1.3, regenDelay = 0.35,
+	cost = { roll = 1, dive = 1, longjump = 1 },
+}
+function Config.StaminaFor(goldens)
+	local n = Config.Stamina.base
+	for _, at in ipairs(Config.Stamina.bonusAt) do
+		if (goldens or 0) >= at then
+			n += 1
+		end
+	end
+	return math.min(n, Config.Stamina.max)
+end
 Config.SlideFriction = 26      -- speed lost per second on flat ground
 Config.ChuteSpeed = 78         -- top speed on ice chutes
 
@@ -68,6 +97,14 @@ Config.CastleGate = 10         -- golden carrots needed to open the castle gate
 Config.ThroneGate = 15         -- golden carrots needed to face King Grumble
 Config.SkyGate = 18            -- golden carrots needed to climb the beanstalk to Cloudtop Heights
 Config.SkyFloor = 360          -- below this height, a bunny who was in the sky is caught and put back
+
+-- Every boss (ids match the server's boss modules)
+Config.Bosses = {
+	{ id = "grumble", name = "KING GRUMBLE" },
+	{ id = "rootjaw", name = "OLD ROOTJAW" },
+	{ id = "thunderhead", name = "THUNDERHEAD" },
+	{ id = "shade", name = "THE SHADE" },
+}
 
 Config.Regions = {
 	{ id = "meadow", name = "CARROT MEADOW" },
@@ -108,11 +145,13 @@ Config.Goldens = {
 	{ id = "treetop", region = "forest", name = "Treetop Village", hint = "Cross the rope bridges between the treehouses. One bridge is missing a few planks." },
 	{ id = "grove", region = "forest", name = "Bouncy Grove", hint = "Bounce from mushroom to mushroom to reach the floating log." },
 	{ id = "bog", region = "forest", name = "Bog Hop", hint = "Hop the lily pads across the misty bog. Some of them sink." },
+	{ id = "rootjaw", region = "forest", name = "Rootjaw's Seed", hint = "Something huge and hungry lives in the Hollow, north-west of the Elder Tree.", req = "boss", boss = "rootjaw" },
 	-- Cloudtop Heights
 	{ id = "cloudhop", region = "sky", name = "Cloud Hopper", hint = "Hop the drifting clouds east of the beanstalk." },
 	{ id = "rainbow", region = "sky", name = "Rainbow's End", hint = "Follow the rainbow bridge to its end. Watch for gaps." },
 	{ id = "crowsnest", region = "sky", name = "Crow's Nest", hint = "Climb the mast of Captain Gust's airship." },
 	{ id = "updraft", region = "sky", name = "Updraft Spire", hint = "Ride the rising winds up the tall spire." },
+	{ id = "thunderhead", region = "sky", name = "Eye of the Storm", hint = "Cross the clouds south of the hub to the Stormcrown and calm the Thunderhead.", req = "boss", boss = "thunderhead" },
 	-- Granny Clover's lost grandkits
 	{ id = "kits", region = "meadow", name = "Granny's Lost Kits", hint = "Granny Clover's five grandkits wandered off - one in every land. Bring them home!", req = "silver" },
 	-- Silver carrot hunts: find all five silver carrots in a region
@@ -261,6 +300,7 @@ Config.Stamps = {
 	{ id = "sky", name = "HEAD IN THE CLOUDS", desc = "Climb the beanstalk to Cloudtop Heights." },
 	{ id = "kits", name = "GRANNY'S HERO", desc = "Bring all five lost grandkits home." },
 	{ id = "silvers", name = "SILVER LINING", desc = "Finish every silver carrot hunt." },
+	{ id = "allbosses", name = "GIANT SLAYER", desc = "Defeat every boss - even the hidden one." },
 }
 Config.Badges = {
 	-- golden20 = 1234567890,
@@ -276,6 +316,9 @@ Config.Emotes = {
 -- One-off tips, shown the first time you come near each spot (per save file).
 -- {jump} {roll} {crouch} {menu} become the player's own key names.
 Config.Tips = {
+	{ id = "stamina", pos = Vector3.new(-30, 4, 10), radius = 22, text = "The green pips under your hearts are stamina. Rolls, dives and long jumps use one; they refill while you're on the ground." },
+	{ id = "dive", pos = Vector3.new(-250, 4, 40), radius = 22, text = "In mid-air, press {roll} to dive forward. Press {jump} during a dive to roll out of it!" },
+	{ id = "backflip", pos = Vector3.new(140, 10, -90), radius = 40, text = "Hold {crouch} while standing still, then press {jump} for a backflip - your highest jump. Jump just as a ground pound lands for a pound jump!" },
 	{ id = "move", pos = Vector3.new(0, 4, 60), radius = 26, text = "Press {jump} to jump, and again in mid-air to double jump. Tap it for a little hop, hold it to jump higher." },
 	{ id = "talk", pos = Vector3.new(30, 4, 66), radius = 22, text = "Friendly folk have a lot to say. Walk up to them and press F (or Y) to chat." },
 	{ id = "baddie", pos = Vector3.new(40, 4, 25), radius = 22, text = "Grumblebugs are grumpy but squishy. Jump on them, or {roll} into them!" },
@@ -560,6 +603,9 @@ Config.Sounds = {
 	Crate = { id = "rbxasset://sounds/action_get_up.mp3", volume = 0.6 },
 	Heart = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.5 },
 	Heartbeat = { id = "rbxasset://sounds/action_get_up.mp3", volume = 0.35 },
+	Thunder = { id = "rbxasset://sounds/action_falling.mp3", volume = 0.9 },
+	Coin = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.5 },
+	Rock = { id = "rbxasset://sounds/action_get_up.mp3", volume = 0.7 },
 }
 -- Put uploaded music ids here, e.g. "rbxassetid://1234567890". Empty = silence.
 Config.Music = {
@@ -571,6 +617,9 @@ Config.Music = {
 	forest = "",
 	sky = "",
 	boss = "",
+	rival = "",
+	shade = "",
+	underburrow = "",
 }
 Config.MusicVolume = 0.35
 

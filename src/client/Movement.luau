@@ -8,7 +8,15 @@
 	  Slide           Crouch (C / Ctrl / E / B / CROUCH button) while running.
 	                  Ice chutes start a slide automatically; steer with the stick.
 	  Ground pound    Crouch in the air
+	  Pound jump      jump the moment a ground pound lands: a big spinning leap
+	  Dive            Roll in the air: a forward lunge (jump during it to roll out)
+	  Backflip        hold Crouch while standing still, then jump: the highest jump
 	  Wall jump       jump while pressed against a wall in mid-air
+
+	Stamina: rolls, dives and long jumps each use a pip; pips refill on the ground.
+
+	Weight: running builds up to full speed, turning hard at speed skids, falls
+	pull harder than rises, and big drops land with a short stagger.
 
 	Game-feel helpers (the invisible stuff good platformers do):
 	  coyote time     you can still jump for a moment after running off a ledge
@@ -35,7 +43,7 @@ local enabled = false
 local controls = nil
 
 local character, humanoid, root, lv
-local move = "" -- "", roll, longjump, slide, pound
+local move = "" -- "", roll, longjump, slide, pound, dive, backflip, crouch, walljump
 local moveStart = 0
 local moveDir = Vector3.new(0, 0, -1)
 local moveSpeed = 0
@@ -58,6 +66,12 @@ local nextDust = 0
 local celebrateUntil = 0
 local emote, emoteStart = nil, 0 -- wave / dance / sit
 local talking = false
+local runSpeed = 0 -- current top speed while building up a run
+local skidUntil, landAt, staggerUntil = 0, -10, 0
+local lastPoundLand = -10
+local divedSinceGround = false
+local stamina, staminaMax = 3, 3
+local staminaRegenAt = 0
 local COYOTE_TIME = 0.13
 local BUFFER_TIME = 0.15
 local DUST = Color3.fromRGB(206, 196, 176)
@@ -81,7 +95,7 @@ local function setMove(name)
 	move = name
 	moveStart = os.clock()
 	if lv then
-		lv.Enabled = (name == "roll" or name == "longjump" or name == "slide" or name == "walljump")
+		lv.Enabled = (name == "roll" or name == "longjump" or name == "slide" or name == "walljump" or name == "dive" or name == "backflip")
 	end
 	if name == "" then
 		sendMove(os.clock() - flipAt < 0.5 and "flip" or "")
@@ -137,6 +151,46 @@ local function floorHit()
 end
 
 --------------------------------------------------------------------------------
+-- Stamina
+--------------------------------------------------------------------------------
+
+local function staminaChanged()
+	if Movement.OnStamina then
+		Movement.OnStamina(stamina, staminaMax)
+	end
+end
+
+-- Try to spend stamina for a move; returns false (and puffs) when you're out
+local function spend(kind)
+	local cost = Config.Stamina.cost[kind] or 0
+	if stamina + 0.001 < cost then
+		if root then
+			Effects.Burst(root.Position + Vector3.new(0, 1, 0), Color3.fromRGB(200, 210, 190), 4, 2, 0.4, 2)
+		end
+		if Movement.OnTired then
+			Movement.OnTired()
+		end
+		return false
+	end
+	stamina -= cost
+	staminaRegenAt = os.clock() + Config.Stamina.regenDelay
+	staminaChanged()
+	return true
+end
+
+function Movement.SetStaminaMax(n)
+	if n ~= staminaMax then
+		local gained = n > staminaMax
+		staminaMax = n
+		if gained then
+			stamina = n
+		end
+		stamina = math.min(stamina, n)
+		staminaChanged()
+	end
+end
+
+--------------------------------------------------------------------------------
 -- Moves
 --------------------------------------------------------------------------------
 
@@ -163,20 +217,54 @@ local function launch(velocity, kind)
 	end
 end
 
-local function startRoll()
-	if flying or not enabled or not root or move ~= "" or not grounded() or os.clock() - lastRollEnd < Config.RollCooldown then
+local function startDive()
+	if not spend("dive") then
 		return
 	end
+	divedSinceGround = true
+	usedDouble = true
+	jumpRising = false
+	local hv = flatVelocity()
 	moveDir = facingDir()
-	moveSpeed = Config.RollSpeed
+	moveSpeed = math.max(hv.Magnitude, Config.DiveSpeed)
+	setMove("dive")
+	local v = root.AssemblyLinearVelocity
+	root.AssemblyLinearVelocity = Vector3.new(v.X, math.max(v.Y * 0.3, Config.DiveUp), v.Z)
+	setPlane(moveDir * moveSpeed)
+	root.CFrame = CFrame.lookAt(root.Position, root.Position + moveDir)
+	Effects.Play("DoubleJump", 0.7)
+	Effects.Burst(root.Position, Color3.fromRGB(230, 222, 204), 6, 4, 0.5, 0)
+end
+
+local function startRoll()
+	if flying or not enabled or not root or os.clock() < celebrateUntil then
+		return
+	end
+	if not grounded() then
+		-- in the air the roll button dives instead
+		if (move == "" or move == "walljump") and inAir() and not divedSinceGround and os.clock() - lastGrounded > 0.08 then
+			startDive()
+		end
+		return
+	end
+	if move ~= "" or os.clock() - lastRollEnd < Config.RollCooldown then
+		return
+	end
+	local tired = not spend("roll")
+	moveDir = facingDir()
+	moveSpeed = Config.RollSpeed * (tired and 0.6 or 1)
 	setMove("roll")
 	setPlane(moveDir * moveSpeed)
 	Effects.Play("Roll", 0.9)
 	Effects.Burst(root.Position - Vector3.new(0, 2.4, 0), Config.Palette.Path, 5, 3, 0.5, 1)
 end
 
-local function startLongJump(speed)
+local function startLongJump(speed, free)
+	local tired = not free and not spend("longjump")
 	moveSpeed = math.max(speed or 0, Config.LongJumpSpeed)
+	if tired then
+		moveSpeed *= 0.6 -- out of puff: a short, weak long jump
+	end
 	setMove("longjump")
 	usedDouble = true -- no double jump out of a long jump
 	local v = root.AssemblyLinearVelocity
@@ -215,6 +303,7 @@ end
 
 local function landPound()
 	setMove("")
+	lastPoundLand = os.clock()
 	local pos = root.Position - Vector3.new(0, 2.6, 0)
 	Remotes.Pound:FireServer("land", pos)
 	Effects.Shake(1.2, 0.3)
@@ -225,12 +314,26 @@ local function crouch()
 	if flying or not enabled or not root then
 		return
 	end
-	if move == "" or move == "longjump" then
+	if move == "" or move == "longjump" or move == "dive" or move == "backflip" then
 		if inAir() and not grounded() then
+			if move == "dive" or move == "backflip" then
+				setMove("")
+			end
 			startPound()
 		elseif move == "" then
-			startSlide(false)
+			if flatVelocity().Magnitude > 12 then
+				startSlide(false)
+			else
+				-- crouch in place: crawl, or jump for a backflip
+				setMove("crouch")
+			end
 		end
+	end
+end
+
+local function uncrouch()
+	if move == "crouch" then
+		setMove("")
 	end
 end
 
@@ -273,8 +376,23 @@ local function tryJumpMove()
 	end
 	local now = os.clock()
 	if move == "roll" or (move == "slide" and now - moveStart > 0.08) then
-		startLongJump(moveSpeed + 10)
+		startLongJump(moveSpeed + 10, move == "roll") -- out of a roll it's included in the roll's cost
 		return
+	end
+	if move == "dive" then
+		-- roll out of the dive: a little hop that keeps your speed
+		local v = root.AssemblyLinearVelocity
+		setMove("")
+		jumpRising = false
+		flipAt = now
+		sendMove("flip")
+		root.AssemblyLinearVelocity = Vector3.new(v.X, Config.RolloutPower, v.Z)
+		humanoid:ChangeState(HST.Freefall)
+		Effects.Play("Jump", 1.2)
+		return
+	end
+	if move == "crouch" then
+		return -- the humanoid's own jump fires; StateChanged turns it into a backflip
 	end
 	-- coyote time: walked off a ledge a moment ago and haven't jumped yet
 	if move == "" and not grounded() and not jumpedSinceGround and now - lastGrounded < COYOTE_TIME then
@@ -360,7 +478,11 @@ local function onCharacter(char)
 	root = char:WaitForChild("HumanoidRootPart")
 	move = ""
 	usedDouble = false
+	divedSinceGround = false
 	sentMove = nil
+	runSpeed = Config.RunStartSpeed
+	stamina = staminaMax
+	staminaChanged()
 	rayParams.FilterDescendantsInstances = { char, Effects.Folder }
 
 	local att = Instance.new("Attachment")
@@ -384,11 +506,24 @@ local function onCharacter(char)
 	humanoid.StateChanged:Connect(function(_, new)
 		if new == HST.Landed or new == HST.Running then
 			usedDouble = false
+			divedSinceGround = false
 			jumpedSinceGround = false
 			jumpRising = false
 			lastGrounded = os.clock()
-			if new == HST.Landed and lastVy < -55 then
-				Effects.Ring(root.Position - Vector3.new(0, 2.6, 0), DUST, 5, 10, 0.3)
+			if new == HST.Landed then
+				landAt = os.clock()
+				if lastVy < -55 then
+					Effects.Ring(root.Position - Vector3.new(0, 2.6, 0), DUST, 5, 10, 0.3)
+				end
+				if lastVy < -Config.HardLanding and move ~= "pound" then
+					-- a heavy landing: a thump, a camera dip and a moment to recover
+					staggerUntil = os.clock() + 0.16
+					Effects.Shake(0.5, 0.18)
+					Effects.Play("Land", 0.7)
+				end
+				if move == "backflip" then
+					setMove("")
+				end
 			end
 			-- jump buffer: jump was pressed just before touching down
 			if os.clock() < bufferUntil and enabled and move == "" then
@@ -400,10 +535,40 @@ local function onCharacter(char)
 				end)
 			end
 		elseif new == HST.Jumping then
-			lastGrounded = os.clock()
+			local now = os.clock()
+			lastGrounded = now
 			jumpedSinceGround = true
 			jumpRising = true
-			if move == "" then
+			if move == "crouch" then
+				-- backflip: straight up and over, drifting backwards
+				local back = -facingDir()
+				jumpRising = false
+				usedDouble = true
+				moveDir = back
+				moveSpeed = Config.BackflipBack
+				setMove("backflip")
+				setPlane(back * moveSpeed)
+				task.defer(function()
+					if root and move == "backflip" then
+						root.AssemblyLinearVelocity = back * moveSpeed + Vector3.new(0, Config.BackflipPower, 0)
+					end
+				end)
+				Effects.Play("DoubleJump", 0.85)
+			elseif move == "" and now - lastPoundLand < 0.32 then
+				-- pound jump: spring out of the ground pound's impact
+				jumpRising = false
+				usedDouble = true
+				flipAt = now
+				sendMove("flip")
+				task.defer(function()
+					if root then
+						local v = root.AssemblyLinearVelocity
+						root.AssemblyLinearVelocity = Vector3.new(v.X, Config.PoundJumpPower, v.Z)
+					end
+				end)
+				Effects.Play("DoubleJump", 1.3)
+				Effects.Ring(root.Position - Vector3.new(0, 2.6, 0), Color3.fromRGB(240, 226, 170), 6, 12, 0.35)
+			elseif move == "" then
 				Effects.Play("Jump", 1 + math.random() * 0.1)
 			end
 		end
@@ -522,10 +687,12 @@ function Movement.State()
 			or (os.clock() < celebrateUntil and "cheer")
 			or (talking and "talk")
 			or (move == "" and emote)
+			or (move == "" and os.clock() < skidUntil and "skid")
 			or move,
 		moveStart = moveStart,
 		flipAt = flipAt,
 		speed = moveSpeed,
+		landAt = landAt,
 	}
 end
 
@@ -581,6 +748,55 @@ local function step(dt)
 			jumpRising = false
 		end
 	end
+	-- stamina refills on the ground
+	if onGround and stamina < staminaMax and now > staminaRegenAt and move ~= "roll" and move ~= "slide" then
+		local before = math.floor(stamina)
+		stamina = math.min(staminaMax, stamina + Config.Stamina.regen * dt)
+		if math.floor(stamina) ~= before or stamina >= staminaMax then
+			staminaChanged()
+		end
+	end
+
+	-- running builds up to full speed; hard turns at speed skid
+	local boost = character:GetAttribute("SpeedBoost") or 1
+	local top = Config.WalkSpeed * boost
+	local md = humanoid.MoveDirection
+	local hv = Vector3.new(vel.X, 0, vel.Z)
+	if move == "crouch" then
+		runSpeed = 7
+	elseif now < staggerUntil then
+		runSpeed = Config.RunStartSpeed * 0.5
+	elseif md.Magnitude < 0.1 then
+		if onGround then
+			runSpeed = Config.RunStartSpeed * boost
+		end
+	elseif onGround and move == "" and hv.Magnitude > top * 0.7 and md:Dot(hv.Unit) < -0.55 and now > skidUntil then
+		skidUntil = now + 0.2
+		runSpeed = 4
+		Effects.Play("Roll", 1.6)
+		Effects.Burst(root.Position - Vector3.new(0, 2.5, 0), DUST, 6, 4, 0.5, 1)
+		sendMove("skid")
+		task.delay(0.22, function()
+			if move == "" and sentMove == "skid" then
+				sendMove("")
+			end
+		end)
+	elseif now > skidUntil then
+		local rate = Config.RunAccel * (onGround and 1 or 0.6)
+		runSpeed = math.min(top, math.max(runSpeed, Config.RunStartSpeed * boost) + rate * dt)
+	end
+	runSpeed = math.max(runSpeed, 1)
+	if math.abs(humanoid.WalkSpeed - runSpeed) > 0.05 then
+		humanoid.WalkSpeed = runSpeed
+	end
+
+	-- heavier falls (not while pounding or riding the wind)
+	if not onGround and vel.Y < 0 and move ~= "pound" and not inWind then
+		local vy = math.max(vel.Y - Config.Gravity * (Config.FallGravityMult - 1) * dt, -Config.MaxFallSpeed)
+		root.AssemblyLinearVelocity = Vector3.new(vel.X, vy, vel.Z)
+		vel = root.AssemblyLinearVelocity
+	end
+
 	-- running dust
 	if onGround and move == "" and now > nextDust and Vector3.new(vel.X, 0, vel.Z).Magnitude > 20 then
 		nextDust = now + 0.16
@@ -666,6 +882,33 @@ local function step(dt)
 		if onGround and t > 0.15 then
 			setMove("")
 			Effects.Burst(root.Position - Vector3.new(0, 2.5, 0), Config.Palette.Path, 6, 4, 0.5, 1)
+		end
+	elseif move == "dive" then
+		local t = now - moveStart
+		local mdir = humanoid.MoveDirection
+		if mdir.Magnitude > 0.1 then
+			moveDir = (moveDir:Lerp(Vector3.new(mdir.X, 0, mdir.Z).Unit, math.clamp(dt * 2, 0, 1))).Unit
+		end
+		moveSpeed = math.max(moveSpeed - 14 * dt, 32)
+		setPlane(moveDir * moveSpeed)
+		if onGround and t > 0.08 then
+			-- belly-flop into a slide
+			moveSpeed = math.max(moveSpeed * 0.85, 30)
+			setMove("slide")
+			setPlane(moveDir * moveSpeed)
+			Effects.Burst(root.Position - Vector3.new(0, 2.5, 0), DUST, 8, 5, 0.6, 1)
+			Effects.Play("Land", 1.1)
+		elseif t > 3 then
+			setMove("")
+		end
+	elseif move == "backflip" then
+		setPlane(moveDir * moveSpeed)
+		if (onGround and now - moveStart > 0.15) or now - moveStart > 3 then
+			setMove("")
+		end
+	elseif move == "crouch" then
+		if not onGround then
+			setMove("")
 		end
 	elseif move == "slide" then
 		local hit = floorHit()
@@ -780,6 +1023,8 @@ function Movement.ApplyControls(controls)
 	ContextActionService:BindAction("Bunny64Crouch", function(_, inputState)
 		if inputState == Enum.UserInputState.Begin then
 			crouch()
+		elseif inputState == Enum.UserInputState.End or inputState == Enum.UserInputState.Cancel then
+			uncrouch()
 		end
 		return Enum.ContextActionResult.Sink
 	end, true, binds.crouch[1], binds.crouch[2])

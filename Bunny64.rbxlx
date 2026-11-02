@@ -439,6 +439,35 @@ Config.RollCooldown = 0.3
 Config.LongJumpSpeed = 68      -- jump during a roll or slide
 Config.LongJumpUp = 52
 Config.SlideStartSpeed = 42
+-- Weight: you build up to full speed, fall faster than you rise and land with a thump
+Config.RunStartSpeed = 11      -- running starts here and builds up to WalkSpeed
+Config.RunAccel = 60           -- studs/s gained per second while building up speed
+Config.FallGravityMult = 1.3   -- extra pull while falling (snappier, weightier arcs)
+Config.MaxFallSpeed = 150
+Config.HardLanding = 110       -- falling faster than this (a drop of ~27 studs) gives a heavy landing
+-- Extra moves
+Config.DiveSpeed = 54          -- roll button in mid-air: dive forward
+Config.DiveUp = 20
+Config.RolloutPower = 46       -- jump during a dive to roll out of it
+Config.BackflipPower = 82      -- hold crouch while standing still, then jump (~20 studs)
+Config.BackflipBack = 13
+Config.PoundJumpPower = 76     -- jump the moment a ground pound lands
+-- Stamina: rolls, dives and long jumps use a pip; pips refill while you're on the ground.
+-- You earn extra pips as you find golden carrots.
+Config.Stamina = {
+	base = 3, max = 5, bonusAt = { 12, 24 },
+	regen = 1.3, regenDelay = 0.35,
+	cost = { roll = 1, dive = 1, longjump = 1 },
+}
+function Config.StaminaFor(goldens)
+	local n = Config.Stamina.base
+	for _, at in ipairs(Config.Stamina.bonusAt) do
+		if (goldens or 0) >= at then
+			n += 1
+		end
+	end
+	return math.min(n, Config.Stamina.max)
+end
 Config.SlideFriction = 26      -- speed lost per second on flat ground
 Config.ChuteSpeed = 78         -- top speed on ice chutes
 
@@ -476,6 +505,14 @@ Config.CastleGate = 10         -- golden carrots needed to open the castle gate
 Config.ThroneGate = 15         -- golden carrots needed to face King Grumble
 Config.SkyGate = 18            -- golden carrots needed to climb the beanstalk to Cloudtop Heights
 Config.SkyFloor = 360          -- below this height, a bunny who was in the sky is caught and put back
+
+-- Every boss (ids match the server's boss modules)
+Config.Bosses = {
+	{ id = "grumble", name = "KING GRUMBLE" },
+	{ id = "rootjaw", name = "OLD ROOTJAW" },
+	{ id = "thunderhead", name = "THUNDERHEAD" },
+	{ id = "shade", name = "THE SHADE" },
+}
 
 Config.Regions = {
 	{ id = "meadow", name = "CARROT MEADOW" },
@@ -516,11 +553,13 @@ Config.Goldens = {
 	{ id = "treetop", region = "forest", name = "Treetop Village", hint = "Cross the rope bridges between the treehouses. One bridge is missing a few planks." },
 	{ id = "grove", region = "forest", name = "Bouncy Grove", hint = "Bounce from mushroom to mushroom to reach the floating log." },
 	{ id = "bog", region = "forest", name = "Bog Hop", hint = "Hop the lily pads across the misty bog. Some of them sink." },
+	{ id = "rootjaw", region = "forest", name = "Rootjaw's Seed", hint = "Something huge and hungry lives in the Hollow, north-west of the Elder Tree.", req = "boss", boss = "rootjaw" },
 	-- Cloudtop Heights
 	{ id = "cloudhop", region = "sky", name = "Cloud Hopper", hint = "Hop the drifting clouds east of the beanstalk." },
 	{ id = "rainbow", region = "sky", name = "Rainbow's End", hint = "Follow the rainbow bridge to its end. Watch for gaps." },
 	{ id = "crowsnest", region = "sky", name = "Crow's Nest", hint = "Climb the mast of Captain Gust's airship." },
 	{ id = "updraft", region = "sky", name = "Updraft Spire", hint = "Ride the rising winds up the tall spire." },
+	{ id = "thunderhead", region = "sky", name = "Eye of the Storm", hint = "Cross the clouds south of the hub to the Stormcrown and calm the Thunderhead.", req = "boss", boss = "thunderhead" },
 	-- Granny Clover's lost grandkits
 	{ id = "kits", region = "meadow", name = "Granny's Lost Kits", hint = "Granny Clover's five grandkits wandered off - one in every land. Bring them home!", req = "silver" },
 	-- Silver carrot hunts: find all five silver carrots in a region
@@ -669,6 +708,7 @@ Config.Stamps = {
 	{ id = "sky", name = "HEAD IN THE CLOUDS", desc = "Climb the beanstalk to Cloudtop Heights." },
 	{ id = "kits", name = "GRANNY'S HERO", desc = "Bring all five lost grandkits home." },
 	{ id = "silvers", name = "SILVER LINING", desc = "Finish every silver carrot hunt." },
+	{ id = "allbosses", name = "GIANT SLAYER", desc = "Defeat every boss - even the hidden one." },
 }
 Config.Badges = {
 	-- golden20 = 1234567890,
@@ -684,6 +724,9 @@ Config.Emotes = {
 -- One-off tips, shown the first time you come near each spot (per save file).
 -- {jump} {roll} {crouch} {menu} become the player's own key names.
 Config.Tips = {
+	{ id = "stamina", pos = Vector3.new(-30, 4, 10), radius = 22, text = "The green pips under your hearts are stamina. Rolls, dives and long jumps use one; they refill while you're on the ground." },
+	{ id = "dive", pos = Vector3.new(-250, 4, 40), radius = 22, text = "In mid-air, press {roll} to dive forward. Press {jump} during a dive to roll out of it!" },
+	{ id = "backflip", pos = Vector3.new(140, 10, -90), radius = 40, text = "Hold {crouch} while standing still, then press {jump} for a backflip - your highest jump. Jump just as a ground pound lands for a pound jump!" },
 	{ id = "move", pos = Vector3.new(0, 4, 60), radius = 26, text = "Press {jump} to jump, and again in mid-air to double jump. Tap it for a little hop, hold it to jump higher." },
 	{ id = "talk", pos = Vector3.new(30, 4, 66), radius = 22, text = "Friendly folk have a lot to say. Walk up to them and press F (or Y) to chat." },
 	{ id = "baddie", pos = Vector3.new(40, 4, 25), radius = 22, text = "Grumblebugs are grumpy but squishy. Jump on them, or {roll} into them!" },
@@ -968,6 +1011,9 @@ Config.Sounds = {
 	Crate = { id = "rbxasset://sounds/action_get_up.mp3", volume = 0.6 },
 	Heart = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.5 },
 	Heartbeat = { id = "rbxasset://sounds/action_get_up.mp3", volume = 0.35 },
+	Thunder = { id = "rbxasset://sounds/action_falling.mp3", volume = 0.9 },
+	Coin = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.5 },
+	Rock = { id = "rbxasset://sounds/action_get_up.mp3", volume = 0.7 },
 }
 -- Put uploaded music ids here, e.g. "rbxassetid://1234567890". Empty = silence.
 Config.Music = {
@@ -979,6 +1025,9 @@ Config.Music = {
 	forest = "",
 	sky = "",
 	boss = "",
+	rival = "",
+	shade = "",
+	underburrow = "",
 }
 Config.MusicVolume = 0.35
 
@@ -1110,7 +1159,7 @@ function HazardMath.SegmentDistance(p, a, b)
 end
 
 return HazardMath
-]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX0000001C"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX0000001B"><Properties><string name="Name">Bunny64Server</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX0000001F"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX0000001E"><Properties><string name="Name">Bunny64Server</string><ProtectedString name="Source"><![CDATA[--[[
 	Bunny 64 - server entry point.
 	Builds the world, runs save files, pickups, hearts, hazards, checkpoints,
 	warps, enemies, the boss and customisation.
@@ -1149,6 +1198,9 @@ local noop = function() end
 local EnemyService = optional("EnemyService", { Start = noop, MarkPounding = noop, Shockwave = noop })
 local HazardService = optional("HazardService", { Start = noop, Burn = noop })
 local BossService = optional("BossService", { Start = noop, Reset = noop })
+local BossRootjaw = optional("BossRootjaw", { Start = noop, Reset = noop })
+local BossThunderhead = optional("BossThunderhead", { Start = noop, Reset = noop })
+local BossShade = optional("BossShade", { Start = noop, Reset = noop })
 local CrateService = optional("CrateService", { Start = noop, Shockwave = noop })
 local NPCService = optional("NPCService", { Start = noop })
 local Leaderboard = optional("Leaderboard", { Start = noop, RecordClear = noop })
@@ -1255,6 +1307,7 @@ local function snapshot(player, event)
 			checkpoint = slot.checkpoint,
 			warps = slot.warps,
 			bossDefeated = slot.bossDefeated,
+			bosses = slot.bosses or {},
 			tips = slot.tips or {},
 			stamps = slot.stamps or {},
 			silvers = slot.silvers or {},
@@ -1546,7 +1599,7 @@ Collect.OnServerEvent:Connect(function(player, id)
 			return
 		elseif def.req == "bugs" and slot.bugs < Config.BugBusterGoal then
 			return
-		elseif def.req == "boss" and not slot.bossDefeated then
+		elseif def.req == "boss" and not (def.boss and (slot.bosses or {})[def.boss] or (not def.boss and slot.bossDefeated)) then
 			return
 		elseif def.req == "trial" and not (slot.trials and slot.trials[id]) then
 			return
@@ -1719,6 +1772,7 @@ end)
 local VALID_MOVES = {
 	[""] = true, roll = true, slide = true, longjump = true, pound = true, flip = true, fly = true,
 	walljump = true, cheer = true, talk = true, wave = true, dance = true, sit = true,
+	dive = true, crouch = true, backflip = true, skid = true,
 }
 SetMove.OnServerEvent:Connect(function(player, move)
 	local char = player.Character
@@ -1856,34 +1910,61 @@ safeStart("EnemyService", EnemyService.Start, info, {
 	end,
 })
 
-safeStart("BossService", BossService.Start, info, {
-	effect = function(kind, pos, extra)
-		if kind == "bossroar" then
-			table.clear(bossHit) -- a new fight starts clean
-		end
-		Effect:FireAllClients(kind, pos, extra)
-	end,
-	hurt = function(player, fromPos)
-		hurt(player, fromPos, nil, false)
-	end,
-	bounce = function(player, vel)
-		Bounce:FireClient(player, vel, true, "stomp")
-	end,
-	defeated = function(winners)
-		for _, player in ipairs(winners) do
-			local slot = DataService.ActiveSlot(player)
-			if slot then
-				slot.bossDefeated = true
-				awardStamp(player, "boss")
-				if not bossHit[player] then
-					awardStamp(player, "bossnohit")
-				end
-				push(player, { kind = "bossdown" })
-				task.spawn(DataService.Save, player, false)
+-- Every boss shares these callbacks; `id` says which one ("grumble", "rootjaw"...)
+local function bossCallbacks(id)
+	return {
+		effect = function(kind, pos, extra)
+			if kind == "bossroar" and id == "grumble" then
+				table.clear(bossHit) -- a new fight starts clean
 			end
-		end
-	end,
-})
+			Effect:FireAllClients(kind, pos, extra)
+		end,
+		hurt = function(player, fromPos)
+			hurt(player, fromPos, nil, false)
+		end,
+		bounce = function(player, vel)
+			Bounce:FireClient(player, vel, true, "stomp")
+		end,
+		gust = function(player, vel)
+			local char = player.Character
+			if char and char:GetAttribute("Move") ~= "fly" then
+				Bounce:FireClient(player, vel, false, "gust")
+			end
+		end,
+		defeated = function(winners)
+			for _, player in ipairs(winners) do
+				local slot = DataService.ActiveSlot(player)
+				if slot then
+					slot.bosses = slot.bosses or {}
+					slot.bosses[id] = true
+					if id == "grumble" then
+						slot.bossDefeated = true
+						awardStamp(player, "boss")
+						if not bossHit[player] then
+							awardStamp(player, "bossnohit")
+						end
+					end
+					local all = slot.bossDefeated
+					for _, b in ipairs(Config.Bosses) do
+						if not slot.bosses[b.id] and b.id ~= "grumble" then
+							all = false
+						end
+					end
+					if all then
+						awardStamp(player, "allbosses")
+					end
+					push(player, { kind = "bossdown", id = id })
+					task.spawn(DataService.Save, player, false)
+				end
+			end
+		end,
+	}
+end
+
+safeStart("BossService", BossService.Start, info, bossCallbacks("grumble"))
+safeStart("BossRootjaw", BossRootjaw.Start, info, bossCallbacks("rootjaw"))
+safeStart("BossThunderhead", BossThunderhead.Start, info, bossCallbacks("thunderhead"))
+safeStart("BossShade", BossShade.Start, info, bossCallbacks("shade"))
 
 -- Admin perks ------------------------------------------------------------------------------------
 safeStart("CrateService", CrateService.Start, info, {
@@ -1955,6 +2036,11 @@ safeStart("AdminService", AdminService.Start, {
 	end,
 	DataService = DataService,
 	BossService = BossService,
+	ResetBosses = function()
+		for _, b in ipairs({ BossService, BossRootjaw, BossThunderhead, BossShade }) do
+			pcall(b.Reset)
+		end
+	end,
 })
 
 -- Players -----------------------------------------------------------------------------------------
@@ -2201,6 +2287,9 @@ function COMMANDS.speed(admin)
 	local level = (speedLevel[admin] or 1) % 3 + 1
 	speedLevel[admin] = level
 	hum.WalkSpeed = Config.WalkSpeed * level
+	if hum.Parent then
+		hum.Parent:SetAttribute("SpeedBoost", level) -- the client builds up to this speed
+	end
 	return true, "SPEED x" .. level, level
 end
 
@@ -2302,8 +2391,12 @@ end
 
 -- World ----------------------------------------------------------------------------
 function COMMANDS.resetboss()
-	ctx.BossService.Reset()
-	return true, "KING GRUMBLE RESET"
+	if ctx.ResetBosses then
+		ctx.ResetBosses()
+	else
+		ctx.BossService.Reset()
+	end
+	return true, "ALL BOSSES RESET"
 end
 
 function COMMANDS.allgoldens(admin)
@@ -2315,6 +2408,10 @@ function COMMANDS.allgoldens(admin)
 		slot.goldens[g.id] = true
 	end
 	slot.bossDefeated = true
+	slot.bosses = {}
+	for _, b in ipairs(Config.Bosses) do
+		slot.bosses[b.id] = true
+	end
 	ctx.push(admin, nil)
 	return true, "ALL GOLDEN CARROTS GIVEN (THIS FILE)"
 end
@@ -2382,16 +2479,19 @@ function AdminService.Start(context)
 end
 
 return AdminService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000009"><Properties><string name="Name">BossService</string><ProtectedString name="Source"><![CDATA[--[[
-	BossService - King Grumble, the giant crowned Grumblebug in the throne room.
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000009"><Properties><string name="Name">BossKit</string><ProtectedString name="Source"><![CDATA[--[[
+	BossKit - the shared toolbox for every boss fight.
 
-	His three glowing weak points sit on top of his shell. They are only
-	exposed while he is dazed: after he charges into a stone pillar, or after
-	a ground slam tires him out. Jump (or ground pound) onto a weak point to
-	break it. Break all three to win.
+	  Arena        who is in the fight (a circle plus a height band)
+	  Tag          boss-bar data on the model (name, HP, arena) for the client
+	  strike       a glowing warning circle, then a hit (lightning, lava, roots...)
+	  shockwave    an expanding ring along the floor: jump it
+	  projectile   a ball that flies straight, lobs with gravity, or homes in
+	  minion       a temporary baddie (cleared when the fight resets)
+	  Clear        removes everything a boss left lying around
 
-	  sleep -> roar -> chase -> windup -> charge -> (stunned | recover -> slam -> tired) -> chase ...
-	Each hit makes him faster; from the second phase he spits fireballs.
+	Every hazard is telegraphed: nothing in a boss fight should hit you without
+	showing you first where it's going to land.
 ]]
 
 local Players = game:GetService("Players")
@@ -2399,17 +2499,795 @@ local RunService = game:GetService("RunService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
 local Config = require(Shared:WaitForChild("Config"))
+local EnemyService = require(script.Parent:WaitForChild("EnemyService"))
+
+local BossKit = {}
+
+local FEET = 2.6
+local folder
+local cb
+local hazards = {}
+local floorParams = RaycastParams.new()
+floorParams.FilterType = Enum.RaycastFilterType.Include
+
+--------------------------------------------------------------------------------
+-- Arenas
+--------------------------------------------------------------------------------
+
+local Arena = {}
+Arena.__index = Arena
+
+-- center = the arena floor's centre; players count while within radius (+10)
+-- and between the floor and floor + height
+function BossKit.Arena(center, radius, height)
+	return setmetatable({ center = center, radius = radius, height = height or 80 }, Arena)
+end
+
+function Arena:contains(p, pad)
+	local flat = Vector3.new(p.X - self.center.X, 0, p.Z - self.center.Z).Magnitude
+	return flat < self.radius + (pad or 10) and p.Y > self.center.Y - 10 and p.Y < self.center.Y + self.height
+end
+
+function Arena:players()
+	local list = {}
+	for _, player in ipairs(Players:GetPlayers()) do
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if root and hum and hum.Health > 0 and self:contains(root.Position) then
+			table.insert(list, { player = player, root = root, hum = hum, char = char })
+		end
+	end
+	return list
+end
+
+function Arena:nearest(list, pos)
+	local best, bestD = nil, math.huge
+	for _, e in ipairs(list) do
+		local d = (e.root.Position - pos).Magnitude
+		if d < bestD then
+			best, bestD = e, d
+		end
+	end
+	return best
+end
+
+function Arena:random(list)
+	if #list == 0 then
+		return nil
+	end
+	return list[math.random(1, #list)]
+end
+
+-- Keep a point inside the arena (flat), returns (point, hitEdge)
+function Arena:clamp(p, margin)
+	local flat = Vector3.new(p.X - self.center.X, 0, p.Z - self.center.Z)
+	local limit = self.radius - (margin or 8)
+	if flat.Magnitude > limit then
+		flat = flat.Unit * limit
+		return Vector3.new(self.center.X + flat.X, p.Y, self.center.Z + flat.Z), true
+	end
+	return p, false
+end
+
+-- A random point on the arena floor
+function Arena:randomPoint(margin)
+	local a = math.random() * math.pi * 2
+	local r = math.sqrt(math.random()) * (self.radius - (margin or 6))
+	return self.center + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)
+end
+
+--------------------------------------------------------------------------------
+-- Boss bar data
+--------------------------------------------------------------------------------
+
+-- The client's boss bar, title card, music and hurt-flash all read these
+function BossKit.Tag(model, id, name, maxHp, arena, hint)
+	model:SetAttribute("Boss", true)
+	model:SetAttribute("BossId", id)
+	model:SetAttribute("BossName", name)
+	model:SetAttribute("MaxHP", maxHp)
+	model:SetAttribute("HP", maxHp)
+	model:SetAttribute("ArenaCenter", arena.center)
+	model:SetAttribute("ArenaRadius", arena.radius)
+	model:SetAttribute("ArenaHeight", arena.height)
+	model:SetAttribute("Hint", hint or "")
+end
+
+--------------------------------------------------------------------------------
+-- Hazards
+--------------------------------------------------------------------------------
+
+local function floorAt(pos)
+	local hit = workspace:Raycast(pos + Vector3.new(0, 12, 0), Vector3.new(0, -60, 0), floorParams)
+	return hit and hit.Position.Y or pos.Y
+end
+
+local function newPart(props)
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	for k, v in pairs(props) do
+		p[k] = v
+	end
+	p.Parent = folder
+	return p
+end
+
+local STRIKE_COLORS = {
+	lightning = Color3.fromRGB(250, 236, 140),
+	lava = Color3.fromRGB(255, 120, 60),
+	roots = Color3.fromRGB(150, 210, 110),
+	shadow = Color3.fromRGB(170, 120, 230),
+}
+
+-- A warning circle on the floor, then a hit `delay` seconds later
+function BossKit.strike(owner, arena, pos, opts)
+	opts = opts or {}
+	local r = opts.radius or 5
+	local y = floorAt(pos)
+	local kind = opts.kind or "lightning"
+	local warn = newPart({
+		Name = "Warning",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.3, r * 2, r * 2),
+		CFrame = CFrame.new(pos.X, y + 0.2, pos.Z) * CFrame.Angles(0, 0, math.pi / 2),
+		Color = STRIKE_COLORS[kind] or STRIKE_COLORS.lightning,
+		Material = Enum.Material.Neon,
+		Transparency = 0.55,
+	})
+	table.insert(hazards, {
+		type = "strike", owner = owner, arena = arena, pos = Vector3.new(pos.X, y, pos.Z), r = r,
+		t0 = os.clock(), delay = opts.delay or 1, part = warn, kind = kind, height = opts.height or 14,
+	})
+end
+
+-- An expanding ring along the floor; only hurts bunnies standing on the ground
+function BossKit.shockwave(owner, arena, center, speed, maxR, floorY)
+	local y = floorY or floorAt(center)
+	table.insert(hazards, {
+		type = "wave", owner = owner, arena = arena, center = Vector3.new(center.X, y, center.Z),
+		t0 = os.clock(), speed = speed or 44, maxR = maxR or 60, hit = {},
+	})
+	cb.effect("shockwave", Vector3.new(center.X, y, center.Z), speed or 44)
+end
+
+-- A ball: straight (vel), lobbed (gravity > 0) or homing (homing = turn rate)
+function BossKit.projectile(owner, arena, from, vel, opts)
+	opts = opts or {}
+	local size = opts.size or 3.2
+	local ball = newPart({
+		Name = "BossShot",
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.one * size,
+		CFrame = CFrame.new(from),
+		Color = opts.color or Config.Palette.Ember,
+		Material = Enum.Material.Neon,
+	})
+	local light = Instance.new("PointLight")
+	light.Color = opts.color or Color3.fromRGB(255, 140, 70)
+	light.Range = 12
+	light.Parent = ball
+	table.insert(hazards, {
+		type = "shot", owner = owner, arena = arena, part = ball, vel = vel, gravity = opts.gravity or 0,
+		homing = opts.homing, target = opts.target, die = os.clock() + (opts.life or 5), r = size / 2 + 1.4,
+		onLand = opts.onLand,
+	})
+	return ball
+end
+
+-- A temporary baddie for the fight
+function BossKit.minion(owner, kind, pos, skin)
+	local e = EnemyService.Spawn(kind, pos, skin, 40)
+	if e then
+		owner.minions = owner.minions or {}
+		table.insert(owner.minions, e)
+		cb.effect("poof", pos + Vector3.new(0, 2, 0))
+	end
+	return e
+end
+
+function BossKit.minionCount(owner)
+	local n = 0
+	for _, e in ipairs(owner.minions or {}) do
+		if not e.gone and e.alive then
+			n += 1
+		end
+	end
+	return n
+end
+
+-- Remove every hazard and minion that belongs to this boss
+function BossKit.Clear(owner)
+	for i = #hazards, 1, -1 do
+		local h = hazards[i]
+		if h.owner == owner then
+			if h.part then
+				h.part:Destroy()
+			end
+			table.remove(hazards, i)
+		end
+	end
+	for _, e in ipairs(owner.minions or {}) do
+		EnemyService.Despawn(e)
+	end
+	owner.minions = {}
+end
+
+local function step(dt)
+	local now = os.clock()
+	for i = #hazards, 1, -1 do
+		local h = hazards[i]
+		local done = false
+		local list = h.arena:players()
+		if h.type == "strike" then
+			local age = now - h.t0
+			if age < h.delay then
+				-- the warning flashes faster as the hit gets close
+				local u = age / h.delay
+				h.part.Transparency = 0.25 + 0.5 * (0.5 + 0.5 * math.sin(age * (8 + 30 * u)))
+			else
+				for _, e in ipairs(list) do
+					local p = e.root.Position
+					local flat = Vector3.new(p.X - h.pos.X, 0, p.Z - h.pos.Z).Magnitude
+					local feet = p.Y - FEET
+					if flat < h.r + 0.8 and feet > h.pos.Y - 2 and feet < h.pos.Y + h.height then
+						cb.hurt(e.player, h.pos)
+					end
+				end
+				cb.effect("strike", h.pos, h.kind)
+				h.part:Destroy()
+				done = true
+			end
+		elseif h.type == "wave" then
+			local r = (now - h.t0) * h.speed
+			if r > h.maxR then
+				done = true
+			else
+				for _, e in ipairs(list) do
+					local p = e.root.Position
+					local flat = Vector3.new(p.X - h.center.X, 0, p.Z - h.center.Z).Magnitude
+					local grounded = p.Y - FEET < h.center.Y + 1.4
+					if grounded and not h.hit[e.player] and math.abs(flat - r) < 2.8 then
+						h.hit[e.player] = true
+						cb.hurt(e.player, h.center)
+					end
+				end
+			end
+		elseif h.type == "shot" then
+			local p = h.part.Position
+			if h.homing and h.target and h.target.Parent then
+				local want = (h.target.Position - p)
+				if want.Magnitude > 0.1 then
+					local speed = h.vel.Magnitude
+					h.vel = h.vel:Lerp(want.Unit * speed, math.clamp(h.homing * dt, 0, 1))
+				end
+			end
+			h.vel += Vector3.new(0, -h.gravity * dt, 0)
+			p += h.vel * dt
+			h.part.CFrame = CFrame.new(p)
+			if now > h.die or not h.arena:contains(p, 30) then
+				done = true
+			else
+				for _, e in ipairs(list) do
+					if (e.root.Position - p).Magnitude < h.r then
+						cb.hurt(e.player, p - h.vel * 0.1)
+						done = true
+						break
+					end
+				end
+				if not done and h.gravity > 0 and h.vel.Y < 0 and p.Y < h.arena.center.Y + h.part.Size.Y / 2 then
+					done = true
+					if h.onLand then
+						h.onLand(Vector3.new(p.X, h.arena.center.Y, p.Z))
+					end
+				end
+			end
+			if done then
+				h.part:Destroy()
+			end
+		end
+		if done then
+			table.remove(hazards, i)
+		end
+	end
+end
+
+function BossKit.Init(info, callbacks)
+	cb = callbacks
+	if not folder then
+		folder = workspace:FindFirstChild("Boss")
+		if not folder then
+			folder = Instance.new("Folder")
+			folder.Name = "Boss"
+			folder.Parent = workspace
+		end
+		floorParams.FilterDescendantsInstances = { info.solidFolder, workspace.Terrain }
+		RunService.Heartbeat:Connect(step)
+	end
+	return folder
+end
+
+function BossKit.Folder()
+	return folder
+end
+
+-- Has this player's feet just come down on a point (a weak spot)?
+function BossKit.stomped(e, point, radius, pounding)
+	local h = e.root.Position
+	local feet = h.Y - FEET
+	local vy = e.root.AssemblyLinearVelocity.Y
+	local flat = Vector3.new(h.X - point.X, 0, h.Z - point.Z).Magnitude
+	local move = e.char:GetAttribute("Move")
+	return flat < (radius or 4.6) and feet > point.Y - 2.2 and feet < point.Y + 5
+		and (vy < 1 or move == "pound" or pounding)
+end
+
+return BossKit
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000A"><Properties><string name="Name">BossRootjaw</string><ProtectedString name="Source"><![CDATA[--[[
+	BossRootjaw - Old Rootjaw, the giant snapping plant at the heart of
+	Whisperwood's Hollow. It can't move, but its neck reaches the whole arena.
+
+	  sleep -> roar -> track -> windup -> lunge -> stuck -> recover -> track ...
+	                      \-> roots (rings of roots burst up)       (phase 2+)
+	                      \-> seeds (lobbed seed bombs sprout roots) (phase 2+)
+
+	When it slams its head into the ground it gets stuck for a moment: the
+	glowing bud on top of its head is the weak point - jump on it! Three hits.
+	It calls Mosslings to help once it's hurt.
+]]
+
+local RunService = game:GetService("RunService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+local BossKit = require(script.Parent:WaitForChild("BossKit"))
+
+local BossRootjaw = {}
+
+local MAX_HP = 3
+local STEM = Color3.fromRGB(84, 112, 62)
+local STEM_DARK = Color3.fromRGB(64, 88, 50)
+local HEAD = Color3.fromRGB(122, 58, 70)
+local INSIDE = Color3.fromRGB(196, 110, 110)
+local SEGMENTS = 9
+
+local arena, cb, folder
+local boss = { minions = {} }
+
+local function part(model, props)
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Material = Enum.Material.SmoothPlastic
+	for k, v in pairs(props) do
+		p[k] = v
+	end
+	p.Parent = model
+	return p
+end
+
+local function ball(model, size, color, material)
+	local p = part(model, { Size = size, Color = color, Material = material or Enum.Material.SmoothPlastic })
+	local m = Instance.new("SpecialMesh")
+	m.MeshType = Enum.MeshType.Sphere
+	m.Parent = p
+	return p
+end
+
+local function setState(name)
+	boss.state = name
+	boss.t0 = os.clock()
+	boss.model:SetAttribute("State", name)
+end
+
+local function exposed()
+	return boss.state == "stuck"
+end
+
+local function build()
+	if boss.model then
+		boss.model:Destroy()
+	end
+	local model = Instance.new("Model")
+	model.Name = "OldRootjaw"
+	local c = arena.center
+	-- leafy rosette at the base (static)
+	for i = 0, 7 do
+		local a = i / 8 * math.pi * 2
+		local leaf = ball(model, Vector3.new(14, 1.2, 6), i % 2 == 0 and STEM or STEM_DARK)
+		leaf.CFrame = CFrame.new(c + Vector3.new(math.cos(a) * 7, 0.6, math.sin(a) * 7)) * CFrame.Angles(0, -a, 0.15)
+	end
+	part(model, { Shape = Enum.PartType.Cylinder, Size = Vector3.new(3, 7, 7), CFrame = CFrame.new(c + Vector3.new(0, 1.5, 0)) * CFrame.Angles(0, 0, math.pi / 2), Color = STEM_DARK })
+	-- the neck: segments re-laid every frame
+	boss.segments = {}
+	for i = 1, SEGMENTS do
+		local w = 3.6 - i * 0.12
+		local seg = part(model, { Shape = Enum.PartType.Cylinder, Size = Vector3.new(4, w, w), Color = i % 2 == 0 and STEM or STEM_DARK })
+		table.insert(boss.segments, seg)
+	end
+	-- the head: parts stored with offsets from the head's CFrame
+	boss.head = {}
+	local function headPart(p, offset)
+		table.insert(boss.head, { part = p, offset = offset })
+		return p
+	end
+	local skull = headPart(ball(model, Vector3.new(10, 6, 11), HEAD), CFrame.new(0, 0.6, 0))
+	skull.Name = "Head"
+	boss.skull = skull
+	headPart(ball(model, Vector3.new(9, 3, 9.5), INSIDE), CFrame.new(0, -1.4, -0.4))
+	boss.jaw = headPart(ball(model, Vector3.new(9.4, 3.2, 10), HEAD), CFrame.new(0, -2.6, 0.2))
+	for i = 0, 6 do
+		local a = i / 6 * math.pi - math.pi / 2
+		headPart(part(model, { Size = Vector3.new(0.7, 1.4, 0.7), Color = Color3.fromRGB(236, 230, 214) }), CFrame.new(math.sin(a) * 4, -1.0, -math.cos(a) * 4.5))
+	end
+	for _, sx in ipairs({ -1, 1 }) do
+		headPart(ball(model, Vector3.new(2.2, 2.2, 1.4), Color3.fromRGB(240, 232, 200)), CFrame.new(sx * 2.2, 2.4, -4.4))
+		headPart(ball(model, Vector3.new(1, 1.2, 0.6), Color3.fromRGB(30, 22, 22)), CFrame.new(sx * 2.1, 2.3, -5.0))
+		headPart(part(model, { Size = Vector3.new(2.8, 0.5, 0.6), Color = Color3.fromRGB(40, 28, 26) }), CFrame.new(sx * 2.2, 3.7, -4.6) * CFrame.Angles(0, 0, sx * 0.45))
+		headPart(ball(model, Vector3.new(6, 0.8, 3), STEM), CFrame.new(sx * 5.5, 1, 1) * CFrame.Angles(0, 0, sx * -0.5))
+	end
+	-- the bud: the weak point
+	boss.bud = headPart(ball(model, Vector3.new(4.2, 3, 4.2), Color3.fromRGB(150, 90, 120)), CFrame.new(0, 4.1, 0.8))
+	boss.bud.Name = "WeakPoint"
+	for i = 0, 4 do
+		local a = i / 5 * math.pi * 2
+		headPart(ball(model, Vector3.new(2.4, 0.5, 1.4), Color3.fromRGB(196, 120, 150)), CFrame.new(math.cos(a) * 1.8, 5.4, 0.8 + math.sin(a) * 1.8) * CFrame.Angles(0, -a, 0.6))
+	end
+	-- a solid "back of the head" to stand on while it's stuck
+	boss.platform = headPart(part(model, { Size = Vector3.new(9, 1, 9), Transparency = 1, Name = "HeadTop" }), CFrame.new(0, 3.1, 0.8))
+	boss.model = model
+	BossKit.Tag(model, "rootjaw", "OLD ROOTJAW", MAX_HP, arena, "ITS HEAD IS STUCK! JUMP ON THE BUD!")
+	model:SetAttribute("Music", "rival")
+	model.Parent = folder
+end
+
+local function headRest(age)
+	local c = arena.center
+	return c + Vector3.new(math.sin(age * 0.9) * 2, 15 + math.sin(age * 1.7) * 1, math.cos(age * 0.7) * 2)
+end
+
+local function layout()
+	local c = arena.center
+	local base = c + Vector3.new(0, 3, 0)
+	local h = boss.headPos
+	-- the neck curves: straight up from the base, then over to the head
+	local ctrl = Vector3.new(c.X, math.max(h.Y, 8) + 4, c.Z):Lerp(h, 0.35)
+	local prev = base
+	local parts, cfs = {}, {}
+	for i, seg in ipairs(boss.segments) do
+		local u = i / SEGMENTS
+		local a = base:Lerp(ctrl, u)
+		local b = ctrl:Lerp(h, u)
+		local p = a:Lerp(b, u)
+		local len = (p - prev).Magnitude
+		if len > 0.01 then
+			seg.Size = Vector3.new(len + 1.2, seg.Size.Y, seg.Size.Z)
+			table.insert(parts, seg)
+			table.insert(cfs, CFrame.lookAt((prev + p) / 2, p) * CFrame.Angles(0, math.pi / 2, 0))
+		end
+		prev = p
+	end
+	local headCF = CFrame.new(h) * CFrame.Angles(0, boss.yaw, 0) * CFrame.Angles(boss.pitch or 0, 0, 0)
+	for _, hp in ipairs(boss.head) do
+		local off = hp.offset
+		if hp.part == boss.jaw then
+			off = CFrame.new(0, 0, 2.5) * CFrame.Angles(-(boss.jawOpen or 0.1), 0, 0) * CFrame.new(0, 0, -2.5) * off
+		end
+		table.insert(parts, hp.part)
+		table.insert(cfs, headCF * off)
+	end
+	workspace:BulkMoveTo(parts, cfs, Enum.BulkMoveMode.FireCFrameChanged)
+end
+
+local function refresh()
+	local on = exposed()
+	boss.bud.Material = on and Enum.Material.Neon or Enum.Material.SmoothPlastic
+	boss.bud.Color = on and Color3.fromRGB(255, 170, 210) or Color3.fromRGB(150, 90, 120)
+	boss.platform.CanCollide = on
+	boss.skull.CanCollide = on
+end
+
+local function reset()
+	BossKit.Clear(boss)
+	build()
+	boss.hp = MAX_HP
+	boss.yaw = 0
+	boss.pitch = 0.5
+	boss.headPos = arena.center + Vector3.new(0, 4, -6)
+	boss.jawOpen = 0
+	boss.lastSeeds = 0
+	boss.cycle = 0
+	setState("sleep")
+	refresh()
+	layout()
+end
+
+local function faceYaw(from, to)
+	local d = to - from
+	if Vector3.new(d.X, 0, d.Z).Magnitude > 0.1 then
+		return math.atan2(-d.X, -d.Z)
+	end
+	return boss.yaw
+end
+
+local function rootRings(phase)
+	local c = arena.center
+	for ring = 1, 3 do
+		local r = ring * 8.5
+		local n = 5 + ring * 2
+		local off = math.random() * math.pi
+		for i = 0, n - 1 do
+			local a = i / n * math.pi * 2 + off
+			BossKit.strike(boss, arena, c + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r), {
+				kind = "roots", radius = 3.6, delay = 0.9 + ring * 0.45 - phase * 0.08, height = 9,
+			})
+		end
+	end
+end
+
+local function spitSeeds(list, phase)
+	local from = boss.headPos + Vector3.new(0, 1, 0)
+	for _, e in ipairs(list) do
+		for k = 1, phase do
+			local to = e.root.Position + Vector3.new(math.random(-6, 6), 0, math.random(-6, 6))
+			local flat = Vector3.new(to.X - from.X, 0, to.Z - from.Z)
+			local t = 1.2
+			local g = 60
+			local vel = flat / t + Vector3.new(0, (arena.center.Y - from.Y) / t + 0.5 * g * t, 0)
+			task.delay((k - 1) * 0.25, function()
+				if boss.state ~= "dead" and boss.state ~= "dying" then
+					BossKit.projectile(boss, arena, from, vel, {
+						gravity = g, size = 2.4, color = Color3.fromRGB(150, 200, 100), life = 3,
+						onLand = function(pos)
+							BossKit.strike(boss, arena, pos, { kind = "roots", radius = 4, delay = 0.55, height = 8 })
+						end,
+					})
+				end
+			end)
+		end
+	end
+	cb.effect("spores", from)
+end
+
+function BossRootjaw.Start(worldInfo, callbacks)
+	local def = worldInfo.bossArenas and worldInfo.bossArenas.rootjaw
+	if not def then
+		return
+	end
+	cb = callbacks
+	arena = BossKit.Arena(def.center, def.radius, 60)
+	folder = BossKit.Init(worldInfo, callbacks)
+	reset()
+
+	local emptySince = os.clock()
+	RunService.Heartbeat:Connect(function(dt)
+		local now = os.clock()
+		local list = arena:players()
+		if #list == 0 then
+			if now - emptySince > 8 and (boss.state ~= "sleep" or boss.hp < MAX_HP) and boss.state ~= "dead" then
+				reset()
+			end
+			if boss.state == "sleep" or boss.state == "dead" then
+				return
+			end
+		else
+			emptySince = now
+		end
+		local st = boss.state
+		local age = now - boss.t0
+		local phase = MAX_HP - boss.hp + 1
+		local target = arena:nearest(list, arena.center)
+		local c = arena.center
+		local wantYaw = target and faceYaw(boss.headPos, target.root.Position) or boss.yaw
+		local function turn(rate)
+			local d = (wantYaw - boss.yaw + math.pi) % (math.pi * 2) - math.pi
+			boss.yaw += math.clamp(d, -rate * dt, rate * dt)
+		end
+
+		if st == "sleep" then
+			boss.headPos = c + Vector3.new(0, 4 + math.sin(now) * 0.3, -6)
+			boss.pitch = 0.5
+			boss.jawOpen = 0
+			if #list > 0 then
+				setState("roar")
+				cb.effect("bossroar", c, { name = "OLD ROOTJAW", title = "THE HUNGRY HEART OF WHISPERWOOD" })
+			end
+		elseif st == "roar" then
+			local u = math.clamp(age / 1.2, 0, 1)
+			boss.headPos = (c + Vector3.new(0, 4, -6)):Lerp(headRest(now), u)
+			boss.pitch = 0.5 - u * 0.8 + math.sin(age * 25) * 0.05
+			boss.jawOpen = 0.6
+			turn(2)
+			if age > 2.2 then
+				setState("track")
+			end
+		elseif st == "track" then
+			boss.headPos = boss.headPos:Lerp(headRest(now), math.clamp(dt * 3, 0, 1))
+			boss.pitch = 0.15
+			boss.jawOpen = 0.15 + math.sin(now * 3) * 0.08
+			turn(3)
+			if phase >= 2 and now - boss.lastSeeds > 4 - phase * 0.6 and age > 0.6 then
+				boss.lastSeeds = now
+				spitSeeds(list, phase)
+			end
+			if age > 2.6 - phase * 0.4 and target then
+				boss.cycle += 1
+				if phase >= 2 and boss.cycle % 3 == 0 then
+					setState("roots")
+					rootRings(phase)
+				else
+					boss.aim = arena:clamp(Vector3.new(target.root.Position.X, c.Y, target.root.Position.Z), 6)
+					setState("windup")
+				end
+			end
+		elseif st == "roots" then
+			-- head rears up and quivers while the roots burst
+			boss.headPos = boss.headPos:Lerp(c + Vector3.new(0, 20, 0), math.clamp(dt * 4, 0, 1))
+			boss.pitch = -0.5
+			boss.jawOpen = 0.7
+			if age > 2.6 then
+				setState("track")
+			end
+		elseif st == "windup" then
+			-- rear back away from the aim point
+			local away = Vector3.new(c.X - boss.aim.X, 0, c.Z - boss.aim.Z)
+			away = away.Magnitude > 0.1 and away.Unit or Vector3.new(0, 0, 1)
+			local rest = c + away * 6 + Vector3.new(0, 21, 0)
+			boss.headPos = boss.headPos:Lerp(rest, math.clamp(dt * 5, 0, 1))
+			wantYaw = faceYaw(boss.headPos, boss.aim)
+			turn(6)
+			boss.pitch = -0.35 + math.sin(age * 30) * 0.04
+			boss.jawOpen = 0.8
+			if age > 1.0 - phase * 0.12 then
+				boss.from = boss.headPos
+				setState("lunge")
+				cb.effect("bosscharge", boss.headPos)
+			end
+		elseif st == "lunge" then
+			local u = math.clamp(age / 0.22, 0, 1)
+			local dest = boss.aim + Vector3.new(0, 2.8, 0)
+			boss.headPos = boss.from:Lerp(dest, u * u)
+			boss.pitch = 0.4 * u
+			boss.jawOpen = 0.8 * (1 - u)
+			if u >= 1 then
+				setState("stuck")
+				refresh()
+				BossKit.shockwave(boss, arena, boss.aim, 40, 26, c.Y)
+				cb.effect("bossbonk", boss.headPos + Vector3.new(0, 4, 0))
+			end
+		elseif st == "stuck" then
+			-- wriggling to get free
+			boss.headPos = boss.aim + Vector3.new(0, 2.8, 0) + Vector3.new(math.sin(now * 14) * 0.15, 0, 0)
+			boss.pitch = 0.4 + math.sin(now * 9) * 0.03
+			boss.jawOpen = 0
+			if age > 3.2 - phase * 0.45 then
+				setState("recover")
+				refresh()
+			end
+		elseif st == "recover" then
+			boss.headPos = boss.headPos:Lerp(headRest(now), math.clamp(dt * 4, 0, 1))
+			boss.pitch = 0.15
+			if age > 0.8 then
+				setState("track")
+			end
+		elseif st == "hurt" then
+			boss.headPos = boss.headPos:Lerp(c + Vector3.new(0, 12, 0), math.clamp(dt * 4, 0, 1))
+			boss.pitch = math.sin(age * 30) * 0.15
+			boss.jawOpen = 0.9
+			if age > 1.5 then
+				if boss.hp <= 0 then
+					setState("dying")
+					BossKit.Clear(boss)
+					cb.effect("bossdie", boss.headPos)
+				else
+					if BossKit.minionCount(boss) < 3 then
+						for i = 1, 2 do
+							local a = math.random() * math.pi * 2
+							BossKit.minion(boss, "mossling", c + Vector3.new(math.cos(a) * 18, 0, math.sin(a) * 18), "forest")
+						end
+					end
+					setState("track")
+				end
+			end
+		elseif st == "dying" then
+			local u = math.clamp(age / 2.4, 0, 1)
+			boss.headPos = boss.headPos:Lerp(c + Vector3.new(0, 1, -8), math.clamp(dt * 2, 0, 1))
+			boss.pitch = 0.6 * u
+			boss.yaw += dt * 3 * (1 - u)
+			if age > 2.6 then
+				cb.effect("poof", boss.headPos)
+				boss.model.Parent = nil
+				setState("dead")
+				local winners = {}
+				for _, e in ipairs(list) do
+					table.insert(winners, e.player)
+				end
+				cb.defeated(winners)
+			end
+		elseif st == "dead" then
+			if age > 45 and #list == 0 then
+				reset()
+			end
+			return
+		end
+
+		if boss.model.Parent then
+			layout()
+			boss.model:SetAttribute("Exposed", exposed())
+		end
+
+		-- contact with bunnies
+		if st ~= "sleep" and st ~= "dying" and st ~= "dead" then
+			local headTop = boss.headPos + Vector3.new(0, 4.6, 0)
+			for _, e in ipairs(list) do
+				local h = e.root.Position
+				if exposed() and BossKit.stomped(e, headTop + Vector3.new(0, -0.6, 0.8), 4) then
+					boss.hp -= 1
+					boss.model:SetAttribute("HP", boss.hp)
+					cb.bounce(e.player, Vector3.new(0, 80, 0))
+					cb.effect("bosshit", headTop)
+					setState("hurt")
+					refresh()
+					break
+				elseif not exposed() and st ~= "hurt" then
+					if (h - boss.headPos).Magnitude < 6.2 then
+						cb.hurt(e.player, boss.headPos)
+					end
+				end
+			end
+		end
+	end)
+end
+
+function BossRootjaw.Reset()
+	if arena then
+		reset()
+	end
+end
+
+return BossRootjaw
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000B"><Properties><string name="Name">BossService</string><ProtectedString name="Source"><![CDATA[--[[
+	BossService - King Grumble, the giant crowned Grumblebug in the throne room.
+
+	His four glowing weak points sit on top of his shell. They are only
+	exposed while he is dazed: after he charges into a stone pillar, or after
+	a ground slam tires him out. Jump (or ground pound) onto a weak point to
+	break it. Break all four to win.
+
+	  sleep -> roar -> chase -> windup -> charge -> (stunned | recover -> slam -> tired) -> chase ...
+
+	He gets nastier with every weak point you break:
+	  phase 1  charges and slams
+	  phase 2  + spits fireballs, lava bursts up under you while he chases
+	  phase 3  + fireballs come in threes, he slams twice, calls in his bugs
+	  phase 4  ENRAGED: faster, slams three times, rains lava, shorter daze
+	Shared hazards (strikes, shockwaves, shots, minions) live in BossKit.
+]]
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
 local BugModel = require(script.Parent:WaitForChild("BugModel"))
+local BossKit = require(script.Parent:WaitForChild("BossKit"))
+local RunService = game:GetService("RunService")
 
 local BossService = {}
 
 local SCALE = 3.4
-local A, RADIUS
+local MAX_HP = 4
+local arena
 local cb
-local boss = {}
+local boss = { minions = {} }
 local pillars = {}
-local fireballs = {}
-local waves = {}
 local folder
 
 local function setState(name)
@@ -2422,33 +3300,6 @@ end
 
 local function exposed()
 	return boss.state == "stunned" or boss.state == "tired"
-end
-
-local function playersInArena()
-	local list = {}
-	for _, player in ipairs(Players:GetPlayers()) do
-		local char = player.Character
-		local root = char and char:FindFirstChild("HumanoidRootPart")
-		local hum = char and char:FindFirstChildOfClass("Humanoid")
-		if root and hum and hum.Health > 0 then
-			local p = root.Position
-			if (Vector3.new(p.X, 0, p.Z) - Vector3.new(A.X, 0, A.Z)).Magnitude < RADIUS + 10 and p.Y > A.Y - 8 and p.Y < A.Y + 80 then
-				table.insert(list, { player = player, root = root, hum = hum, char = char })
-			end
-		end
-	end
-	return list
-end
-
-local function nearest(list)
-	local best, bestD = nil, math.huge
-	for _, e in ipairs(list) do
-		local d = (e.root.Position - boss.pos).Magnitude
-		if d < bestD then
-			best, bestD = e, d
-		end
-	end
-	return best
 end
 
 local function build()
@@ -2485,7 +3336,7 @@ local function build()
 	band.Parent = model
 	-- weak points
 	boss.spots = {}
-	for _, lp in ipairs({ Vector3.new(-1.15, 3.2, 1.5), Vector3.new(1.15, 3.2, 1.5), Vector3.new(0, 3.15, -0.6) }) do
+	for _, lp in ipairs({ Vector3.new(-1.15, 3.2, 1.5), Vector3.new(1.15, 3.2, 1.5), Vector3.new(0, 3.15, -0.6), Vector3.new(0, 2.9, 2.9) }) do
 		local s = Instance.new("Part")
 		s.Name = "WeakPoint"
 		s.Anchored = true
@@ -2501,25 +3352,32 @@ local function build()
 		table.insert(boss.spots, { part = s, alive = true })
 	end
 	boss.shells = {}
+	boss.body = {}
 	for _, d in ipairs(model:GetChildren()) do
 		if d.Name == "Shell" then
 			table.insert(boss.shells, d)
 		end
+		if d:IsA("BasePart") and d.Name ~= "WeakPoint" then
+			boss.body[d] = d.Color
+		end
 	end
 	boss.model = model
 	boss.root = root
-	model:SetAttribute("Boss", true)
+	BossKit.Tag(model, "grumble", "KING GRUMBLE", MAX_HP, arena, "JUMP ON A GLOWING SPOT!")
 	model.Parent = folder
 end
 
 local function reset()
+	BossKit.Clear(boss)
 	build()
-	boss.pos = A
+	boss.pos = arena.center
 	boss.yaw = 0
-	boss.hp = 3
-	boss.model:SetAttribute("HP", 3)
+	boss.hp = MAX_HP
+	boss.model:SetAttribute("HP", MAX_HP)
 	boss.lastFire = 0
+	boss.lastLava = 0
 	boss.slams = 0
+	boss.enraged = false
 	setState("sleep")
 end
 
@@ -2540,6 +3398,17 @@ local function refreshSpots()
 	end
 end
 
+local function enrage()
+	boss.enraged = true
+	boss.model:SetAttribute("Enraged", true)
+	for part in pairs(boss.body) do
+		if part.Parent then
+			part.Color = part.Color:Lerp(Color3.fromRGB(200, 50, 30), 0.45)
+		end
+	end
+	cb.effect("bossroar", boss.pos, { name = "KING GRUMBLE", title = "...IS FURIOUS!" })
+end
+
 local function faceTo(pos)
 	local d = pos - boss.pos
 	if Vector3.new(d.X, 0, d.Z).Magnitude > 0.1 then
@@ -2551,54 +3420,34 @@ local function forward()
 	return Vector3.new(-math.sin(boss.yaw), 0, -math.cos(boss.yaw))
 end
 
-local function clampToArena(p)
-	local flat = Vector3.new(p.X - A.X, 0, p.Z - A.Z)
-	if flat.Magnitude > RADIUS - 8 then
-		flat = flat.Unit * (RADIUS - 8)
-		return Vector3.new(A.X + flat.X, A.Y, A.Z + flat.Z), true
-	end
-	return Vector3.new(p.X, A.Y, p.Z), false
-end
-
-local function spitFireball(target)
-	local from = boss.pos + Vector3.new(0, 2 * SCALE, 0) + forward() * 3.4 * SCALE
+local function spitFireball(target, spread)
+	local from = boss.pos + Vector3.new(0, 3, 0) + forward() * 3.4 * SCALE
 	local to = target.root.Position
 	local dir = Vector3.new(to.X - from.X, 0, to.Z - from.Z)
 	if dir.Magnitude < 0.1 then
 		return
 	end
-	local ball = Instance.new("Part")
-	ball.Name = "Fireball"
-	ball.Shape = Enum.PartType.Ball
-	ball.Size = Vector3.one * 3.2
-	ball.Material = Enum.Material.Neon
-	ball.Color = Config.Palette.Ember
-	ball.Anchored = true
-	ball.CanCollide = false
-	ball.CanQuery = false
-	ball.CanTouch = false
-	ball.CFrame = CFrame.new(Vector3.new(from.X, A.Y + 3, from.Z))
-	local light = Instance.new("PointLight")
-	light.Color = Color3.fromRGB(255, 140, 70)
-	light.Range = 14
-	light.Parent = ball
-	ball.Parent = folder
-	table.insert(fireballs, { part = ball, vel = dir.Unit * 36, die = os.clock() + 4 })
+	for _, ang in ipairs(spread and { -0.32, 0, 0.32 } or { 0 }) do
+		local d = (CFrame.Angles(0, ang, 0) * dir.Unit)
+		BossKit.projectile(boss, arena, Vector3.new(from.X, arena.center.Y + 3, from.Z), d * (boss.enraged and 42 or 36), { life = 4 })
+	end
 	cb.effect("fire", from)
 end
 
 local function slamLand()
-	table.insert(waves, { center = boss.pos, t0 = os.clock(), speed = 44, maxR = 64, hit = {} })
-	cb.effect("shockwave", boss.pos, 44)
-end
-
-local function hurtPlayer(e, fromPos)
-	cb.hurt(e.player, fromPos)
+	BossKit.shockwave(boss, arena, boss.pos, boss.enraged and 52 or 44, 64, arena.center.Y)
+	if boss.enraged then
+		-- a ring of lava bursts around him
+		for i = 0, 5 do
+			local a = i / 6 * math.pi * 2 + math.random()
+			BossKit.strike(boss, arena, boss.pos + Vector3.new(math.cos(a) * 20, 0, math.sin(a) * 20), { kind = "lava", radius = 6, delay = 1.1 })
+		end
+	end
 end
 
 -- Admin helper: put King Grumble back to full health, asleep in the middle
 function BossService.Reset()
-	if A then
+	if arena then
 		reset()
 		place(0)
 	end
@@ -2606,14 +3455,11 @@ end
 
 function BossService.Start(worldInfo, callbacks)
 	cb = callbacks
-	A = worldInfo.arenaCenter
-	RADIUS = worldInfo.arenaRadius
-	folder = Instance.new("Folder")
-	folder.Name = "Boss"
-	folder.Parent = workspace
+	arena = BossKit.Arena(worldInfo.arenaCenter, worldInfo.arenaRadius, 80)
+	folder = BossKit.Init(worldInfo, callbacks)
 	for _, d in ipairs(worldInfo.solidFolder:GetDescendants()) do
 		if d:IsA("BasePart") and d.Name == "ArenaPillar" then
-			table.insert(pillars, Vector3.new(d.Position.X, A.Y, d.Position.Z))
+			table.insert(pillars, Vector3.new(d.Position.X, arena.center.Y, d.Position.Z))
 		end
 	end
 	reset()
@@ -2622,19 +3468,22 @@ function BossService.Start(worldInfo, callbacks)
 	local emptySince = os.clock()
 	RunService.Heartbeat:Connect(function(dt)
 		local now = os.clock()
-		local list = playersInArena()
+		local list = arena:players()
 		if #list == 0 then
-			if now - emptySince > 8 and (boss.state ~= "sleep" or boss.hp < 3) then
+			if now - emptySince > 8 and (boss.state ~= "sleep" or boss.hp < MAX_HP) and boss.state ~= "dead" then
 				reset()
 				place(0)
+			end
+			if boss.state == "sleep" then
+				return -- nobody here: nothing to do
 			end
 		else
 			emptySince = now
 		end
 		local st = boss.state
 		local age = now - boss.t0
-		local phase = 4 - boss.hp -- 1, 2, 3
-		local target = nearest(list)
+		local phase = MAX_HP - boss.hp + 1 -- 1..4
+		local target = arena:nearest(list, boss.pos)
 		local lift, tilt = 0, 0
 
 		if st == "sleep" then
@@ -2642,7 +3491,7 @@ function BossService.Start(worldInfo, callbacks)
 			lift = math.sin(now * 1.5) * 0.3
 			if #list > 0 then
 				setState("roar")
-				cb.effect("bossroar", boss.pos)
+				cb.effect("bossroar", boss.pos, { name = "KING GRUMBLE", title = "TYRANT OF THE INFERNAL CASTLE" })
 			end
 		elseif st == "roar" then
 			if target then
@@ -2655,15 +3504,22 @@ function BossService.Start(worldInfo, callbacks)
 		elseif st == "chase" then
 			if target then
 				faceTo(target.root.Position)
-				local speed = 12 + 4 * phase
-				boss.pos = clampToArena(boss.pos + forward() * speed * dt)
-				if phase >= 2 and now - boss.lastFire > (phase == 2 and 1.5 or 0.9) then
+				local speed = 12 + 4 * phase + (boss.enraged and 4 or 0)
+				boss.pos = arena:clamp(boss.pos + forward() * speed * dt)
+				if phase >= 2 and now - boss.lastFire > (phase == 2 and 1.6 or 1.1) then
 					boss.lastFire = now
-					spitFireball(target)
+					spitFireball(target, phase >= 3)
+				end
+				-- lava bursts up under whoever he's chasing
+				if phase >= 2 and now - boss.lastLava > (boss.enraged and 1.4 or 2.6) then
+					boss.lastLava = now
+					for _, e in ipairs(list) do
+						BossKit.strike(boss, arena, e.root.Position, { kind = "lava", radius = 5, delay = 1.0 })
+					end
 				end
 			end
 			lift = math.abs(math.sin(now * 10)) * 0.6
-			if age > 3.2 - 0.4 * phase then
+			if age > 3.2 - 0.35 * phase then
 				setState("windup")
 			end
 		elseif st == "windup" then
@@ -2672,13 +3528,13 @@ function BossService.Start(worldInfo, callbacks)
 			end
 			tilt = -0.18
 			lift = math.sin(age * 40) * 0.25
-			if age > 1.0 - 0.15 * phase then
+			if age > 1.0 - 0.13 * phase then
 				setState("charge")
 				cb.effect("bosscharge", boss.pos)
 			end
 		elseif st == "charge" then
 			local speed = 56 + 8 * phase
-			local nextPos, hitEdge = clampToArena(boss.pos + forward() * speed * dt)
+			local nextPos, hitEdge = arena:clamp(boss.pos + forward() * speed * dt)
 			boss.pos = nextPos
 			tilt = -0.08
 			local bonk = false
@@ -2695,22 +3551,23 @@ function BossService.Start(worldInfo, callbacks)
 				setState("recover")
 			end
 		elseif st == "recover" then
-			if age > 0.8 then
+			if age > 0.8 - 0.1 * phase then
 				boss.slams = 0
 				setState("slam")
 			end
 		elseif st == "slam" then
-			local dur = 1.1
+			local dur = boss.enraged and 0.95 or 1.1
 			local u = math.clamp(age / dur, 0, 1)
 			lift = math.sin(u * math.pi) * 22
 			if target then
 				faceTo(target.root.Position)
-				boss.pos = clampToArena(boss.pos + forward() * 22 * dt)
+				boss.pos = arena:clamp(boss.pos + forward() * (boss.enraged and 30 or 22) * dt)
 			end
 			if age >= dur then
 				slamLand()
 				boss.slams += 1
-				if phase == 3 and boss.slams < 2 then
+				local slams = boss.enraged and 3 or (phase >= 3 and 2 or 1)
+				if boss.slams < slams then
 					setState("slam")
 				else
 					setState("tired")
@@ -2723,7 +3580,8 @@ function BossService.Start(worldInfo, callbacks)
 			if st == "stunned" then
 				boss.yaw += math.sin(now * 5) * dt * 0.6
 			end
-			if age > (st == "stunned" and 4.2 or 3.2) then
+			local hold = (st == "stunned" and 4.4 or 3.4) - 0.5 * (phase - 1)
+			if age > hold then
 				setState("chase")
 				refreshSpots()
 			end
@@ -2732,8 +3590,19 @@ function BossService.Start(worldInfo, callbacks)
 			if age > 1.4 then
 				if boss.hp <= 0 then
 					setState("dying")
+					BossKit.Clear(boss)
 					cb.effect("bossdie", boss.pos + Vector3.new(0, 3 * SCALE, 0))
 				else
+					if boss.hp <= 2 and BossKit.minionCount(boss) < 3 then
+						-- "GUARDS!" - a few of his bugs scuttle in from the edge
+						for i = 1, (boss.hp == 1 and 3 or 2) do
+							local a = math.random() * math.pi * 2
+							BossKit.minion(boss, "bug", arena.center + Vector3.new(math.cos(a) * (arena.radius - 10), 0, math.sin(a) * (arena.radius - 10)), "castle")
+						end
+					end
+					if boss.hp == 1 and not boss.enraged then
+						enrage()
+					end
 					setState("chase")
 				end
 			end
@@ -2766,71 +3635,28 @@ function BossService.Start(worldInfo, callbacks)
 			for _, e in ipairs(list) do
 				local h = e.root.Position
 				local feet = h.Y - 2.6
-				local vy = e.root.AssemblyLinearVelocity.Y
 				local handled = false
 				if exposed() then
 					for _, s in ipairs(boss.spots) do
-						if s.alive then
+						if s.alive and BossKit.stomped(e, s.part.Position, 4.6) then
 							local w = s.part.Position
-							local flat = Vector3.new(h.X - w.X, 0, h.Z - w.Z).Magnitude
-							if flat < 4.6 and feet > w.Y - 2.2 and feet < w.Y + 5 and (vy < 1 or e.char:GetAttribute("Move") == "pound") then
-								s.alive = false
-								s.part.Parent = nil
-								boss.hp -= 1
-								boss.model:SetAttribute("HP", boss.hp)
-								cb.bounce(e.player, Vector3.new(0, 80, 0))
-								cb.effect("bosshit", w)
-								setState("hurt")
-								refreshSpots()
-								handled = true
-								break
-							end
+							s.alive = false
+							s.part.Parent = nil
+							boss.hp -= 1
+							boss.model:SetAttribute("HP", boss.hp)
+							cb.bounce(e.player, Vector3.new(0, 80, 0))
+							cb.effect("bosshit", w)
+							setState("hurt")
+							refreshSpots()
+							handled = true
+							break
 						end
 					end
 				end
 				if not handled and not exposed() and boss.state ~= "hurt" then
 					local flat = Vector3.new(h.X - boss.pos.X, 0, h.Z - boss.pos.Z).Magnitude
 					if flat < 3.2 * SCALE and feet < boss.pos.Y + 3.4 * SCALE then
-						hurtPlayer(e, boss.pos)
-					end
-				end
-			end
-		end
-
-		-- Fireballs ---------------------------------------------------------------
-		for i = #fireballs, 1, -1 do
-			local f = fireballs[i]
-			local p = f.part.Position + f.vel * dt
-			f.part.CFrame = CFrame.new(p)
-			local dead = now > f.die or (Vector3.new(p.X - A.X, 0, p.Z - A.Z)).Magnitude > RADIUS + 4
-			if not dead then
-				for _, e in ipairs(list) do
-					if (e.root.Position - p).Magnitude < 3.6 then
-						hurtPlayer(e, p - f.vel)
-						dead = true
-					end
-				end
-			end
-			if dead then
-				f.part:Destroy()
-				table.remove(fireballs, i)
-			end
-		end
-
-		-- Shockwaves --------------------------------------------------------------
-		for i = #waves, 1, -1 do
-			local w = waves[i]
-			local r = (now - w.t0) * w.speed
-			if r > w.maxR then
-				table.remove(waves, i)
-			else
-				for _, e in ipairs(list) do
-					local h = e.root.Position
-					local flat = Vector3.new(h.X - w.center.X, 0, h.Z - w.center.Z).Magnitude
-					local grounded = h.Y - 2.6 < A.Y + 1.4
-					if grounded and not w.hit[e.player] and math.abs(flat - r) < 2.8 then
-						w.hit[e.player] = true
-						cb.hurt(e.player, w.center)
+						cb.hurt(e.player, boss.pos)
 					end
 				end
 			end
@@ -2839,7 +3665,370 @@ function BossService.Start(worldInfo, callbacks)
 end
 
 return BossService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000A"><Properties><string name="Name">BugModel</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000C"><Properties><string name="Name">BossThunderhead</string><ProtectedString name="Source"><![CDATA[--[[
+	BossThunderhead - a furious storm cloud that squats over the Stormcrown, a
+	floating arena south of Cloudtop's hub.
+
+	  sleep -> roar -> storm (rounds of lightning) -> drained -> rise -> gale -> storm ...
+	                                                    \-> (phase 2+) calls Puffers
+
+	Lightning always shows a flashing circle first. After a storm it's run out
+	of puff and sinks down to the arena: hop onto it and stomp the glowing
+	storm core on top. Between storms it inhales and blows a gale across the
+	arena that shoves you toward the edge - keep moving into it. Three hits.
+]]
+
+local RunService = game:GetService("RunService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+local BossKit = require(script.Parent:WaitForChild("BossKit"))
+
+local BossThunderhead = {}
+
+local MAX_HP = 3
+local HOVER = 24
+local arena, cb, folder
+local boss = { minions = {} }
+
+local function setState(name)
+	boss.state = name
+	boss.t0 = os.clock()
+	boss.model:SetAttribute("State", name)
+end
+
+local function exposed()
+	return boss.state == "drained"
+end
+
+local function ball(model, cf, size, color, material)
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.Size = size
+	p.CFrame = cf
+	p.Color = color
+	p.Material = material or Enum.Material.SmoothPlastic
+	local m = Instance.new("SpecialMesh")
+	m.MeshType = Enum.MeshType.Sphere
+	m.Parent = p
+	p.Parent = model
+	return p
+end
+
+local function build()
+	if boss.model then
+		boss.model:Destroy()
+	end
+	local model = Instance.new("Model")
+	model.Name = "Thunderhead"
+	local root = Instance.new("Part")
+	root.Name = "Root"
+	root.Anchored = true
+	root.CanCollide = false
+	root.CanQuery = false
+	root.CanTouch = false
+	root.Transparency = 1
+	root.Size = Vector3.new(2, 2, 2)
+	root.CFrame = CFrame.new()
+	root.Parent = model
+	model.PrimaryPart = root
+	local dark = Color3.fromRGB(92, 96, 112)
+	local mid = Color3.fromRGB(122, 126, 142)
+	local light = Color3.fromRGB(160, 164, 180)
+	boss.bodyParts = {}
+	local main = ball(model, CFrame.new(0, 0, 0), Vector3.new(20, 11, 18), mid)
+	table.insert(boss.bodyParts, main)
+	for i = 0, 9 do
+		local a = i / 10 * math.pi * 2
+		local r = 8 + (i % 3)
+		local s = 7 + (i % 4)
+		local p = ball(model, CFrame.new(math.cos(a) * r, (i % 2) * 2 - 1, math.sin(a) * r * 0.9), Vector3.new(s * 1.3, s, s * 1.2), i % 3 == 0 and dark or (i % 3 == 1 and mid or light))
+		table.insert(boss.bodyParts, p)
+	end
+	ball(model, CFrame.new(0, -5, 0), Vector3.new(18, 4, 16), dark)
+	-- angry face on the front
+	for _, sx in ipairs({ -1, 1 }) do
+		ball(model, CFrame.new(sx * 3.2, 1.2, -8.6), Vector3.new(3, 2.4, 1), Color3.fromRGB(255, 236, 140), Enum.Material.Neon)
+		local brow = Instance.new("Part")
+		brow.Anchored = true
+		brow.CanCollide = false
+		brow.CanQuery = false
+		brow.CanTouch = false
+		brow.Size = Vector3.new(4.4, 0.8, 0.8)
+		brow.CFrame = CFrame.new(sx * 3.2, 3.0, -8.9) * CFrame.Angles(0, 0, sx * 0.4)
+		brow.Color = Color3.fromRGB(50, 52, 64)
+		brow.Parent = model
+	end
+	ball(model, CFrame.new(0, -2.4, -8.8), Vector3.new(5, 1.6, 1), Color3.fromRGB(40, 40, 52))
+	-- the storm core on top: the weak point
+	boss.core = ball(model, CFrame.new(0, 6.4, 0), Vector3.new(4.5, 4.5, 4.5), Color3.fromRGB(110, 140, 170))
+	boss.core.Name = "WeakPoint"
+	local glow = Instance.new("PointLight")
+	glow.Color = Color3.fromRGB(150, 210, 255)
+	glow.Range = 20
+	glow.Brightness = 1.5
+	glow.Parent = boss.core
+	-- a flat cloud top you can land on while it's drained
+	local top = Instance.new("Part")
+	top.Name = "CloudTop"
+	top.Anchored = true
+	top.CanCollide = false
+	top.CanQuery = false
+	top.Transparency = 1
+	top.Size = Vector3.new(18, 1, 16)
+	top.CFrame = CFrame.new(0, 4.6, 0)
+	top.Parent = model
+	boss.top = top
+	boss.model = model
+	BossKit.Tag(model, "thunderhead", "THUNDERHEAD", MAX_HP, arena, "IT'S WORN OUT! STOMP THE STORM CORE!")
+	model:SetAttribute("Music", "rival")
+	model.Parent = folder
+end
+
+local function refresh()
+	local on = exposed()
+	boss.core.Material = on and Enum.Material.Neon or Enum.Material.SmoothPlastic
+	boss.core.Color = on and Color3.fromRGB(170, 230, 255) or Color3.fromRGB(110, 140, 170)
+	boss.top.CanCollide = on
+end
+
+local function reset()
+	BossKit.Clear(boss)
+	build()
+	boss.hp = MAX_HP
+	boss.pos = arena.center + Vector3.new(0, HOVER, 0)
+	boss.yaw = 0
+	boss.rounds = 0
+	boss.lastRound = 0
+	setState("sleep")
+	refresh()
+end
+
+local function place(tilt)
+	boss.model:PivotTo(CFrame.new(boss.pos) * CFrame.Angles(0, boss.yaw, 0) * CFrame.Angles(tilt or 0, 0, 0))
+end
+
+local function faceTo(p)
+	local d = p - boss.pos
+	if Vector3.new(d.X, 0, d.Z).Magnitude > 0.1 then
+		local want = math.atan2(-d.X, -d.Z)
+		local diff = (want - boss.yaw + math.pi) % (math.pi * 2) - math.pi
+		boss.yaw += diff * 0.08
+	end
+end
+
+local function lightningRound(list, phase)
+	for _, e in ipairs(list) do
+		-- where you are now, and where you're heading
+		local p = e.root.Position
+		local v = e.root.AssemblyLinearVelocity * Vector3.new(1, 0, 1)
+		BossKit.strike(boss, arena, p, { kind = "lightning", radius = 5, delay = 1.05 - phase * 0.1, height = 30 })
+		if phase >= 2 then
+			BossKit.strike(boss, arena, arena:clamp(p + v * 0.9, 4), { kind = "lightning", radius = 4.5, delay = 1.2 - phase * 0.1, height = 30 })
+		end
+	end
+	for _ = 1, 1 + phase do
+		BossKit.strike(boss, arena, arena:randomPoint(4), { kind = "lightning", radius = 5, delay = 1.1, height = 30 })
+	end
+end
+
+function BossThunderhead.Start(worldInfo, callbacks)
+	local def = worldInfo.bossArenas and worldInfo.bossArenas.thunderhead
+	if not def then
+		return
+	end
+	cb = callbacks
+	arena = BossKit.Arena(def.center, def.radius, 70)
+	folder = BossKit.Init(worldInfo, callbacks)
+	reset()
+	place()
+
+	local emptySince = os.clock()
+	RunService.Heartbeat:Connect(function(dt)
+		local now = os.clock()
+		local list = arena:players()
+		if #list == 0 then
+			if now - emptySince > 8 and (boss.state ~= "sleep" or boss.hp < MAX_HP) and boss.state ~= "dead" then
+				reset()
+				place()
+			end
+			if boss.state == "sleep" or boss.state == "dead" then
+				return
+			end
+		else
+			emptySince = now
+		end
+		local st = boss.state
+		local age = now - boss.t0
+		local phase = MAX_HP - boss.hp + 1
+		local target = arena:nearest(list, boss.pos)
+		local c = arena.center
+		local tilt = 0
+		local hoverAt = c + Vector3.new(0, HOVER, 0)
+
+		if st == "sleep" then
+			boss.pos = hoverAt + Vector3.new(0, math.sin(now) * 1.5, 0)
+			boss.yaw += dt * 0.15
+			if #list > 0 then
+				setState("roar")
+				cb.effect("bossroar", c, { name = "THUNDERHEAD", title = "THE STORM ABOVE THE CLOUDS" })
+			end
+		elseif st == "roar" then
+			tilt = math.sin(age * 20) * 0.05
+			if target then
+				faceTo(target.root.Position)
+			end
+			if age > 2.2 then
+				boss.rounds = 0
+				setState("storm")
+			end
+		elseif st == "storm" then
+			-- drift over whoever it's angriest at
+			if target then
+				local want = Vector3.new(target.root.Position.X, c.Y + HOVER, target.root.Position.Z)
+				want = arena:clamp(want, 10)
+				boss.pos = boss.pos:Lerp(Vector3.new(want.X, c.Y + HOVER + math.sin(now * 2) * 1.2, want.Z), math.clamp(dt * 0.8, 0, 1))
+				faceTo(target.root.Position)
+			end
+			tilt = math.sin(now * 8) * 0.03
+			if now - boss.lastRound > 1.3 - phase * 0.12 and age > 0.5 then
+				boss.lastRound = now
+				boss.rounds += 1
+				lightningRound(list, phase)
+			end
+			if boss.rounds >= 3 + phase then
+				setState("sink")
+				if phase >= 2 and BossKit.minionCount(boss) < 2 then
+					for i = 1, 2 do
+						local a = math.random() * math.pi * 2
+						BossKit.minion(boss, "puffer", c + Vector3.new(math.cos(a) * (arena.radius - 6), 7, math.sin(a) * (arena.radius - 6)), "sky")
+					end
+				end
+			end
+		elseif st == "sink" then
+			-- out of puff: it sags down to the arena
+			local down = Vector3.new(boss.pos.X, c.Y + 6, boss.pos.Z)
+			boss.pos = boss.pos:Lerp(down, math.clamp(dt * 2.5, 0, 1))
+			tilt = 0.12
+			if age > 1.3 then
+				setState("drained")
+				refresh()
+				cb.effect("bossbonk", boss.pos + Vector3.new(0, 7, 0))
+			end
+		elseif st == "drained" then
+			boss.pos = Vector3.new(boss.pos.X, c.Y + 6 + math.sin(now * 2) * 0.2, boss.pos.Z)
+			tilt = 0.12 + math.sin(now * 3) * 0.04
+			if age > 3.6 - phase * 0.5 then
+				setState("rise")
+				refresh()
+			end
+		elseif st == "rise" then
+			boss.pos = boss.pos:Lerp(hoverAt, math.clamp(dt * 2, 0, 1))
+			if age > 1.2 then
+				setState("inhale")
+			end
+		elseif st == "inhale" then
+			-- puffs up, picks a side, then...
+			if target then
+				faceTo(target.root.Position)
+			end
+			tilt = -0.15 + math.sin(age * 30) * 0.03
+			if age > 1.2 then
+				setState("gale")
+				local dir = target and Vector3.new(target.root.Position.X - boss.pos.X, 0, target.root.Position.Z - boss.pos.Z) or Vector3.new(1, 0, 0)
+				boss.galeDir = dir.Magnitude > 0.1 and dir.Unit or Vector3.new(1, 0, 0)
+				boss.lastGust = 0
+				cb.effect("gust", boss.pos, boss.galeDir)
+			end
+		elseif st == "gale" then
+			-- ...blows a gale across the arena in bursts
+			tilt = 0.1
+			if now - boss.lastGust > 0.55 then
+				boss.lastGust = now
+				cb.effect("gust", boss.pos - Vector3.new(0, 10, 0), boss.galeDir)
+				for _, e in ipairs(list) do
+					cb.gust(e.player, boss.galeDir * (34 + phase * 6) + Vector3.new(0, 14, 0))
+				end
+			end
+			if age > 1.4 + phase * 0.5 then
+				boss.rounds = 0
+				setState("storm")
+			end
+		elseif st == "hurt" then
+			tilt = math.sin(age * 30) * 0.12
+			boss.pos = boss.pos:Lerp(hoverAt, math.clamp(dt * 2, 0, 1))
+			if age > 1.5 then
+				if boss.hp <= 0 then
+					setState("dying")
+					BossKit.Clear(boss)
+					cb.effect("bossdie", boss.pos)
+				else
+					setState("inhale")
+				end
+			end
+		elseif st == "dying" then
+			boss.yaw += dt * (2 + age * 4)
+			boss.pos += Vector3.new(0, dt * 6, 0)
+			if age > 2.6 then
+				cb.effect("poof", boss.pos)
+				boss.model.Parent = nil
+				setState("dead")
+				local winners = {}
+				for _, e in ipairs(list) do
+					table.insert(winners, e.player)
+				end
+				cb.defeated(winners)
+			end
+		elseif st == "dead" then
+			if age > 45 and #list == 0 then
+				reset()
+				place()
+			end
+			return
+		end
+
+		if boss.model.Parent then
+			place(tilt)
+			boss.model:SetAttribute("Exposed", exposed())
+		end
+
+		-- contact: only matters when it's down low
+		if st ~= "sleep" and st ~= "dying" and st ~= "dead" then
+			local corePos = boss.core.Position
+			for _, e in ipairs(list) do
+				local h = e.root.Position
+				if exposed() and BossKit.stomped(e, corePos + Vector3.new(0, -1.2, 0), 5) then
+					boss.hp -= 1
+					boss.model:SetAttribute("HP", boss.hp)
+					cb.bounce(e.player, Vector3.new(0, 85, 0))
+					cb.effect("bosshit", corePos)
+					setState("hurt")
+					refresh()
+					break
+				elseif not exposed() and st ~= "hurt" then
+					local flat = Vector3.new(h.X - boss.pos.X, 0, h.Z - boss.pos.Z).Magnitude
+					if flat < 10 and math.abs(h.Y - boss.pos.Y) < 6 then
+						cb.hurt(e.player, boss.pos)
+					end
+				end
+			end
+		end
+	end)
+end
+
+function BossThunderhead.Reset()
+	if arena then
+		reset()
+		place()
+	end
+end
+
+return BossThunderhead
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000D"><Properties><string name="Name">BugModel</string><ProtectedString name="Source"><![CDATA[--[[
 	BugModel - builds a Grumblebug: a round beetle with split wing cases,
 	a shield-shaped thorax, mandibles, glossy eyes under a cross brow,
 	clubbed antennae and six two-part legs.
@@ -2926,7 +4115,7 @@ function BugModel.Build(skinName, scale, origin)
 end
 
 return BugModel
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000B"><Properties><string name="Name">CrateService</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000E"><Properties><string name="Name">CrateService</string><ProtectedString name="Source"><![CDATA[--[[
 	CrateService - breakable heart crates.
 
 	Roll, slide, long jump or ground pound into a crate (or stomp on it) and
@@ -2940,7 +4129,7 @@ local RunService = game:GetService("RunService")
 local CrateService = {}
 
 local RESPAWN = 45
-local BREAK_MOVES = { roll = true, slide = true, longjump = true, pound = true, walljump = true }
+local BREAK_MOVES = { roll = true, slide = true, longjump = true, pound = true, walljump = true, dive = true }
 local crates = {}
 local cb
 
@@ -3014,7 +4203,7 @@ function CrateService.Shockwave(player, pos)
 end
 
 return CrateService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000C"><Properties><string name="Name">DataService</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000F"><Properties><string name="Name">DataService</string><ProtectedString name="Source"><![CDATA[--[[
 	DataService - loads and saves each player's progress with DataStoreService.
 
 	Save layout (one DataStore key per player):
@@ -3423,7 +4612,7 @@ game:BindToClose(function()
 end)
 
 return DataService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000D"><Properties><string name="Name">EnemyModels</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000010"><Properties><string name="Name">EnemyModels</string><ProtectedString name="Source"><![CDATA[--[[
 	EnemyModels - builds the non-beetle baddies. Each builder returns
 	(model, extras) with the model's PrimaryPart at the enemy's centre;
 	front is -Z. Everything is anchored and non-colliding (the server moves
@@ -3708,7 +4897,7 @@ function EnemyModels.puffer(skinName, origin)
 end
 
 return EnemyModels
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000E"><Properties><string name="Name">EnemyService</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000011"><Properties><string name="Name">EnemyService</string><ProtectedString name="Source"><![CDATA[--[[
 	EnemyService - all the baddies.
 
 	  bug         Grumblebug      wanders, charges            stomp / pound / roll / slide
@@ -3718,6 +4907,11 @@ return EnemyModels
 	  puffshroom  Puffshroom      puffs a ring of spores      stomp it between puffs
 
 	Defeated baddies come back after Config.BugRespawnSeconds.
+
+	The server only runs their brains. Each baddie's transform is published a
+	few times a second as the model's "CF" attribute (plus "St" for its state,
+	"Alert" when it spots you and "Alive"); client/Baddies glides between
+	updates and adds the snappy animation, so they move smoothly for everyone.
 ]]
 
 local Players = game:GetService("Players")
@@ -3737,7 +4931,7 @@ rayParams.FilterType = Enum.RaycastFilterType.Include
 local callbacks
 local poundingUntil = {} -- [Player] = os.clock()
 
-local ATTACK_MOVES = { roll = true, slide = true, longjump = true }
+local ATTACK_MOVES = { roll = true, slide = true, longjump = true, dive = true }
 local FEET = 2.6 -- HumanoidRootPart centre to feet
 
 -- Per-kind shape: how tall the centre sits above the ground, contact radius, top height
@@ -3781,7 +4975,23 @@ local function center(e)
 end
 
 local function place(e, roll, pitch)
-	e.model:PivotTo(CFrame.new(center(e)) * CFrame.Angles(0, e.yaw, 0) * CFrame.Angles(pitch or 0, 0, roll or 0))
+	e.cf = CFrame.new(center(e)) * CFrame.Angles(0, e.yaw, 0) * CFrame.Angles(pitch or 0, 0, roll or 0)
+end
+
+-- A "!" over its head (and a little hop) when a baddie spots you
+local function alert(e)
+	local now = os.clock()
+	if now - (e.alertAt or -10) > 3 then
+		e.alertAt = now
+		e.model:SetAttribute("Alert", workspace:GetServerTimeNow())
+	end
+end
+
+-- Turn toward a heading at a limited rate, so baddies swing round rather than snap
+local function turnToward(e, yaw, rate, dt)
+	local d = (yaw - e.yaw + math.pi) % (math.pi * 2) - math.pi
+	local step = rate * dt
+	e.yaw += math.clamp(d, -step, step)
 end
 
 local function lookYaw(from, to)
@@ -3796,18 +5006,8 @@ end
 local function defeat(e, player)
 	e.alive = false
 	e.respawnAt = os.clock() + Config.BugRespawnSeconds
-	local c = center(e)
-	callbacks.effect("poof", c)
-	task.spawn(function()
-		for i = 1, 8 do
-			if not e.model.Parent then
-				break
-			end
-			e.model:PivotTo(CFrame.new(c + Vector3.new(0, math.sin(i / 8 * math.pi) * 2, 0)) * CFrame.Angles(0, e.yaw, i / 8 * math.pi))
-			task.wait(0.03)
-		end
-		e.model.Parent = nil
-	end)
+	callbacks.effect("poof", center(e))
+	e.model:SetAttribute("Alive", false) -- the client squashes it and hides it
 	if player then
 		callbacks.bopped(player)
 	end
@@ -3819,6 +5019,11 @@ local function build(e)
 	else
 		e.model, e.extra = EnemyModels[e.kind](e.skin, CFrame.new(e.pos))
 	end
+	e.model:SetAttribute("Kind", e.kind)
+	e.model:SetAttribute("Alive", true)
+	e.model:SetAttribute("St", "idle")
+	place(e)
+	e.model:SetAttribute("CF", e.cf)
 	e.model.Parent = folder
 end
 
@@ -3858,6 +5063,31 @@ function EnemyService.Start(info, cb)
 	RunService.Heartbeat:Connect(function(dt)
 		EnemyService.Step(dt)
 	end)
+end
+
+-- Bosses call in extra baddies: they don't respawn and vanish when despawned
+function EnemyService.Spawn(kind, pos, skin, range)
+	if not folder or not BEHAVIOUR[kind] then
+		return nil
+	end
+	local y = FLYING[kind] and pos.Y or (groundAt(pos + Vector3.new(0, 10, 0)) or pos.Y)
+	local p = Vector3.new(pos.X, y, pos.Z)
+	local e = {
+		kind = kind, skin = skin, home = p, pos = p, yaw = math.random() * math.pi * 2, alive = true, respawnAt = 0,
+		phase = math.random() * 6, state = "idle", t0 = os.clock() + 0.5, fast = skin == "castle", range = range or 30,
+		temp = true,
+	}
+	build(e)
+	table.insert(enemies, e)
+	return e
+end
+
+function EnemyService.Despawn(e)
+	if e and e.model then
+		e.gone = true
+		e.alive = false
+		e.model:Destroy()
+	end
 end
 
 function EnemyService.MarkPounding(player, seconds)
@@ -3904,13 +5134,20 @@ function BEHAVIOUR.bug(e, dt, now)
 	local fromHome = Vector3.new(e.pos.X - e.home.X, 0, e.pos.Z - e.home.Z).Magnitude
 	local speed = e.fast and 9 or 7
 	if target and fromHome < 60 then
-		e.yaw = lookYaw(e.pos, hrp.Position)
+		if not e.hadTarget then
+			alert(e)
+		end
+		turnToward(e, lookYaw(e.pos, hrp.Position), 7, dt)
 		speed = e.fast and 19 or 15
 	elseif fromHome > e.range then
-		e.yaw = lookYaw(e.pos, e.home)
+		turnToward(e, lookYaw(e.pos, e.home), 4, dt)
 	elseif now > e.t0 then
-		e.yaw += (math.random() - 0.5) * 2.5
+		e.wanderYaw = e.yaw + (math.random() - 0.5) * 2.5
 		e.t0 = now + 1 + math.random() * 2
+	end
+	e.hadTarget = target ~= nil and fromHome < 60
+	if e.wanderYaw and not e.hadTarget then
+		turnToward(e, e.wanderYaw, 3, dt)
 	end
 	local nextPos = e.pos + forward(e.yaw) * speed * dt
 	local gy, hit = groundAt(nextPos)
@@ -3919,9 +5156,8 @@ function BEHAVIOUR.bug(e, dt, now)
 	else
 		e.yaw += math.pi * (0.5 + math.random() * 0.5)
 	end
-	local step = now * (speed > 10 and 18 or 10) + e.phase
-	e.lift = math.abs(math.sin(step)) * 0.25
-	place(e, math.sin(step) * 0.06)
+	e.state = speed > 10 and "chase" or "idle"
+	place(e)
 end
 
 function BEHAVIOUR.toad(e, dt, now)
@@ -3932,12 +5168,16 @@ function BEHAVIOUR.toad(e, dt, now)
 			local _, hrp = nearestPlayer(e.pos, 40, 12)
 			local fromHome = (e.pos - e.home) * Vector3.new(1, 0, 1)
 			if hrp then
+				if not e.hadTarget then
+					alert(e)
+				end
 				e.yaw = lookYaw(e.pos, hrp.Position)
 			elseif fromHome.Magnitude > e.range then
 				e.yaw = lookYaw(e.pos, e.home)
 			else
 				e.yaw += (math.random() - 0.5) * 2.4
 			end
+			e.hadTarget = hrp ~= nil
 			local dist = hrp and 14 or 10
 			local dest = e.pos + forward(e.yaw) * dist
 			local gy, hit = groundAt(dest)
@@ -3957,12 +5197,6 @@ function BEHAVIOUR.toad(e, dt, now)
 		e.pos = flat
 		e.lift = math.sin(u * math.pi) * 7
 		place(e, 0, -0.35 * math.sin(u * math.pi))
-		if e.extra and e.extra.legs then
-			-- legs kick out behind while airborne
-			for _, leg in ipairs(e.extra.legs) do
-				leg.CFrame = leg.CFrame * CFrame.new(0, -math.sin(u * math.pi) * 0.6, math.sin(u * math.pi) * 0.9)
-			end
-		end
 		if u >= 1 then
 			e.state = "idle"
 			e.lift = 0
@@ -3985,6 +5219,7 @@ function BEHAVIOUR.bat(e, dt, now)
 				e.target = hrp.Position
 				e.t0 = now
 				e.yaw = lookYaw(e.pos, e.target)
+				alert(e)
 				callbacks.effect("screech", e.pos)
 			else
 				e.t0 = now + 0.5
@@ -4006,14 +5241,6 @@ function BEHAVIOUR.bat(e, dt, now)
 		end
 	end
 	place(e, 0, e.state == "swoop" and -0.5 or 0)
-	-- flap
-	local root = e.model.PrimaryPart.CFrame
-	local flap = math.sin(now * (e.state == "swoop" and 10 or 18) + e.phase) * 0.7
-	for _, w in ipairs(e.extra.wings) do
-		local hinge = root * w.offset * CFrame.Angles(0, 0, w.side * flap)
-		w.part.CFrame = hinge * w.local1
-		w.tip.CFrame = hinge * w.local2
-	end
 end
 
 function BEHAVIOUR.thornhog(e, dt, now)
@@ -4026,10 +5253,15 @@ function BEHAVIOUR.thornhog(e, dt, now)
 	if hrp then
 		local to = (hrp.Position - e.pos) * Vector3.new(1, 0, 1)
 		if to.Magnitude > 0.1 then
+			if not e.hadTarget then
+				alert(e)
+			end
 			moveDir = to.Unit
 			speed = e.fast and 26 or 22
 		end
 	end
+	e.hadTarget = hrp ~= nil
+	e.state = hrp and "chase" or "idle"
 	local nextPos = e.pos + moveDir * speed * dt
 	local along = (nextPos - e.home):Dot(axis)
 	local gy, hit = groundAt(nextPos)
@@ -4040,9 +5272,8 @@ function BEHAVIOUR.thornhog(e, dt, now)
 	else
 		e.dir = -e.dir
 	end
-	e.yaw = lookYaw(Vector3.zero, moveDir)
-	e.spin = (e.spin or 0) + dt * speed / 2.2
-	place(e, 0, -e.spin)
+	turnToward(e, lookYaw(Vector3.zero, moveDir), 9, dt)
+	place(e) -- the client spins it as it rolls
 end
 
 function BEHAVIOUR.puffshroom(e, dt, now)
@@ -4087,6 +5318,7 @@ function BEHAVIOUR.mossling(e, dt, now)
 				e.state = "pop"
 				e.t0 = now
 				e.yaw = lookYaw(e.pos, hrp.Position)
+				alert(e)
 				callbacks.effect("poof", e.pos + Vector3.new(0, 1, 0))
 			else
 				e.t0 = now + 0.25
@@ -4105,10 +5337,10 @@ function BEHAVIOUR.mossling(e, dt, now)
 		local toHome = (e.home - e.pos) * Vector3.new(1, 0, 1)
 		local speed = 0
 		if hrp and now - e.t0 < 7 and toHome.Magnitude < 45 then
-			e.yaw = lookYaw(e.pos, hrp.Position)
+			turnToward(e, lookYaw(e.pos, hrp.Position), 6, dt)
 			speed = 13
 		elseif toHome.Magnitude > 1.5 then
-			e.yaw = lookYaw(Vector3.zero, toHome)
+			turnToward(e, lookYaw(Vector3.zero, toHome), 6, dt)
 			speed = 9
 		else
 			e.state = "sink"
@@ -4117,9 +5349,8 @@ function BEHAVIOUR.mossling(e, dt, now)
 		if speed > 0 and not stepToward(e, forward(e.yaw), speed, dt) and not hrp then
 			e.pos = e.home -- stuck on the way home: just burrow back
 		end
-		local step = now * 14 + e.phase
-		e.lift = math.abs(math.sin(step)) * 0.5
-		place(e, math.sin(step) * 0.12)
+		e.lift = 0
+		place(e)
 	else -- sink back into the moss
 		local u = math.clamp((now - e.t0) / 0.5, 0, 1)
 		e.lift = HIDDEN * u
@@ -4143,6 +5374,7 @@ function BEHAVIOUR.snapper(e, dt, now)
 				e.yaw = lookYaw(e.pos, hrp.Position)
 				e.state = "wind"
 				e.t0 = now
+				alert(e)
 			else
 				e.yaw += math.sin(now + e.phase) * 0.05
 				e.t0 = now + 0.2
@@ -4173,10 +5405,6 @@ function BEHAVIOUR.snapper(e, dt, now)
 	place(e, 0, pitch)
 	local cf = CFrame.new(center(e)) * CFrame.Angles(0, e.yaw, 0) * CFrame.Angles(pitch, 0, 0)
 	e.head = (cf * CFrame.new(0, 4.6, 0)).Position
-	if e.extra and e.extra.jaw then
-		local open = (e.state == "wind" and 0.6) or (e.state == "lunge" and (now - e.t0 < 0.12 and 0.6 or 0)) or 0.15
-		e.extra.jaw.CFrame = cf * e.extra.jawRest * CFrame.Angles(-open, 0, 0) * e.extra.jawLocal
-	end
 end
 
 -- Puffer: a grumpy little cloud. Drifts, turns to face you, puffs up, then
@@ -4184,7 +5412,6 @@ end
 function BEHAVIOUR.puffer(e, dt, now)
 	local drift = Vector3.new(math.cos(now * 0.5 + e.phase) * 3, math.sin(now * 1.3 + e.phase) * 0.8, math.sin(now * 0.5 + e.phase) * 3)
 	e.pos = e.pos:Lerp(e.home + drift, math.clamp(dt * 2, 0, 1))
-	local scale = 1
 	if e.state == "idle" then
 		if now > e.t0 then
 			local _, hrp = nearestPlayer(e.pos, 36, 14)
@@ -4192,6 +5419,7 @@ function BEHAVIOUR.puffer(e, dt, now)
 				e.yaw = lookYaw(e.pos, hrp.Position)
 				e.state = "swell"
 				e.t0 = now
+				alert(e)
 			else
 				e.t0 = now + 0.4
 			end
@@ -4202,7 +5430,6 @@ function BEHAVIOUR.puffer(e, dt, now)
 			e.yaw = lookYaw(e.pos, hrp.Position)
 		end
 		local u = math.clamp((now - e.t0) / 0.9, 0, 1)
-		scale = 1 + u * 0.35
 		if u >= 1 then
 			e.state = "blow"
 			e.t0 = now
@@ -4210,7 +5437,6 @@ function BEHAVIOUR.puffer(e, dt, now)
 			callbacks.effect("gust", e.pos, forward(e.yaw))
 		end
 	elseif e.state == "blow" then
-		scale = 1.35 - math.clamp((now - e.t0) / 0.3, 0, 1) * 0.45
 		local dir = forward(e.yaw)
 		for _, player in ipairs(Players:GetPlayers()) do
 			local char = player.Character
@@ -4229,14 +5455,7 @@ function BEHAVIOUR.puffer(e, dt, now)
 			e.t0 = now + 2.4 + math.random()
 		end
 	end
-	place(e)
-	if e.extra and e.extra.puffs then
-		local root = e.model.PrimaryPart.CFrame
-		for _, pf in ipairs(e.extra.puffs) do
-			pf.part.Size = pf.size * scale
-			pf.part.CFrame = root * CFrame.new(pf.cf.Position * scale) * pf.cf.Rotation
-		end
-	end
+	place(e) -- the client puffs it up and down from its state
 end
 
 --------------------------------------------------------------------------------
@@ -4288,22 +5507,77 @@ local function contact(e, now)
 	end
 end
 
+-- Send a baddie's transform and state to clients: ~10 times a second, only
+-- when it changed, and only while somebody is near enough to see it.
+local SEND_EVERY = 0.1
+local SEE_DIST = 300
+local viewers = {}
+
+local function publish(e, now)
+	if e.state ~= e.sentState then
+		e.sentState = e.state
+		e.model:SetAttribute("St", e.state)
+	end
+	if not e.cf or now < (e.sendAt or 0) then
+		return
+	end
+	e.sendAt = now + SEND_EVERY
+	local last = e.sentCf
+	if last and (last.Position - e.cf.Position).Magnitude < 0.05 and last.LookVector:Dot(e.cf.LookVector) > 0.9997
+		and last.UpVector:Dot(e.cf.UpVector) > 0.9997 then
+		return
+	end
+	local p = e.cf.Position
+	for _, v in ipairs(viewers) do
+		if (v - p).Magnitude < SEE_DIST then
+			e.sentCf = e.cf
+			e.model:SetAttribute("CF", e.cf)
+			return
+		end
+	end
+end
+
 function EnemyService.Step(dt)
 	local now = os.clock()
-	for _, e in ipairs(enemies) do
+	table.clear(viewers)
+	for _, player in ipairs(Players:GetPlayers()) do
+		local char = player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			table.insert(viewers, hrp.Position)
+		end
+	end
+	for i = #enemies, 1, -1 do
+		local e = enemies[i]
+		if e.gone or (e.temp and not e.alive) then
+			-- a boss's minion: gone for good once bopped
+			if not e.gone then
+				e.gone = true
+				task.delay(0.6, function()
+					e.model:Destroy()
+				end)
+			end
+			table.remove(enemies, i)
+			continue
+		end
 		if not e.alive then
 			if now >= e.respawnAt then
 				e.alive = true
 				e.pos = e.home
 				e.state = "idle"
+				e.lift = 0
 				e.t0 = now + 1
-				e.model.Parent = folder
+				place(e)
+				e.sentCf = e.cf
+				e.model:SetAttribute("CF", e.cf)
+				e.model:SetAttribute("Alive", true)
 				callbacks.effect("poof", center(e))
 			end
 			continue
 		end
 		BEHAVIOUR[e.kind](e, dt, now)
 		contact(e, now)
+		publish(e, now)
 	end
 end
 
@@ -4312,7 +5586,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 return EnemyService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000F"><Properties><string name="Name">HazardService</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000012"><Properties><string name="Name">HazardService</string><ProtectedString name="Source"><![CDATA[--[[
 	HazardService - decides who gets hurt by firebars, crushers, lava and
 	boulders. Firebars and crushers move on the shared server clock (see
 	shared/HazardMath); clients animate them, the server checks collisions.
@@ -4452,7 +5726,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 return HazardService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000010"><Properties><string name="Name">Leaderboard</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000013"><Properties><string name="Name">Leaderboard</string><ProtectedString name="Source"><![CDATA[--[[
 	Leaderboard - the "FASTEST BUNNIES" board by the meadow spawn.
 
 	When a file finds every golden carrot, its clear time is stored in an
@@ -4605,7 +5879,7 @@ function Leaderboard.RecordClear(player, seconds)
 end
 
 return Leaderboard
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000011"><Properties><string name="Name">NPCService</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000014"><Properties><string name="Name">NPCService</string><ProtectedString name="Source"><![CDATA[--[[
 	NPCService - builds the friendly characters and their "Talk" prompts.
 	What they say lives in Config.NPCs and is shown by client/Dialogue.
 ]]
@@ -4890,7 +6164,7 @@ function NPCService.Start(info)
 end
 
 return NPCService
-]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX00000019"><Properties><string name="Name">World</string></Properties><Item class="ModuleScript" referent="RBX00000012"><Properties><string name="Name">Builder</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX0000001C"><Properties><string name="Name">World</string></Properties><Item class="ModuleScript" referent="RBX00000015"><Properties><string name="Name">Builder</string><ProtectedString name="Source"><![CDATA[--[[
 	Builder - shared helpers for constructing the world out of chunky parts,
 	plus the registry of collectibles, enemies, hazards and checkpoints that
 	the rest of the server reads.
@@ -5903,7 +7177,7 @@ function B.warpBurrow(def)
 end
 
 return B
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000013"><Properties><string name="Name">Canyon</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000016"><Properties><string name="Name">Canyon</string><ProtectedString name="Source"><![CDATA[--[[
 	Dustbowl Canyon - a sun-baked mesa island east of the meadow.
 	  * Canyon Leap: pillars too far apart for a double jump; roll + jump to long jump
 	  * Eagle's Mesa: a tall mesa ringed with ledges
@@ -6088,7 +7362,7 @@ function Canyon.Build(B)
 end
 
 return Canyon
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000014"><Properties><string name="Name">Castle</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000017"><Properties><string name="Name">Castle</string><ProtectedString name="Source"><![CDATA[--[[
 	Infernal Castle - a volcanic island south of the meadow. The hard part.
 
 	  Approach      lava rivers, cinderbugs, a drawbridge over the lava moat
@@ -6448,13 +7722,14 @@ function Castle.Build(B)
 end
 
 return Castle
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000015"><Properties><string name="Name">Forest</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000018"><Properties><string name="Name">Forest</string><ProtectedString name="Source"><![CDATA[--[[
 	Whisperwood - an old, misty forest island west of the Lonely Islet.
 	  * a rope bridge from the islet, with a little rest stop half way
 	  * the Elder Tree: shelf fungus spiralling up a giant trunk to the canopy
 	  * Treetop Village: three treehouses joined by rope bridges (one is missing planks)
 	  * Bouncy Grove: giant mushrooms that fling you higher and higher
 	  * the Bog: lily pads over murky water, some of which sink
+	  * the Hollow: a ring of ancient trunks where Old Rootjaw waits (boss)
 ]]
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
@@ -6559,7 +7834,7 @@ function Forest.Build(B)
 		local p = W + V(math.cos(a) * r, 0, math.sin(a) * r)
 		B.paint(p, p + V(rng:NextNumber(-24, 24), 0, rng:NextNumber(-24, 24)), rng:NextNumber(10, 20), M.Grass, { M.LeafyGrass })
 	end
-	for _, h in ipairs({ { -860, 150, 30, 6 }, { -930, -40, 28, 5 }, { -640, 180, 22, 4 }, { -830, -110, 26, 5 }, { -960, 140, 24, 6 } }) do
+	for _, h in ipairs({ { -930, -40, 28, 5 }, { -640, 180, 22, 4 }, { -830, -110, 26, 5 }, { -980, 60, 20, 4 } }) do
 		B.hill(h[1], h[2], h[3], h[4], M.LeafyGrass)
 	end
 	for i = 0, 13 do
@@ -6813,6 +8088,47 @@ function Forest.Build(B)
 		B.crate(-700, -58)
 	end
 
+	--------------------------------------------------------------- the Hollow (Old Rootjaw's arena)
+	do
+		local hx, hz, hr = -890, 170, 32
+		local center = V(hx, 0, hz)
+		B.info.bossArenas = B.info.bossArenas or {}
+		B.info.bossArenas.rootjaw = { center = center, radius = hr }
+		T:FillCylinder(CFrame.new(hx, -3, hz), 6, hr + 8, M.Ground)
+		T:FillCylinder(CFrame.new(hx, 3, hz), 6, hr + 8, M.Air)
+		T:FillCylinder(CFrame.new(hx, -0.75, hz), 1.5, hr + 8, M.LeafyGrass)
+		B.paint(V(hx - 20, 0, hz), V(hx + 20, 0, hz), 30, M.Mud, { M.Grass, M.LeafyGrass })
+		-- a ring of ancient trunks, open toward the Elder Tree
+		local gap = math.atan2(60 - hz, -780 - hx)
+		for i = 0, 27 do
+			local a = i / 28 * math.pi * 2
+			local d = math.abs((a - gap + math.pi) % (math.pi * 2) - math.pi)
+			if d > 0.3 then
+				local r = hr + 6 + (i % 3)
+				local trunkR = 3.2 + (i % 2)
+				B.cyl(hx + math.cos(a) * r, -1, hz + math.sin(a) * r, trunkR, 34 + (i % 4) * 4, i % 3 == 0 and BARK_DARK or BARK, M.Wood)
+				B.blob(V(hx + math.cos(a) * (r + 2), 38 + (i % 3) * 3, hz + math.sin(a) * (r + 2)), V(18, 9, 18), i % 2 == 0 and P.LeafDark or MOSS_DARK)
+			end
+		end
+		-- glowing mushrooms around the edge give it a spooky light
+		for i = 0, 9 do
+			local a = i / 10 * math.pi * 2 + 0.15
+			local p = V(hx + math.cos(a) * (hr + 1), 0, hz + math.sin(a) * (hr + 1))
+			local cap = B.blob(p + V(0, 1.4, 0), V(3, 1.2, 3), Color3.fromRGB(120, 200, 190), M.Neon)
+			cap.CastShadow = false
+			local light = Instance.new("PointLight")
+			light.Color = Color3.fromRGB(140, 230, 210)
+			light.Range = 16
+			light.Brightness = 0.8
+			light.Parent = cap
+		end
+		B.golden("rootjaw", V(hx, 6, hz))
+		local entrance = V(hx + math.cos(gap) * (hr + 14), 0, hz + math.sin(gap) * (hr + 14))
+		B.sign(entrance + V(4, 0, 0), V(math.cos(gap), 0, math.sin(gap)), "THE HOLLOW", "Something big is growing...")
+		B.path(entrance, V(-800, 0, 90), 7)
+		B.crate(entrance.X - 6, entrance.Z + 4)
+	end
+
 	--------------------------------------------------------------- baddies
 	for _, p in ipairs({ V(-620, 0, 30), V(-690, 0, 60), V(-760, 0, 120), V(-840, 0, 80), V(-660, 0, 150), V(-880, 0, -60) }) do
 		B.enemy("mossling", p, "forest", 0)
@@ -6833,7 +8149,7 @@ function Forest.Build(B)
 	local avoid = {
 		{ V(-580, 0, 40), 26 }, { V(-592, 0, 72), 14 }, { W, 44 }, { V(-670, 0, -10), 30 }, { V(-630, 0, 100), 22 },
 		{ V(-700, 0, 190), 22 }, { V(-910, 0, 20), 36 }, { V(-952, 0, 31), 12 }, { V(-720, 0, -100), 46 },
-		{ V(-760, 0, 82), 10 }, { V(-990, 0, 60), 12 },
+		{ V(-760, 0, 82), 10 }, { V(-990, 0, 60), 12 }, { V(-890, 0, 170), 50 },
 	}
 	local function nearLine(p, a, b, w)
 		local ab = b - a
@@ -6907,7 +8223,7 @@ function Forest.Build(B)
 end
 
 return Forest
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000016"><Properties><string name="Name">Meadow</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000019"><Properties><string name="Name">Meadow</string><ProtectedString name="Source"><![CDATA[--[[
 	Carrot Meadow - the hub island, plus the routes out to the other regions:
 	a grassy causeway north to Frostbite Peaks, a boardwalk east to Dustbowl
 	Canyon and a long stone bridge south to the Infernal Castle.
@@ -7434,7 +8750,7 @@ function Meadow.Build(B)
 end
 
 return Meadow
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000017"><Properties><string name="Name">Peaks</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001A"><Properties><string name="Name">Peaks</string><ProtectedString name="Source"><![CDATA[--[[
 	Frostbite Peaks - a snowy island north of the meadow.
 	  * A terraced mountain with winding ramps up to the summit
 	  * A long ice slide chute spiralling down the outside of the mountain
@@ -7693,13 +9009,14 @@ function Peaks.Build(B)
 end
 
 return Peaks
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000018"><Properties><string name="Name">Sky</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001B"><Properties><string name="Name">Sky</string><ProtectedString name="Source"><![CDATA[--[[
 	Cloudtop Heights - floating islands high above the meadow, reached by
 	climbing the beanstalk (Config.SkyGate golden carrots).
 	  * Cloud Hop: drifting clouds heading east
 	  * Rainbow Bridge: an arching rainbow south to a pot of gold (mind the gap)
 	  * the Cumulus: Captain Gust's airship, with a crow's nest up the mast
 	  * Updraft Spire: rising winds carry you from ledge to ledge
+	  * the Stormcrown: a floating arena where the Thunderhead broods (boss)
 	Falling off the clouds puts you back where you last stood (see the server).
 ]]
 
@@ -7789,7 +9106,7 @@ function Sky.Build(B)
 	B.checkpointFlag("sky")
 	B.warpBurrow(Config.Warps[6])
 	B.npc("nimbus", 74, -74, V(-1, 0, 0.3), HY + 20)
-	B.sign(V(64, HY, -48), V(0, 0, 1), "CLOUDTOP HEIGHTS", "Don't look down!")
+	B.sign(V(64, HY, -48), V(0, 0, -1), "CLOUDTOP HEIGHTS", "Don't look down!")
 	B.crate(46, -74, HY + 20)
 	B.carrotRing(V(HX, HY + 3, HZ), 18, 8)
 	for i = 0, 4 do
@@ -7973,6 +9290,28 @@ function Sky.Build(B)
 		B.carrot(V(sx, 430, sz + 15))
 	end
 
+	--------------------------------------------------------------- the Stormcrown (Thunderhead's arena)
+	do
+		local ax, ay, az, ar = 60, 445, 95, 32
+		B.info.bossArenas = B.info.bossArenas or {}
+		B.info.bossArenas.thunderhead = { center = V(ax, ay, az), radius = ar }
+		skyIsland(ax, ay, az, ar + 2)
+		T:ReplaceMaterial(Region3.new(V(ax - ar - 4, ay - 4, az - ar - 4), V(ax + ar + 4, ay + 1, az + ar + 4)):ExpandToGrid(4), 4, M.Grass, M.Slate)
+		for _, c in ipairs({ { 60, 423, -12 }, { 64, 427, 6 }, { 58, 431, 24 }, { 62, 435, 42 }, { 60, 440, 58 } }) do
+			cloud(c[1], c[2], c[3])
+			B.carrot(V(c[1], c[2] + 3, c[3]))
+		end
+		-- lightning rods around the rim
+		for i = 0, 3 do
+			local a = i / 4 * math.pi * 2 + math.pi / 4
+			local x, z = ax + math.cos(a) * (ar - 2), az + math.sin(a) * (ar - 2)
+			B.cyl(x, ay - 1, z, 0.5, 18, P.StoneDark, M.Metal)
+			B.ball(V(x, ay + 17.5, z), 1, Color3.fromRGB(190, 200, 220), M.Metal)
+		end
+		B.golden("thunderhead", V(ax, ay + 5, az))
+		B.sign(V(70, HY, -34), V(0, 0, -1), "THE STORMCROWN", "South, if you dare the weather")
+	end
+
 	--------------------------------------------------------------- distant scenery clouds (walk-through)
 	for i = 0, 17 do
 		local a = i / 18 * math.pi * 2
@@ -7984,7 +9323,7 @@ function Sky.Build(B)
 end
 
 return Sky
-]]></ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX0000001A"><Properties><string name="Name">WorldBuilder</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX0000001D"><Properties><string name="Name">WorldBuilder</string><ProtectedString name="Source"><![CDATA[--[[
 	WorldBuilder - builds the whole world at server start.
 
 	  Carrot Meadow (hub)      centre            World/Meadow
@@ -8125,7 +9464,7 @@ function WorldBuilder.Build()
 end
 
 return WorldBuilder
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000030"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="EnableMouseLockOption">false</bool></Properties><Item class="StarterPlayerScripts" referent="RBX0000002C"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX0000002B"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000034"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="EnableMouseLockOption">false</bool></Properties><Item class="StarterPlayerScripts" referent="RBX00000030"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX0000002F"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
 	Bunny 64 - client entry point. Wires together menus, HUD, movement,
 	animation, collectibles and world effects, and reacts to server events.
 ]]
@@ -8150,6 +9489,7 @@ local Shadows = require(script:WaitForChild("Shadows"))
 local Dialogue = require(script:WaitForChild("Dialogue"))
 local PhotoMode = require(script:WaitForChild("PhotoMode"))
 local Weather = require(script:WaitForChild("Weather"))
+local Baddies = require(script:WaitForChild("Baddies"))
 
 local player = Players.LocalPlayer
 
@@ -8204,6 +9544,7 @@ local function applySnapshot(s)
 	if s.slot then
 		Hud.SetProgress(s.slot, s.canSave)
 		WorldFX.SetGoldenCount(s.slot.goldenCount)
+		Movement.SetStaminaMax(Config.StaminaFor(s.slot.goldenCount))
 		WorldFX.SetCheckpoint(s.slot.checkpoint)
 		WorldFX.SetSlot(s.slot)
 	else
@@ -8306,7 +9647,12 @@ local function handleEvent(s, event)
 	elseif kind == "bossdown" then
 		Effects.Jingle()
 		task.delay(0.5, Effects.Jingle)
-		Hud.Toast("KING GRUMBLE IS DEFEATED!\nTHE CROWN IS YOURS...", 5, GOLD)
+		local lines = {
+			rootjaw = "OLD ROOTJAW WILTS AWAY!\nA GOLDEN SEED IS LEFT BEHIND...",
+			thunderhead = "THE STORM CLEARS!\nSOMETHING GOLDEN GLINTS IN THE SUN...",
+			shade = "THE SHADE FADES INTO THE DARK...\nYOU'VE CONQUERED THE UNDERBURROW!",
+		}
+		Hud.Toast(lines[event.id] or "KING GRUMBLE IS DEFEATED!\nTHE CROWN IS YOURS...", 5, GOLD)
 	end
 end
 
@@ -8351,11 +9697,31 @@ remotes.Effect.OnClientEvent:Connect(function(kind, pos, extra)
 		-- the boss's title card, the way old games introduced them
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart")
+		local card = type(extra) == "table" and extra or { name = "KING GRUMBLE", title = "TYRANT OF THE INFERNAL CASTLE" }
 		if root and (root.Position - pos).Magnitude < 120 then
-			Hud.RegionBanner("KING GRUMBLE")
+			Hud.RegionBanner(card.name or "")
 			task.delay(0.6, function()
-				Hud.Toast("TYRANT OF THE INFERNAL CASTLE", 2.2, Color3.fromRGB(240, 150, 110))
+				Hud.Toast(card.title or "", 2.2, Color3.fromRGB(240, 150, 110))
 			end)
+		end
+	elseif kind == "strike" then
+		-- a telegraphed hit lands: lightning bolt, lava burst, roots or shadow
+		local colors = {
+			lightning = Color3.fromRGB(250, 240, 170), lava = P.Ember,
+			roots = Color3.fromRGB(110, 150, 80), shadow = Color3.fromRGB(150, 100, 210),
+		}
+		local color = colors[extra] or colors.lightning
+		Effects.Burst(pos + Vector3.new(0, 1, 0), color, 12, 10, 0.8, 9, Enum.Material.Neon)
+		if extra == "lightning" or extra == "shadow" then
+			Effects.Bolt(pos, color)
+		elseif extra == "roots" then
+			Effects.Spikes(pos, color)
+		end
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if root and (root.Position - pos).Magnitude < 60 then
+			Effects.Shake(0.5, 0.2)
+			Effects.Play(extra == "lightning" and "Thunder" or "Land", extra == "lightning" and 0.45 or 0.6)
 		end
 	elseif kind == "bosscharge" then
 		Effects.Play("Roll", 0.5)
@@ -8363,7 +9729,8 @@ remotes.Effect.OnClientEvent:Connect(function(kind, pos, extra)
 		Effects.Play("Land", 0.4)
 		Effects.Shake(1.4, 0.5)
 		Effects.Burst(pos, Color3.fromRGB(255, 236, 160), 10, 6, 0.8, 6, Enum.Material.Neon)
-		Hud.Toast("HE'S DIZZY! JUMP ON A GLOWING SPOT!", 2.5, GOLD)
+		local boss = WorldFX.ArenaBoss()
+		Hud.Toast((boss and boss:GetAttribute("Hint")) or "NOW! JUMP ON THE GLOWING SPOT!", 2.5, GOLD)
 	elseif kind == "bosshit" then
 		Effects.Play("Stomp", 0.7)
 		Effects.Shake(1.2, 0.4)
@@ -8463,6 +9830,12 @@ task.spawn(function()
 	end
 end)
 
+Movement.OnStamina = function(cur, max)
+	Hud.SetStamina(cur, max)
+end
+Movement.OnTired = function()
+	Hud.StaminaEmpty()
+end
 Movement.OnLoading = function()
 	Hud.Toast("LOADING THE WORLD...", 2)
 end
@@ -8475,7 +9848,7 @@ Movement.Init(Effects, remotes)
 task.spawn(Collectibles.Init, Effects, remotes)
 task.spawn(Animator.Init, Movement)
 task.spawn(WorldFX.Init, Effects, Hud)
-Hud.WatchBoss(WorldFX.InArena)
+Hud.WatchBoss(WorldFX.ArenaBoss)
 
 Menus.Init({
 	GoldenPositions = Collectibles.GoldenPositions,
@@ -8526,6 +9899,7 @@ Dialogue.Init({
 	end,
 })
 task.spawn(Shadows.Init)
+Baddies.Init()
 Weather.Init()
 WorldFX.OnRegion = Weather.SetRegion
 Effects.SetMusic("title")
@@ -8546,7 +9920,7 @@ task.spawn(function()
 		applySnapshot(s)
 	end
 end)
-]]></ProtectedString></Properties><Item class="ModuleScript" referent="RBX0000001D"><Properties><string name="Name">AdminPanel</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties><Item class="ModuleScript" referent="RBX00000020"><Properties><string name="Name">AdminPanel</string><ProtectedString name="Source"><![CDATA[--[[
 	AdminPanel - the admin perks menu (press P, or the ADMIN button).
 	Only shows for admins; the server checks every command anyway.
 
@@ -8941,7 +10315,7 @@ function AdminPanel.Init(dependencies)
 end
 
 return AdminPanel
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001E"><Properties><string name="Name">Animator</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000021"><Properties><string name="Name">Animator</string><ProtectedString name="Source"><![CDATA[--[[
 	Animator - procedural animation for every bunny in the server.
 
 	No animation assets: each frame we compute a pose from the bunny's
@@ -9099,6 +10473,35 @@ local function poseFor(rig, char, dt, now, isLocal)
 		p.lArm, p.rArm = A(0, 0, -2.6), A(0, 0, 2.6)
 		p.root = A(0.15, 0, 0)
 		earTarget = -0.6
+	elseif move == "dive" then
+		-- arms out in front, belly first
+		p.root = A(-1.4, 0, 0)
+		p.lArm, p.rArm = A(2.9, 0, 0.22), A(2.9, 0, -0.22)
+		p.lLeg, p.rLeg = A(-0.3, 0, -0.1), A(-0.3, 0, 0.1)
+		p.neck = A(0.9, 0, 0)
+		earTarget = 1.3
+	elseif move == "backflip" then
+		local u = math.clamp(moveAge / 0.8, 0, 1)
+		extra = A(TAU * (1 - (1 - u) * (1 - u)), 0, 0)
+		p.lLeg, p.rLeg = A(1.4, 0, 0), A(1.4, 0, 0)
+		p.lArm, p.rArm = A(0, 0, -2.5), A(0, 0, 2.5)
+		earTarget = -0.3
+	elseif move == "crouch" then
+		local crawl = math.clamp(hv / 7, 0, 1)
+		rig.phase += dt * 6 * crawl
+		local s = math.sin(rig.phase) * crawl
+		p.root = CFrame.new(0, -0.95, 0) * A(-0.3, 0, 0)
+		p.lLeg, p.rLeg = A(1.15 + s * 0.3, 0, -0.1), A(1.15 - s * 0.3, 0, 0.1)
+		p.lArm, p.rArm = A(0.9 - s * 0.4, 0, -0.2), A(0.9 + s * 0.4, 0, 0.2)
+		p.neck = A(0.25, 0, 0)
+		earTarget = -0.55
+	elseif move == "skid" then
+		-- heels dug in, leaning back
+		p.root = CFrame.new(0, -0.3, 0) * A(0.4, 0, 0)
+		p.lLeg, p.rLeg = A(-0.7, 0, -0.1), A(0.25, 0, 0.1)
+		p.lArm, p.rArm = A(0, 0, -1.5), A(0, 0, 1.5)
+		p.neck = A(-0.2, 0, 0)
+		earTarget = 1.1
 	elseif not grounded then
 		local rising = vy > 0
 		p.lLeg = A(rising and 0.8 or 0.35, 0, 0)
@@ -9127,7 +10530,26 @@ local function poseFor(rig, char, dt, now, isLocal)
 		-- idle breathing in the arms
 		p.lArm = p.lArm * A(0, 0, -math.sin(t * 2.2) * 0.04 * idle)
 		p.rArm = p.rArm * A(0, 0, math.sin(t * 2.2) * 0.04 * idle)
+		-- landing squash: knees give, body dips, then springs back
+		local landAge = now - (rig.landAt or -10)
+		if landAge < 0.22 then
+			local k = 1 - landAge / 0.22
+			k = k * k * math.clamp(rig.landHard or 0.5, 0.3, 1)
+			p.root = CFrame.new(0, -0.75 * k, 0) * A(-0.25 * k, 0, 0) * p.root
+			p.lLeg = A(0.8 * k, 0, 0) * p.lLeg
+			p.rLeg = A(0.8 * k, 0, 0) * p.rLeg
+			p.lArm = A(0, 0, -0.5 * k) * p.lArm
+			p.rArm = A(0, 0, 0.5 * k) * p.rArm
+			earTarget -= 0.8 * k
+		end
 	end
+	-- remember when we touch down (and how hard) for the squash above
+	if grounded and not rig.wasGrounded then
+		rig.landAt = now
+		rig.landHard = math.clamp(-(rig.lastVy or 0) / 90, 0, 1)
+	end
+	rig.wasGrounded = grounded
+	rig.lastVy = vy
 
 	return p, extra, earTarget
 end
@@ -9194,7 +10616,295 @@ function Animator.Init(movement)
 end
 
 return Animator
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001F"><Properties><string name="Name">Chiptune</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000022"><Properties><string name="Name">Baddies</string><ProtectedString name="Source"><![CDATA[--[[
+	Baddies - draws every baddie smoothly on this player's screen.
+
+	The server runs their brains and publishes, a few times a second:
+	  CF     where the baddie's root is (position, heading, tilt)
+	  St     what it's doing (idle, chase, hop, swoop, wind, lunge, swell, blow...)
+	  Alert  a timestamp when it spots someone
+	  Alive  false while it's been bopped
+	Here we glide between those updates every frame and add the animation
+	that needs to be snappy: waddles, rolling spikes, wing flaps, jaw snaps,
+	puffing up, a "!" when they notice you, and a squash when they're bopped.
+	The parts are only moved locally, so this costs no network traffic.
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local Baddies = {}
+
+local player = Players.LocalPlayer
+local tracked = {} -- [Model] = data
+local DRAW_DIST = 340
+local A = CFrame.Angles
+
+local function setHidden(data, hidden)
+	if data.hidden == hidden then
+		return
+	end
+	data.hidden = hidden
+	for _, p in ipairs(data.parts) do
+		p.LocalTransparencyModifier = hidden and 1 or 0
+	end
+	if data.bang then
+		data.bang.Enabled = false
+	end
+end
+
+local function makeBang(rootPart, height)
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "Alert"
+	gui.Size = UDim2.fromOffset(40, 50)
+	gui.StudsOffset = Vector3.new(0, height, 0)
+	gui.AlwaysOnTop = true
+	gui.Enabled = false
+	gui.Adornee = rootPart
+	local t = Instance.new("TextLabel")
+	t.BackgroundTransparency = 1
+	t.Size = UDim2.fromScale(1, 1)
+	t.Font = Enum.Font.LuckiestGuy
+	t.Text = "!"
+	t.TextScaled = true
+	t.TextColor3 = Color3.fromRGB(255, 220, 90)
+	t.TextStrokeTransparency = 0
+	t.TextStrokeColor3 = Color3.fromRGB(40, 24, 20)
+	t.Parent = gui
+	gui.Parent = rootPart
+	return gui
+end
+
+local function register(model)
+	if not model:IsA("Model") or tracked[model] then
+		return
+	end
+	local rootPart = model.PrimaryPart or model:FindFirstChild("Root")
+	if not rootPart then
+		task.delay(0.5, function()
+			if model.Parent then
+				register(model)
+			end
+		end)
+		return
+	end
+	local rest = rootPart.CFrame
+	local parts, offsets, sizes, roles = {}, {}, {}, {}
+	local top = 2
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("BasePart") then
+			table.insert(parts, d)
+			local off = rest:ToObjectSpace(d.CFrame)
+			offsets[#parts] = off
+			sizes[#parts] = d.Size
+			top = math.max(top, off.Y + d.Size.Y / 2)
+			if d.Name == "Wing" or d.Name == "WingTip" then
+				roles[#parts] = "wing"
+			elseif d.Name == "BackLeg" then
+				roles[#parts] = "leg"
+			elseif d.Name == "Jaw" then
+				roles[#parts] = "jaw"
+			end
+		end
+	end
+	local data = {
+		model = model,
+		kind = model:GetAttribute("Kind") or "bug",
+		parts = parts,
+		offsets = offsets,
+		sizes = sizes,
+		roles = roles,
+		cur = model:GetAttribute("CF") or rest,
+		prevPos = nil,
+		speed = 0,
+		phase = math.random() * 6,
+		spin = 0,
+		scale = 1,
+		state = model:GetAttribute("St") or "idle",
+		stateAt = os.clock(),
+		alertAt = -10,
+		alive = model:GetAttribute("Alive") ~= false,
+		aliveAt = -10,
+		hidden = false,
+		cfs = table.create(#parts),
+	}
+	data.bang = makeBang(rootPart, top + 1.5)
+	model:GetAttributeChangedSignal("St"):Connect(function()
+		data.state = model:GetAttribute("St") or "idle"
+		data.stateAt = os.clock()
+	end)
+	model:GetAttributeChangedSignal("Alert"):Connect(function()
+		data.alertAt = os.clock()
+	end)
+	model:GetAttributeChangedSignal("Alive"):Connect(function()
+		local alive = model:GetAttribute("Alive") ~= false
+		if alive ~= data.alive then
+			data.alive = alive
+			data.aliveAt = os.clock()
+			if alive then
+				data.cur = model:GetAttribute("CF") or data.cur
+				setHidden(data, false)
+			end
+		end
+	end)
+	if not data.alive then
+		data.aliveAt = -10
+		setHidden(data, true)
+	end
+	tracked[model] = data
+end
+
+-- Per-kind extra motion on top of the smoothed transform
+local function animate(data, base, now, dt)
+	local kind = data.kind
+	local stateAge = now - data.stateAt
+
+	-- walking waddle / rolling, from how fast it's actually moving
+	if kind == "bug" or kind == "mossling" then
+		local f = math.clamp(data.speed / 10, 0, 1.4)
+		if f > 0.05 then
+			data.phase += dt * (6 + data.speed * 1.1)
+			local s = math.sin(data.phase)
+			base = base * CFrame.new(0, math.abs(s) * 0.3 * f, 0) * A(0, 0, s * (kind == "mossling" and 0.14 or 0.07) * f)
+		else
+			-- idle breathing
+			base = base * CFrame.new(0, math.sin(now * 2 + data.phase) * 0.06, 0)
+		end
+	elseif kind == "thornhog" then
+		data.spin += data.speed * dt / 2.2
+		base = base * A(-data.spin, 0, 0)
+	elseif kind == "toad" and data.state == "idle" then
+		-- throat puffing while it sits
+		base = base * CFrame.new(0, math.abs(math.sin(now * 3 + data.phase)) * 0.1, 0)
+	elseif kind == "puffer" then
+		local target = 1
+		if data.state == "swell" then
+			target = 1 + math.clamp(stateAge / 0.9, 0, 1) * 0.38
+		elseif data.state == "blow" then
+			target = stateAge < 0.12 and 1.38 or 0.86
+		end
+		data.scale += (target - data.scale) * math.clamp(dt * 12, 0, 1)
+		if data.state == "swell" then
+			base = base * A(0, 0, math.sin(now * 40) * 0.03)
+		end
+	elseif kind == "puffshroom" and data.state == "swell" then
+		base = base * A(0, 0, math.sin(now * 40) * 0.05)
+	end
+
+	-- noticed you: a quick hop
+	local alertAge = now - data.alertAt
+	if alertAge < 0.35 then
+		base = CFrame.new(0, math.sin(alertAge / 0.35 * math.pi) * 1.6, 0) * base
+	end
+	if data.bang then
+		data.bang.Enabled = alertAge < 0.8 and data.alive
+	end
+
+	-- bopped: a squashed spin into the ground, then hidden
+	if not data.alive then
+		local a = now - data.aliveAt
+		if a < 0.35 then
+			base = base * CFrame.new(0, -a * 5, 0) * A(0, a * 22, a * 2)
+		else
+			setHidden(data, true)
+		end
+	end
+
+	-- write the parts
+	local flap = 0
+	if kind == "bat" then
+		flap = math.sin(now * (data.state == "swoop" and 10 or 18) + data.phase) * 0.7
+	end
+	local jawOpen = 0.12 + math.sin(now * 2 + data.phase) * 0.05
+	if kind == "snapper" then
+		if data.state == "wind" then
+			jawOpen = 0.65
+		elseif data.state == "lunge" then
+			jawOpen = stateAge < 0.12 and 0.7 or 0
+		elseif data.state == "tired" then
+			jawOpen = 0.35
+		end
+	end
+	local legKick = 0
+	if kind == "toad" and data.state == "hop" then
+		legKick = math.sin(math.clamp(stateAge / 0.7, 0, 1) * math.pi)
+	end
+	local cfs = data.cfs
+	for i, p in ipairs(data.parts) do
+		local off = data.offsets[i]
+		local role = data.roles[i]
+		if role == "wing" then
+			local side = off.X >= 0 and 1 or -1
+			local hinge = CFrame.new(side * 1.0, 0.3, 0.1)
+			off = hinge * A(0, 0, side * flap) * hinge:Inverse() * off
+		elseif role == "jaw" then
+			local hinge = CFrame.new(0, 3.9, 1.2)
+			off = hinge * A(-jawOpen, 0, 0) * hinge:Inverse() * off
+		elseif role == "leg" and legKick > 0 then
+			off = off * CFrame.new(0, -legKick * 0.6, legKick * 0.9)
+		end
+		if data.scale ~= 1 then
+			off = CFrame.new(off.Position * data.scale) * off.Rotation
+			local want = data.sizes[i] * data.scale
+			if (p.Size - want).Magnitude > 0.05 then
+				p.Size = want
+			end
+		end
+		cfs[i] = base * off
+	end
+	workspace:BulkMoveTo(data.parts, cfs, Enum.BulkMoveMode.FireCFrameChanged)
+end
+
+local frame = 0
+local function update(dt)
+	frame += 1
+	local now = os.clock()
+	local cam = workspace.CurrentCamera
+	local camPos = cam and cam.CFrame.Position or Vector3.zero
+	local alpha = 1 - math.exp(-dt * 13)
+	for model, data in pairs(tracked) do
+		if not model.Parent then
+			tracked[model] = nil
+		elseif not (data.hidden and not data.alive) then
+			local target = model:GetAttribute("CF")
+			if target then
+				local dist = (target.Position - camPos).Magnitude
+				-- far away ones only need updating every few frames
+				if dist < DRAW_DIST and (dist < 150 or (frame + data.phase * 10) % 3 < 1) then
+					if (target.Position - data.cur.Position).Magnitude > 30 then
+						data.cur = target -- too far behind (just came into view): snap
+					else
+						data.cur = data.cur:Lerp(target, alpha)
+					end
+					local pos = data.cur.Position
+					if data.prevPos and dt > 0 then
+						local flat = Vector3.new(pos.X - data.prevPos.X, 0, pos.Z - data.prevPos.Z)
+						data.speed += (flat.Magnitude / dt - data.speed) * math.clamp(dt * 8, 0, 1)
+					end
+					data.prevPos = pos
+					animate(data, data.cur, now, dt)
+				end
+			end
+		end
+	end
+end
+
+function Baddies.Init()
+	task.spawn(function()
+		local folder = workspace:WaitForChild("Baddies", 120)
+		if not folder then
+			return
+		end
+		for _, m in ipairs(folder:GetChildren()) do
+			register(m)
+		end
+		folder.ChildAdded:Connect(register)
+		RunService.RenderStepped:Connect(update)
+	end)
+end
+
+return Baddies
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000023"><Properties><string name="Name">Chiptune</string><ProtectedString name="Source"><![CDATA[--[[
 	Chiptune - Bunny 64's 8-bit music engine and soundtrack.
 
 	Roblox can't synthesise sound, so this little "tracker" plays one short
@@ -9382,6 +11092,26 @@ local SONGS = {
 			D3 . A2 . D3 . A2 . | A2 . E2 . A2 . E2 . | A#2 . F2 . C3 . G2 . | F2 . C3 . F2 . . . ]],
 		drums = [[ k . h . s . h h | k . h . s . h . | k . h . s . h h | k . h k s . h . |
 			k . h . s . h h | k . h . s . h . | k . h . s . h h | k . s . k s s . ]],
+	},
+
+	-- Rootjaw & Thunderhead: "Wild Things" - the battle theme in D minor, galloping
+	rival = {
+		bpm = 160,
+		arpOctave = 4,
+		lead = [[
+			F5 F5 A5 F5 A#5 - A5 F5 | E5 E5 F5 E5 D5 - - . | F5 F5 A5 F5 A#5 - D6 C6 | A5 - A5 - A5 - C#5 - |
+			A#5 . A5 . F5 - E5 D5 | E5 - F5 - A5 - - . | A#5 A5 F5 E5 D5 E5 F5 G5 | A5 - - - C#5 - D5 - ]],
+		harmony = [[
+			D5 . . . D5 . . . | C5 . . . A4 . . . | D5 . . . F5 . . . | C#5 . . . E5 . . . |
+			D5 . . . D5 . . . | C5 . . . C5 . . . | D5 . . . C#5 . . . | E5 . . . A4 . . . ]],
+		arp = [[
+			Dm - - - - - - - | C - - - - - - - | Dm - - - - - - - | A7 - - - - - - - |
+			Gm - - - - - - - | C - - - - - - - | Bb - - - A7 - - - | Dm - - - A7 - - - ]],
+		bass = [[
+			D2 . D3 D2 . D3 D2 . | C2 . C3 C2 . C3 C2 . | D2 . D3 D2 . D3 D2 . | A1 . A2 A1 . A2 A1 . |
+			G1 . G2 G1 . G2 G1 . | C2 . C3 C2 . C3 C2 . | A#1 . A#2 . A1 . A2 . | D2 . D3 . A1 . A2 . ]],
+		drums = [[ k . h k s . h h | k . h k s . h h | k . h k s . h h | k . h k s s s . |
+			k . h k s . h h | k . h k s . h h | k . h k s . h h | k k s . k s s s ]],
 	},
 
 	-- Ending: "Home Again" - the full theme, warm and slow, every voice together
@@ -9664,7 +11394,7 @@ function Chiptune.Has(name)
 end
 
 return Chiptune
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000020"><Properties><string name="Name">Collectibles</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000024"><Properties><string name="Name">Collectibles</string><ProtectedString name="Source"><![CDATA[--[[
 	Collectibles - spins the carrots, hides the ones this file already has,
 	and asks the server to collect carrots the bunny touches.
 	Each player has their own carrots, so pickups are client-side visuals
@@ -9687,8 +11417,10 @@ local Effects, Remotes
 local combo, lastPickup = 0, 0
 
 local reqOf = {}
+local bossOf = {}
 for _, g in ipairs(Config.Goldens) do
 	reqOf[g.id] = g.req
+	bossOf[g.id] = g.boss
 end
 
 local function silverCount(setId)
@@ -9717,6 +11449,10 @@ local function isLocked(id)
 	elseif req == "bugs" then
 		return slot.bugs < Config.BugBusterGoal
 	elseif req == "boss" then
+		local b = bossOf[id]
+		if b and b ~= "grumble" then
+			return not (slot.bosses and slot.bosses[b])
+		end
 		return not slot.bossDefeated
 	end
 	return false
@@ -9838,7 +11574,7 @@ function Collectibles.Init(effects, remotes)
 end
 
 return Collectibles
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000021"><Properties><string name="Name">Dialogue</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000025"><Properties><string name="Name">Dialogue</string><ProtectedString name="Source"><![CDATA[--[[
 	Dialogue - talk to friendly characters.
 
 	A chunky text box types each line out letter by letter, with a little
@@ -10025,7 +11761,7 @@ function Dialogue.Init(dependencies)
 end
 
 return Dialogue
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000022"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000026"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
 	Effects - local sounds, music, chunky block particles and camera shake.
 ]]
 
@@ -10171,6 +11907,75 @@ function Effects.Burst(pos, color, count, speed, size, rise, material)
 	end
 end
 
+-- A jagged bolt of lightning from the sky down to `pos`
+function Effects.Bolt(pos, color)
+	local top = pos + Vector3.new(math.random(-6, 6), 70, math.random(-6, 6))
+	local prev = top
+	for i = 1, 7 do
+		local u = i / 7
+		local p = top:Lerp(pos, u)
+		if i < 7 then
+			p += Vector3.new(math.random(-3, 3), 0, math.random(-3, 3))
+		end
+		local seg = Instance.new("Part")
+		seg.Anchored = true
+		seg.CanCollide = false
+		seg.CanQuery = false
+		seg.CanTouch = false
+		seg.CastShadow = false
+		seg.Material = Enum.Material.Neon
+		seg.Color = color
+		seg.Size = Vector3.new(0.7, 0.7, (p - prev).Magnitude + 0.4)
+		seg.CFrame = CFrame.lookAt((p + prev) / 2, p)
+		seg.Parent = fxFolder
+		TweenService:Create(seg, TweenInfo.new(0.35), { Transparency = 1, Size = Vector3.new(0.1, 0.1, seg.Size.Z) }):Play()
+		Debris:AddItem(seg, 0.4)
+		prev = p
+	end
+	local flash = Instance.new("Part")
+	flash.Anchored = true
+	flash.CanCollide = false
+	flash.CanQuery = false
+	flash.CanTouch = false
+	flash.Transparency = 1
+	flash.Size = Vector3.one
+	flash.CFrame = CFrame.new(pos + Vector3.new(0, 4, 0))
+	flash.Parent = fxFolder
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = 40
+	light.Brightness = 6
+	light.Parent = flash
+	TweenService:Create(light, TweenInfo.new(0.4), { Brightness = 0 }):Play()
+	Debris:AddItem(flash, 0.45)
+end
+
+-- Roots (or spikes) that burst out of the ground and sink back
+function Effects.Spikes(pos, color)
+	for i = 1, 6 do
+		local a = i / 6 * math.pi * 2 + math.random()
+		local r = math.random() * 3
+		local h = 4 + math.random() * 4
+		local spike = Instance.new("WedgePart")
+		spike.Anchored = true
+		spike.CanCollide = false
+		spike.CanQuery = false
+		spike.CanTouch = false
+		spike.Color = color
+		spike.Material = Enum.Material.Grass
+		spike.Size = Vector3.new(1.2, h, 2)
+		local base = pos + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)
+		spike.CFrame = CFrame.new(base - Vector3.new(0, h / 2, 0)) * CFrame.Angles(0, a, (math.random() - 0.5) * 0.4)
+		spike.Parent = fxFolder
+		local up = CFrame.new(base + Vector3.new(0, h / 2 - 0.5, 0)) * CFrame.Angles(0, a, (math.random() - 0.5) * 0.4)
+		TweenService:Create(spike, TweenInfo.new(0.12, Enum.EasingStyle.Back), { CFrame = up }):Play()
+		task.delay(0.6, function()
+			TweenService:Create(spike, TweenInfo.new(0.4), { CFrame = up - Vector3.new(0, h, 0), Transparency = 0.6 }):Play()
+		end)
+		Debris:AddItem(spike, 1.1)
+	end
+end
+
 function Effects.Ring(pos, color, radius, count, duration)
 	radius = radius or 12
 	count = count or 16
@@ -10223,7 +12028,7 @@ RunService:BindToRenderStep("Bunny64Shake", Enum.RenderPriority.Camera.Value + 1
 end)
 
 return Effects
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000023"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
 	Hud - in-game overlay: hearts, golden carrot and carrot counters,
 	region title cards, toasts, the boss health bar and the MENU button.
 ]]
@@ -10242,6 +12047,8 @@ local Hud = {}
 
 local gui, root
 local hearts = {}
+local staminaRow
+local staminaPips = {}
 local goldenLabel, carrotLabel, saveLabel, toastLabel, bannerHolder, bannerFace
 local bossFrame, bossPips, bossName
 local toastToken, bannerToken = 0, 0
@@ -10341,6 +12148,35 @@ function Hud.Init(menuCallback)
 		hearts[i] = h
 	end
 
+	-- stamina: green pips under the hearts (shown while not full)
+	staminaRow = Instance.new("Frame")
+	staminaRow.BackgroundTransparency = 1
+	staminaRow.Size = UDim2.fromOffset(200, 18)
+	staminaRow.Position = UDim2.fromOffset(6, 88)
+	staminaRow.Parent = root
+	local sLayout = Instance.new("UIListLayout")
+	sLayout.FillDirection = Enum.FillDirection.Horizontal
+	sLayout.Padding = UDim.new(0, 4)
+	sLayout.Parent = staminaRow
+	for i = 1, Config.Stamina.max do
+		local back = Instance.new("Frame")
+		back.Size = UDim2.fromOffset(28, 12)
+		back.BackgroundColor3 = Color3.fromRGB(40, 46, 40)
+		back.BorderSizePixel = 0
+		UI.corner(back, 5)
+		UI.stroke(back, 2, UI.Ink, Enum.ApplyStrokeMode.Border)
+		back.Parent = staminaRow
+		local fill = Instance.new("Frame")
+		fill.Name = "Fill"
+		fill.Size = UDim2.fromScale(1, 1)
+		fill.BackgroundColor3 = Color3.fromRGB(134, 196, 96)
+		fill.BorderSizePixel = 0
+		UI.corner(fill, 5)
+		fill.Parent = back
+		staminaPips[i] = back
+	end
+	staminaRow.Visible = false
+
 	goldenLabel = counter(root, P.Gold, 36)
 	carrotLabel = counter(root, P.Carrot, 84)
 
@@ -10357,7 +12193,7 @@ function Hud.Init(menuCallback)
 	menu.TextColor3 = UI.Cream
 	menu.BackgroundColor3 = UI.Navy
 	menu.Size = UDim2.fromOffset(92, 34)
-	menu.Position = UDim2.fromOffset(0, 96)
+	menu.Position = UDim2.fromOffset(0, 112)
 	UI.corner(menu, 8)
 	UI.stroke(menu, 3, UI.Gold, Enum.ApplyStrokeMode.Border)
 	UI.stroke(menu, 2)
@@ -10387,11 +12223,12 @@ function Hud.Init(menuCallback)
 	bossFrame.AnchorPoint = Vector2.new(0.5, 0)
 	bossFrame.Position = UDim2.new(0.5, 0, 0, 18)
 	bossFrame.Size = UDim2.fromOffset(360, 70)
+	bossFrame.AutomaticSize = Enum.AutomaticSize.None
 	bossFrame.Visible = false
 	bossFrame.Parent = gui
 	bossName = UI.label(bossFrame, { Text = "KING GRUMBLE", Font = UI.TITLE, TextSize = 30, Size = UDim2.new(1, 0, 0, 34), TextColor3 = Color3.fromRGB(240, 150, 90), Stroke = 4 })
 	bossPips = {}
-	for i = 1, 3 do
+	for i = 1, 6 do
 		local pip = Instance.new("Frame")
 		pip.Size = UDim2.fromOffset(100, 18)
 		pip.Position = UDim2.fromOffset(12 + (i - 1) * 114, 42)
@@ -10618,6 +12455,44 @@ function Hud.Pulse(label)
 	TweenService:Create(scale, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 end
 
+local staminaHideAt = 0
+function Hud.SetStamina(cur, max)
+	if not staminaRow then
+		return
+	end
+	for i, pip in ipairs(staminaPips) do
+		pip.Visible = i <= max
+		local f = math.clamp(cur - (i - 1), 0, 1)
+		pip.Fill.Size = UDim2.fromScale(f, 1)
+		pip.Fill.BackgroundColor3 = f >= 1 and Color3.fromRGB(134, 196, 96) or Color3.fromRGB(196, 176, 90)
+	end
+	if cur < max - 0.001 then
+		staminaRow.Visible = true
+		staminaHideAt = math.huge
+	elseif staminaHideAt == math.huge then
+		-- linger a moment once full, then tuck away
+		staminaHideAt = os.clock() + 1.2
+		task.delay(1.25, function()
+			if os.clock() >= staminaHideAt then
+				staminaRow.Visible = false
+			end
+		end)
+	end
+end
+
+-- Tried a move with no stamina left: the meter flashes red
+function Hud.StaminaEmpty()
+	if not staminaRow then
+		return
+	end
+	staminaRow.Visible = true
+	for _, pip in ipairs(staminaPips) do
+		pip.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+		TweenService:Create(pip, TweenInfo.new(0.5), { BackgroundColor3 = Color3.fromRGB(40, 46, 40) }):Play()
+	end
+	Hud.Pulse(staminaRow)
+end
+
 function Hud.SetProgress(slot, canSave)
 	if not slot then
 		return
@@ -10670,27 +12545,44 @@ function Hud.RegionBanner(text)
 	end)
 end
 
--- Boss bar follows King Grumble's attributes while you're in the arena
-function Hud.WatchBoss(inArenaFn)
+-- Boss bar: shows the boss whose arena you're in (name, one pip per hit left)
+local pipCount = 0
+local function layoutPips(n)
+	if n == pipCount then
+		return
+	end
+	pipCount = n
+	local w = math.floor((336 - (n - 1) * 8) / n)
+	for i, pip in ipairs(bossPips) do
+		pip.Visible = i <= n
+		pip.Size = UDim2.fromOffset(w, 18)
+		pip.Position = UDim2.fromOffset(12 + (i - 1) * (w + 8), 42)
+	end
+end
+
+function Hud.WatchBoss(arenaBossFn)
 	RunService.RenderStepped:Connect(function()
-		local folder = workspace:FindFirstChild("Boss")
-		local boss = folder and folder:FindFirstChild("KingGrumble")
-		local show = boss ~= nil and gui.Enabled and inArenaFn() and boss:GetAttribute("State") ~= "sleep"
+		local boss = arenaBossFn()
+		local state = boss and boss:GetAttribute("State")
+		local show = boss ~= nil and boss.Parent ~= nil and gui.Enabled and state ~= "sleep" and state ~= "dead"
 		bossFrame.Visible = show
 		if show then
-			local hp = boss:GetAttribute("HP") or 3
+			local max = boss:GetAttribute("MaxHP") or 3
+			local hp = boss:GetAttribute("HP") or max
+			layoutPips(math.min(max, #bossPips))
 			for i, pip in ipairs(bossPips) do
 				pip.BackgroundColor3 = i <= hp and Color3.fromRGB(220, 120, 50) or Color3.fromRGB(50, 40, 44)
 			end
+			local name = boss:GetAttribute("BossName") or "BOSS"
 			local exposed = boss:GetAttribute("Exposed")
 			bossName.TextColor3 = exposed and Color3.fromRGB(255, 230, 120) or Color3.fromRGB(240, 150, 90)
-			bossName.Text = exposed and "KING GRUMBLE - JUMP ON HIS BACK!" or "KING GRUMBLE"
+			bossName.Text = exposed and (boss:GetAttribute("Hint") or name) or name
 		end
 	end)
 end
 
 return Hud
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000024"><Properties><string name="Name">Menus</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000028"><Properties><string name="Name">Menus</string><ProtectedString name="Source"><![CDATA[--[[
 	Menus - every full-screen menu:
 	  Title (PRESS START) -> File Select (File A/B/C, erase) -> game
 	  Customise (fur, accent colour, hat, neckwear with a live 3D preview)
@@ -11903,7 +13795,7 @@ function Menus.Init(dependencies)
 end
 
 return Menus
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000025"><Properties><string name="Name">Movement</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000029"><Properties><string name="Name">Movement</string><ProtectedString name="Source"><![CDATA[--[[
 	Movement - the bunny's moveset on top of Roblox's humanoid.
 
 	  Jump            Space / A / jump button
@@ -11913,7 +13805,15 @@ return Menus
 	  Slide           Crouch (C / Ctrl / E / B / CROUCH button) while running.
 	                  Ice chutes start a slide automatically; steer with the stick.
 	  Ground pound    Crouch in the air
+	  Pound jump      jump the moment a ground pound lands: a big spinning leap
+	  Dive            Roll in the air: a forward lunge (jump during it to roll out)
+	  Backflip        hold Crouch while standing still, then jump: the highest jump
 	  Wall jump       jump while pressed against a wall in mid-air
+
+	Stamina: rolls, dives and long jumps each use a pip; pips refill on the ground.
+
+	Weight: running builds up to full speed, turning hard at speed skids, falls
+	pull harder than rises, and big drops land with a short stagger.
 
 	Game-feel helpers (the invisible stuff good platformers do):
 	  coyote time     you can still jump for a moment after running off a ledge
@@ -11940,7 +13840,7 @@ local enabled = false
 local controls = nil
 
 local character, humanoid, root, lv
-local move = "" -- "", roll, longjump, slide, pound
+local move = "" -- "", roll, longjump, slide, pound, dive, backflip, crouch, walljump
 local moveStart = 0
 local moveDir = Vector3.new(0, 0, -1)
 local moveSpeed = 0
@@ -11963,6 +13863,12 @@ local nextDust = 0
 local celebrateUntil = 0
 local emote, emoteStart = nil, 0 -- wave / dance / sit
 local talking = false
+local runSpeed = 0 -- current top speed while building up a run
+local skidUntil, landAt, staggerUntil = 0, -10, 0
+local lastPoundLand = -10
+local divedSinceGround = false
+local stamina, staminaMax = 3, 3
+local staminaRegenAt = 0
 local COYOTE_TIME = 0.13
 local BUFFER_TIME = 0.15
 local DUST = Color3.fromRGB(206, 196, 176)
@@ -11986,7 +13892,7 @@ local function setMove(name)
 	move = name
 	moveStart = os.clock()
 	if lv then
-		lv.Enabled = (name == "roll" or name == "longjump" or name == "slide" or name == "walljump")
+		lv.Enabled = (name == "roll" or name == "longjump" or name == "slide" or name == "walljump" or name == "dive" or name == "backflip")
 	end
 	if name == "" then
 		sendMove(os.clock() - flipAt < 0.5 and "flip" or "")
@@ -12042,6 +13948,46 @@ local function floorHit()
 end
 
 --------------------------------------------------------------------------------
+-- Stamina
+--------------------------------------------------------------------------------
+
+local function staminaChanged()
+	if Movement.OnStamina then
+		Movement.OnStamina(stamina, staminaMax)
+	end
+end
+
+-- Try to spend stamina for a move; returns false (and puffs) when you're out
+local function spend(kind)
+	local cost = Config.Stamina.cost[kind] or 0
+	if stamina + 0.001 < cost then
+		if root then
+			Effects.Burst(root.Position + Vector3.new(0, 1, 0), Color3.fromRGB(200, 210, 190), 4, 2, 0.4, 2)
+		end
+		if Movement.OnTired then
+			Movement.OnTired()
+		end
+		return false
+	end
+	stamina -= cost
+	staminaRegenAt = os.clock() + Config.Stamina.regenDelay
+	staminaChanged()
+	return true
+end
+
+function Movement.SetStaminaMax(n)
+	if n ~= staminaMax then
+		local gained = n > staminaMax
+		staminaMax = n
+		if gained then
+			stamina = n
+		end
+		stamina = math.min(stamina, n)
+		staminaChanged()
+	end
+end
+
+--------------------------------------------------------------------------------
 -- Moves
 --------------------------------------------------------------------------------
 
@@ -12068,20 +14014,54 @@ local function launch(velocity, kind)
 	end
 end
 
-local function startRoll()
-	if flying or not enabled or not root or move ~= "" or not grounded() or os.clock() - lastRollEnd < Config.RollCooldown then
+local function startDive()
+	if not spend("dive") then
 		return
 	end
+	divedSinceGround = true
+	usedDouble = true
+	jumpRising = false
+	local hv = flatVelocity()
 	moveDir = facingDir()
-	moveSpeed = Config.RollSpeed
+	moveSpeed = math.max(hv.Magnitude, Config.DiveSpeed)
+	setMove("dive")
+	local v = root.AssemblyLinearVelocity
+	root.AssemblyLinearVelocity = Vector3.new(v.X, math.max(v.Y * 0.3, Config.DiveUp), v.Z)
+	setPlane(moveDir * moveSpeed)
+	root.CFrame = CFrame.lookAt(root.Position, root.Position + moveDir)
+	Effects.Play("DoubleJump", 0.7)
+	Effects.Burst(root.Position, Color3.fromRGB(230, 222, 204), 6, 4, 0.5, 0)
+end
+
+local function startRoll()
+	if flying or not enabled or not root or os.clock() < celebrateUntil then
+		return
+	end
+	if not grounded() then
+		-- in the air the roll button dives instead
+		if (move == "" or move == "walljump") and inAir() and not divedSinceGround and os.clock() - lastGrounded > 0.08 then
+			startDive()
+		end
+		return
+	end
+	if move ~= "" or os.clock() - lastRollEnd < Config.RollCooldown then
+		return
+	end
+	local tired = not spend("roll")
+	moveDir = facingDir()
+	moveSpeed = Config.RollSpeed * (tired and 0.6 or 1)
 	setMove("roll")
 	setPlane(moveDir * moveSpeed)
 	Effects.Play("Roll", 0.9)
 	Effects.Burst(root.Position - Vector3.new(0, 2.4, 0), Config.Palette.Path, 5, 3, 0.5, 1)
 end
 
-local function startLongJump(speed)
+local function startLongJump(speed, free)
+	local tired = not free and not spend("longjump")
 	moveSpeed = math.max(speed or 0, Config.LongJumpSpeed)
+	if tired then
+		moveSpeed *= 0.6 -- out of puff: a short, weak long jump
+	end
 	setMove("longjump")
 	usedDouble = true -- no double jump out of a long jump
 	local v = root.AssemblyLinearVelocity
@@ -12120,6 +14100,7 @@ end
 
 local function landPound()
 	setMove("")
+	lastPoundLand = os.clock()
 	local pos = root.Position - Vector3.new(0, 2.6, 0)
 	Remotes.Pound:FireServer("land", pos)
 	Effects.Shake(1.2, 0.3)
@@ -12130,12 +14111,26 @@ local function crouch()
 	if flying or not enabled or not root then
 		return
 	end
-	if move == "" or move == "longjump" then
+	if move == "" or move == "longjump" or move == "dive" or move == "backflip" then
 		if inAir() and not grounded() then
+			if move == "dive" or move == "backflip" then
+				setMove("")
+			end
 			startPound()
 		elseif move == "" then
-			startSlide(false)
+			if flatVelocity().Magnitude > 12 then
+				startSlide(false)
+			else
+				-- crouch in place: crawl, or jump for a backflip
+				setMove("crouch")
+			end
 		end
+	end
+end
+
+local function uncrouch()
+	if move == "crouch" then
+		setMove("")
 	end
 end
 
@@ -12178,8 +14173,23 @@ local function tryJumpMove()
 	end
 	local now = os.clock()
 	if move == "roll" or (move == "slide" and now - moveStart > 0.08) then
-		startLongJump(moveSpeed + 10)
+		startLongJump(moveSpeed + 10, move == "roll") -- out of a roll it's included in the roll's cost
 		return
+	end
+	if move == "dive" then
+		-- roll out of the dive: a little hop that keeps your speed
+		local v = root.AssemblyLinearVelocity
+		setMove("")
+		jumpRising = false
+		flipAt = now
+		sendMove("flip")
+		root.AssemblyLinearVelocity = Vector3.new(v.X, Config.RolloutPower, v.Z)
+		humanoid:ChangeState(HST.Freefall)
+		Effects.Play("Jump", 1.2)
+		return
+	end
+	if move == "crouch" then
+		return -- the humanoid's own jump fires; StateChanged turns it into a backflip
 	end
 	-- coyote time: walked off a ledge a moment ago and haven't jumped yet
 	if move == "" and not grounded() and not jumpedSinceGround and now - lastGrounded < COYOTE_TIME then
@@ -12265,7 +14275,11 @@ local function onCharacter(char)
 	root = char:WaitForChild("HumanoidRootPart")
 	move = ""
 	usedDouble = false
+	divedSinceGround = false
 	sentMove = nil
+	runSpeed = Config.RunStartSpeed
+	stamina = staminaMax
+	staminaChanged()
 	rayParams.FilterDescendantsInstances = { char, Effects.Folder }
 
 	local att = Instance.new("Attachment")
@@ -12289,11 +14303,24 @@ local function onCharacter(char)
 	humanoid.StateChanged:Connect(function(_, new)
 		if new == HST.Landed or new == HST.Running then
 			usedDouble = false
+			divedSinceGround = false
 			jumpedSinceGround = false
 			jumpRising = false
 			lastGrounded = os.clock()
-			if new == HST.Landed and lastVy < -55 then
-				Effects.Ring(root.Position - Vector3.new(0, 2.6, 0), DUST, 5, 10, 0.3)
+			if new == HST.Landed then
+				landAt = os.clock()
+				if lastVy < -55 then
+					Effects.Ring(root.Position - Vector3.new(0, 2.6, 0), DUST, 5, 10, 0.3)
+				end
+				if lastVy < -Config.HardLanding and move ~= "pound" then
+					-- a heavy landing: a thump, a camera dip and a moment to recover
+					staggerUntil = os.clock() + 0.16
+					Effects.Shake(0.5, 0.18)
+					Effects.Play("Land", 0.7)
+				end
+				if move == "backflip" then
+					setMove("")
+				end
 			end
 			-- jump buffer: jump was pressed just before touching down
 			if os.clock() < bufferUntil and enabled and move == "" then
@@ -12305,10 +14332,40 @@ local function onCharacter(char)
 				end)
 			end
 		elseif new == HST.Jumping then
-			lastGrounded = os.clock()
+			local now = os.clock()
+			lastGrounded = now
 			jumpedSinceGround = true
 			jumpRising = true
-			if move == "" then
+			if move == "crouch" then
+				-- backflip: straight up and over, drifting backwards
+				local back = -facingDir()
+				jumpRising = false
+				usedDouble = true
+				moveDir = back
+				moveSpeed = Config.BackflipBack
+				setMove("backflip")
+				setPlane(back * moveSpeed)
+				task.defer(function()
+					if root and move == "backflip" then
+						root.AssemblyLinearVelocity = back * moveSpeed + Vector3.new(0, Config.BackflipPower, 0)
+					end
+				end)
+				Effects.Play("DoubleJump", 0.85)
+			elseif move == "" and now - lastPoundLand < 0.32 then
+				-- pound jump: spring out of the ground pound's impact
+				jumpRising = false
+				usedDouble = true
+				flipAt = now
+				sendMove("flip")
+				task.defer(function()
+					if root then
+						local v = root.AssemblyLinearVelocity
+						root.AssemblyLinearVelocity = Vector3.new(v.X, Config.PoundJumpPower, v.Z)
+					end
+				end)
+				Effects.Play("DoubleJump", 1.3)
+				Effects.Ring(root.Position - Vector3.new(0, 2.6, 0), Color3.fromRGB(240, 226, 170), 6, 12, 0.35)
+			elseif move == "" then
 				Effects.Play("Jump", 1 + math.random() * 0.1)
 			end
 		end
@@ -12427,10 +14484,12 @@ function Movement.State()
 			or (os.clock() < celebrateUntil and "cheer")
 			or (talking and "talk")
 			or (move == "" and emote)
+			or (move == "" and os.clock() < skidUntil and "skid")
 			or move,
 		moveStart = moveStart,
 		flipAt = flipAt,
 		speed = moveSpeed,
+		landAt = landAt,
 	}
 end
 
@@ -12486,6 +14545,55 @@ local function step(dt)
 			jumpRising = false
 		end
 	end
+	-- stamina refills on the ground
+	if onGround and stamina < staminaMax and now > staminaRegenAt and move ~= "roll" and move ~= "slide" then
+		local before = math.floor(stamina)
+		stamina = math.min(staminaMax, stamina + Config.Stamina.regen * dt)
+		if math.floor(stamina) ~= before or stamina >= staminaMax then
+			staminaChanged()
+		end
+	end
+
+	-- running builds up to full speed; hard turns at speed skid
+	local boost = character:GetAttribute("SpeedBoost") or 1
+	local top = Config.WalkSpeed * boost
+	local md = humanoid.MoveDirection
+	local hv = Vector3.new(vel.X, 0, vel.Z)
+	if move == "crouch" then
+		runSpeed = 7
+	elseif now < staggerUntil then
+		runSpeed = Config.RunStartSpeed * 0.5
+	elseif md.Magnitude < 0.1 then
+		if onGround then
+			runSpeed = Config.RunStartSpeed * boost
+		end
+	elseif onGround and move == "" and hv.Magnitude > top * 0.7 and md:Dot(hv.Unit) < -0.55 and now > skidUntil then
+		skidUntil = now + 0.2
+		runSpeed = 4
+		Effects.Play("Roll", 1.6)
+		Effects.Burst(root.Position - Vector3.new(0, 2.5, 0), DUST, 6, 4, 0.5, 1)
+		sendMove("skid")
+		task.delay(0.22, function()
+			if move == "" and sentMove == "skid" then
+				sendMove("")
+			end
+		end)
+	elseif now > skidUntil then
+		local rate = Config.RunAccel * (onGround and 1 or 0.6)
+		runSpeed = math.min(top, math.max(runSpeed, Config.RunStartSpeed * boost) + rate * dt)
+	end
+	runSpeed = math.max(runSpeed, 1)
+	if math.abs(humanoid.WalkSpeed - runSpeed) > 0.05 then
+		humanoid.WalkSpeed = runSpeed
+	end
+
+	-- heavier falls (not while pounding or riding the wind)
+	if not onGround and vel.Y < 0 and move ~= "pound" and not inWind then
+		local vy = math.max(vel.Y - Config.Gravity * (Config.FallGravityMult - 1) * dt, -Config.MaxFallSpeed)
+		root.AssemblyLinearVelocity = Vector3.new(vel.X, vy, vel.Z)
+		vel = root.AssemblyLinearVelocity
+	end
+
 	-- running dust
 	if onGround and move == "" and now > nextDust and Vector3.new(vel.X, 0, vel.Z).Magnitude > 20 then
 		nextDust = now + 0.16
@@ -12571,6 +14679,33 @@ local function step(dt)
 		if onGround and t > 0.15 then
 			setMove("")
 			Effects.Burst(root.Position - Vector3.new(0, 2.5, 0), Config.Palette.Path, 6, 4, 0.5, 1)
+		end
+	elseif move == "dive" then
+		local t = now - moveStart
+		local mdir = humanoid.MoveDirection
+		if mdir.Magnitude > 0.1 then
+			moveDir = (moveDir:Lerp(Vector3.new(mdir.X, 0, mdir.Z).Unit, math.clamp(dt * 2, 0, 1))).Unit
+		end
+		moveSpeed = math.max(moveSpeed - 14 * dt, 32)
+		setPlane(moveDir * moveSpeed)
+		if onGround and t > 0.08 then
+			-- belly-flop into a slide
+			moveSpeed = math.max(moveSpeed * 0.85, 30)
+			setMove("slide")
+			setPlane(moveDir * moveSpeed)
+			Effects.Burst(root.Position - Vector3.new(0, 2.5, 0), DUST, 8, 5, 0.6, 1)
+			Effects.Play("Land", 1.1)
+		elseif t > 3 then
+			setMove("")
+		end
+	elseif move == "backflip" then
+		setPlane(moveDir * moveSpeed)
+		if (onGround and now - moveStart > 0.15) or now - moveStart > 3 then
+			setMove("")
+		end
+	elseif move == "crouch" then
+		if not onGround then
+			setMove("")
 		end
 	elseif move == "slide" then
 		local hit = floorHit()
@@ -12685,6 +14820,8 @@ function Movement.ApplyControls(controls)
 	ContextActionService:BindAction("Bunny64Crouch", function(_, inputState)
 		if inputState == Enum.UserInputState.Begin then
 			crouch()
+		elseif inputState == Enum.UserInputState.End or inputState == Enum.UserInputState.Cancel then
+			uncrouch()
 		end
 		return Enum.ContextActionResult.Sink
 	end, true, binds.crouch[1], binds.crouch[2])
@@ -12794,7 +14931,7 @@ function Movement.Init(effects, remotes)
 end
 
 return Movement
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000026"><Properties><string name="Name">PhotoMode</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002A"><Properties><string name="Name">PhotoMode</string><ProtectedString name="Source"><![CDATA[--[[
 	PhotoMode - a free camera for screenshots (Pause > PHOTO MODE).
 
 	  WASD / left stick       fly
@@ -12922,7 +15059,7 @@ function PhotoMode.IsActive()
 end
 
 return PhotoMode
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">Shadows</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002B"><Properties><string name="Name">Shadows</string><ProtectedString name="Source"><![CDATA[--[[
 	Shadows - a round "blob" shadow straight under every bunny.
 
 	In a 3D platformer the sun's shadow is rarely directly beneath you, so
@@ -12999,7 +15136,7 @@ function Shadows.Init()
 end
 
 return Shadows
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000028"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002C"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--[[
 	UI - shared building blocks for Bunny 64's late-90s console look:
 	chunky beveled panels with gold trim, gradient title lettering, a bouncing
 	carrot cursor, and menu navigation that works with keyboard, gamepad,
@@ -13391,7 +15528,7 @@ function UI.list(parent, padding)
 end
 
 return UI
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000029"><Properties><string name="Name">Weather</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002D"><Properties><string name="Name">Weather</string><ProtectedString name="Source"><![CDATA[--[[
 	Weather - a little atmosphere for each region, drawn around the camera:
 	  meadow  drifting pollen motes
 	  peaks   gentle snowfall
@@ -13515,7 +15652,7 @@ function Weather.Init()
 end
 
 return Weather
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002A"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002E"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--[[
 	WorldFX - client-side world behaviour:
 	  * animates firebars and crushers from the shared server clock
 	  * opens golden-carrot gates for players who have enough golden carrots
@@ -13549,6 +15686,29 @@ function WorldFX.SetSlot(slot)
 	slotRef = slot
 end
 local inArena = false
+local arenaBoss = nil -- the boss model whose arena we're standing in
+
+-- Which boss arena (if any) is this point in? Bosses publish their arena as attributes.
+local function bossAt(pos)
+	local folder = workspace:FindFirstChild("Boss")
+	if not folder then
+		return nil
+	end
+	for _, m in ipairs(folder:GetChildren()) do
+		if m:GetAttribute("Boss") then
+			local c = m:GetAttribute("ArenaCenter")
+			local r = m:GetAttribute("ArenaRadius")
+			local h = m:GetAttribute("ArenaHeight") or 80
+			if c and r then
+				local flat = Vector3.new(pos.X - c.X, 0, pos.Z - c.Z).Magnitude
+				if flat < r + 12 and pos.Y > c.Y - 10 and pos.Y < c.Y + h then
+					return m
+				end
+			end
+		end
+	end
+	return nil
+end
 
 -- Region looks -------------------------------------------------------------------
 local LOOKS = {
@@ -13688,6 +15848,10 @@ function WorldFX.InArena()
 	return inArena
 end
 
+function WorldFX.ArenaBoss()
+	return arenaBoss
+end
+
 function WorldFX.Init(effects, hud)
 	Effects, Hud = effects, hud
 	local world = workspace:WaitForChild("Bunny64World")
@@ -13743,11 +15907,13 @@ function WorldFX.Init(effects, hud)
 				Effects.SetMusic(region)
 			end
 		end
-		local arena = (Vector3.new(pos.X, 0, pos.Z) - Vector3.new(0, 0, 800)).Magnitude < 70 and pos.Y > 185
-		if arena ~= inArena then
+		local boss = bossAt(pos)
+		local arena = boss ~= nil and boss:GetAttribute("State") ~= "dead"
+		if arena ~= inArena or (arena and boss ~= arenaBoss) then
 			inArena = arena
-			Effects.SetMusic(arena and "boss" or region)
-			if arena then
+			arenaBoss = arena and boss or nil
+			Effects.SetMusic(arena and (boss:GetAttribute("Music") or "boss") or region)
+			if arena and boss:GetAttribute("BossId") == "grumble" then
 				Hud.RegionBanner("THRONE ROOM")
 			end
 		end
@@ -13759,16 +15925,20 @@ function WorldFX.Init(effects, hud)
 		if not bossFolder then
 			return
 		end
+		local flashing = {}
 		RunService.RenderStepped:Connect(function()
-			local boss = bossFolder:FindFirstChild("KingGrumble")
-			if not boss then
-				return
-			end
-			local hurt = boss:GetAttribute("State") == "hurt"
-			local flash = hurt and (math.floor(os.clock() * 12) % 2 == 0) and 0.6 or 0
-			for _, d in ipairs(boss:GetChildren()) do
-				if d:IsA("BasePart") and d.Name ~= "Root" then
-					d.LocalTransparencyModifier = flash
+			for _, boss in ipairs(bossFolder:GetChildren()) do
+				if boss:GetAttribute("Boss") then
+					local hurt = boss:GetAttribute("State") == "hurt"
+					if hurt or flashing[boss] then
+						flashing[boss] = hurt or nil
+						local flash = hurt and (math.floor(os.clock() * 12) % 2 == 0) and 0.6 or 0
+						for _, d in ipairs(boss:GetChildren()) do
+							if d:IsA("BasePart") and d.Name ~= "Root" and d.Transparency < 1 then
+								d.LocalTransparencyModifier = flash
+							end
+						end
+					end
 				end
 			end
 		end)
@@ -13786,8 +15956,8 @@ function WorldFX.Region()
 end
 
 return WorldFX
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterCharacterScripts" referent="RBX0000002F"><Properties><string name="Name">StarterCharacterScripts</string></Properties><Item class="LocalScript" referent="RBX0000002D"><Properties><string name="Name">Animate</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default "Animate" script.
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterCharacterScripts" referent="RBX00000033"><Properties><string name="Name">StarterCharacterScripts</string></Properties><Item class="LocalScript" referent="RBX00000031"><Properties><string name="Name">Animate</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default "Animate" script.
 -- The bunny is animated procedurally by StarterPlayerScripts.Bunny64Client.Animator.
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX0000002E"><Properties><string name="Name">Health</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default health regeneration.
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX00000032"><Properties><string name="Name">Health</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default health regeneration.
 -- In Bunny 64 hearts only come back from carrots and golden carrots.
 ]]></ProtectedString><token name="RunContext">0</token></Properties></Item></Item></Item></roblox>

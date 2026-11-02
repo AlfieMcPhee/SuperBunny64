@@ -23,6 +23,7 @@ local Shadows = require(script:WaitForChild("Shadows"))
 local Dialogue = require(script:WaitForChild("Dialogue"))
 local PhotoMode = require(script:WaitForChild("PhotoMode"))
 local Weather = require(script:WaitForChild("Weather"))
+local Baddies = require(script:WaitForChild("Baddies"))
 
 local player = Players.LocalPlayer
 
@@ -77,6 +78,7 @@ local function applySnapshot(s)
 	if s.slot then
 		Hud.SetProgress(s.slot, s.canSave)
 		WorldFX.SetGoldenCount(s.slot.goldenCount)
+		Movement.SetStaminaMax(Config.StaminaFor(s.slot.goldenCount))
 		WorldFX.SetCheckpoint(s.slot.checkpoint)
 		WorldFX.SetSlot(s.slot)
 	else
@@ -179,7 +181,12 @@ local function handleEvent(s, event)
 	elseif kind == "bossdown" then
 		Effects.Jingle()
 		task.delay(0.5, Effects.Jingle)
-		Hud.Toast("KING GRUMBLE IS DEFEATED!\nTHE CROWN IS YOURS...", 5, GOLD)
+		local lines = {
+			rootjaw = "OLD ROOTJAW WILTS AWAY!\nA GOLDEN SEED IS LEFT BEHIND...",
+			thunderhead = "THE STORM CLEARS!\nSOMETHING GOLDEN GLINTS IN THE SUN...",
+			shade = "THE SHADE FADES INTO THE DARK...\nYOU'VE CONQUERED THE UNDERBURROW!",
+		}
+		Hud.Toast(lines[event.id] or "KING GRUMBLE IS DEFEATED!\nTHE CROWN IS YOURS...", 5, GOLD)
 	end
 end
 
@@ -224,11 +231,31 @@ remotes.Effect.OnClientEvent:Connect(function(kind, pos, extra)
 		-- the boss's title card, the way old games introduced them
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart")
+		local card = type(extra) == "table" and extra or { name = "KING GRUMBLE", title = "TYRANT OF THE INFERNAL CASTLE" }
 		if root and (root.Position - pos).Magnitude < 120 then
-			Hud.RegionBanner("KING GRUMBLE")
+			Hud.RegionBanner(card.name or "")
 			task.delay(0.6, function()
-				Hud.Toast("TYRANT OF THE INFERNAL CASTLE", 2.2, Color3.fromRGB(240, 150, 110))
+				Hud.Toast(card.title or "", 2.2, Color3.fromRGB(240, 150, 110))
 			end)
+		end
+	elseif kind == "strike" then
+		-- a telegraphed hit lands: lightning bolt, lava burst, roots or shadow
+		local colors = {
+			lightning = Color3.fromRGB(250, 240, 170), lava = P.Ember,
+			roots = Color3.fromRGB(110, 150, 80), shadow = Color3.fromRGB(150, 100, 210),
+		}
+		local color = colors[extra] or colors.lightning
+		Effects.Burst(pos + Vector3.new(0, 1, 0), color, 12, 10, 0.8, 9, Enum.Material.Neon)
+		if extra == "lightning" or extra == "shadow" then
+			Effects.Bolt(pos, color)
+		elseif extra == "roots" then
+			Effects.Spikes(pos, color)
+		end
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if root and (root.Position - pos).Magnitude < 60 then
+			Effects.Shake(0.5, 0.2)
+			Effects.Play(extra == "lightning" and "Thunder" or "Land", extra == "lightning" and 0.45 or 0.6)
 		end
 	elseif kind == "bosscharge" then
 		Effects.Play("Roll", 0.5)
@@ -236,7 +263,8 @@ remotes.Effect.OnClientEvent:Connect(function(kind, pos, extra)
 		Effects.Play("Land", 0.4)
 		Effects.Shake(1.4, 0.5)
 		Effects.Burst(pos, Color3.fromRGB(255, 236, 160), 10, 6, 0.8, 6, Enum.Material.Neon)
-		Hud.Toast("HE'S DIZZY! JUMP ON A GLOWING SPOT!", 2.5, GOLD)
+		local boss = WorldFX.ArenaBoss()
+		Hud.Toast((boss and boss:GetAttribute("Hint")) or "NOW! JUMP ON THE GLOWING SPOT!", 2.5, GOLD)
 	elseif kind == "bosshit" then
 		Effects.Play("Stomp", 0.7)
 		Effects.Shake(1.2, 0.4)
@@ -336,6 +364,12 @@ task.spawn(function()
 	end
 end)
 
+Movement.OnStamina = function(cur, max)
+	Hud.SetStamina(cur, max)
+end
+Movement.OnTired = function()
+	Hud.StaminaEmpty()
+end
 Movement.OnLoading = function()
 	Hud.Toast("LOADING THE WORLD...", 2)
 end
@@ -348,7 +382,7 @@ Movement.Init(Effects, remotes)
 task.spawn(Collectibles.Init, Effects, remotes)
 task.spawn(Animator.Init, Movement)
 task.spawn(WorldFX.Init, Effects, Hud)
-Hud.WatchBoss(WorldFX.InArena)
+Hud.WatchBoss(WorldFX.ArenaBoss)
 
 Menus.Init({
 	GoldenPositions = Collectibles.GoldenPositions,
@@ -399,6 +433,7 @@ Dialogue.Init({
 	end,
 })
 task.spawn(Shadows.Init)
+Baddies.Init()
 Weather.Init()
 WorldFX.OnRegion = Weather.SetRegion
 Effects.SetMusic("title")

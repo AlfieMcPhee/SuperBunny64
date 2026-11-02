@@ -156,6 +156,35 @@ local function poseFor(rig, char, dt, now, isLocal)
 		p.lArm, p.rArm = A(0, 0, -2.6), A(0, 0, 2.6)
 		p.root = A(0.15, 0, 0)
 		earTarget = -0.6
+	elseif move == "dive" then
+		-- arms out in front, belly first
+		p.root = A(-1.4, 0, 0)
+		p.lArm, p.rArm = A(2.9, 0, 0.22), A(2.9, 0, -0.22)
+		p.lLeg, p.rLeg = A(-0.3, 0, -0.1), A(-0.3, 0, 0.1)
+		p.neck = A(0.9, 0, 0)
+		earTarget = 1.3
+	elseif move == "backflip" then
+		local u = math.clamp(moveAge / 0.8, 0, 1)
+		extra = A(TAU * (1 - (1 - u) * (1 - u)), 0, 0)
+		p.lLeg, p.rLeg = A(1.4, 0, 0), A(1.4, 0, 0)
+		p.lArm, p.rArm = A(0, 0, -2.5), A(0, 0, 2.5)
+		earTarget = -0.3
+	elseif move == "crouch" then
+		local crawl = math.clamp(hv / 7, 0, 1)
+		rig.phase += dt * 6 * crawl
+		local s = math.sin(rig.phase) * crawl
+		p.root = CFrame.new(0, -0.95, 0) * A(-0.3, 0, 0)
+		p.lLeg, p.rLeg = A(1.15 + s * 0.3, 0, -0.1), A(1.15 - s * 0.3, 0, 0.1)
+		p.lArm, p.rArm = A(0.9 - s * 0.4, 0, -0.2), A(0.9 + s * 0.4, 0, 0.2)
+		p.neck = A(0.25, 0, 0)
+		earTarget = -0.55
+	elseif move == "skid" then
+		-- heels dug in, leaning back
+		p.root = CFrame.new(0, -0.3, 0) * A(0.4, 0, 0)
+		p.lLeg, p.rLeg = A(-0.7, 0, -0.1), A(0.25, 0, 0.1)
+		p.lArm, p.rArm = A(0, 0, -1.5), A(0, 0, 1.5)
+		p.neck = A(-0.2, 0, 0)
+		earTarget = 1.1
 	elseif not grounded then
 		local rising = vy > 0
 		p.lLeg = A(rising and 0.8 or 0.35, 0, 0)
@@ -184,7 +213,26 @@ local function poseFor(rig, char, dt, now, isLocal)
 		-- idle breathing in the arms
 		p.lArm = p.lArm * A(0, 0, -math.sin(t * 2.2) * 0.04 * idle)
 		p.rArm = p.rArm * A(0, 0, math.sin(t * 2.2) * 0.04 * idle)
+		-- landing squash: knees give, body dips, then springs back
+		local landAge = now - (rig.landAt or -10)
+		if landAge < 0.22 then
+			local k = 1 - landAge / 0.22
+			k = k * k * math.clamp(rig.landHard or 0.5, 0.3, 1)
+			p.root = CFrame.new(0, -0.75 * k, 0) * A(-0.25 * k, 0, 0) * p.root
+			p.lLeg = A(0.8 * k, 0, 0) * p.lLeg
+			p.rLeg = A(0.8 * k, 0, 0) * p.rLeg
+			p.lArm = A(0, 0, -0.5 * k) * p.lArm
+			p.rArm = A(0, 0, 0.5 * k) * p.rArm
+			earTarget -= 0.8 * k
+		end
 	end
+	-- remember when we touch down (and how hard) for the squash above
+	if grounded and not rig.wasGrounded then
+		rig.landAt = now
+		rig.landHard = math.clamp(-(rig.lastVy or 0) / 90, 0, 1)
+	end
+	rig.wasGrounded = grounded
+	rig.lastVy = vy
 
 	return p, extra, earTarget
 end

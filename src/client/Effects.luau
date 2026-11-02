@@ -144,6 +144,75 @@ function Effects.Burst(pos, color, count, speed, size, rise, material)
 	end
 end
 
+-- A jagged bolt of lightning from the sky down to `pos`
+function Effects.Bolt(pos, color)
+	local top = pos + Vector3.new(math.random(-6, 6), 70, math.random(-6, 6))
+	local prev = top
+	for i = 1, 7 do
+		local u = i / 7
+		local p = top:Lerp(pos, u)
+		if i < 7 then
+			p += Vector3.new(math.random(-3, 3), 0, math.random(-3, 3))
+		end
+		local seg = Instance.new("Part")
+		seg.Anchored = true
+		seg.CanCollide = false
+		seg.CanQuery = false
+		seg.CanTouch = false
+		seg.CastShadow = false
+		seg.Material = Enum.Material.Neon
+		seg.Color = color
+		seg.Size = Vector3.new(0.7, 0.7, (p - prev).Magnitude + 0.4)
+		seg.CFrame = CFrame.lookAt((p + prev) / 2, p)
+		seg.Parent = fxFolder
+		TweenService:Create(seg, TweenInfo.new(0.35), { Transparency = 1, Size = Vector3.new(0.1, 0.1, seg.Size.Z) }):Play()
+		Debris:AddItem(seg, 0.4)
+		prev = p
+	end
+	local flash = Instance.new("Part")
+	flash.Anchored = true
+	flash.CanCollide = false
+	flash.CanQuery = false
+	flash.CanTouch = false
+	flash.Transparency = 1
+	flash.Size = Vector3.one
+	flash.CFrame = CFrame.new(pos + Vector3.new(0, 4, 0))
+	flash.Parent = fxFolder
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = 40
+	light.Brightness = 6
+	light.Parent = flash
+	TweenService:Create(light, TweenInfo.new(0.4), { Brightness = 0 }):Play()
+	Debris:AddItem(flash, 0.45)
+end
+
+-- Roots (or spikes) that burst out of the ground and sink back
+function Effects.Spikes(pos, color)
+	for i = 1, 6 do
+		local a = i / 6 * math.pi * 2 + math.random()
+		local r = math.random() * 3
+		local h = 4 + math.random() * 4
+		local spike = Instance.new("WedgePart")
+		spike.Anchored = true
+		spike.CanCollide = false
+		spike.CanQuery = false
+		spike.CanTouch = false
+		spike.Color = color
+		spike.Material = Enum.Material.Grass
+		spike.Size = Vector3.new(1.2, h, 2)
+		local base = pos + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)
+		spike.CFrame = CFrame.new(base - Vector3.new(0, h / 2, 0)) * CFrame.Angles(0, a, (math.random() - 0.5) * 0.4)
+		spike.Parent = fxFolder
+		local up = CFrame.new(base + Vector3.new(0, h / 2 - 0.5, 0)) * CFrame.Angles(0, a, (math.random() - 0.5) * 0.4)
+		TweenService:Create(spike, TweenInfo.new(0.12, Enum.EasingStyle.Back), { CFrame = up }):Play()
+		task.delay(0.6, function()
+			TweenService:Create(spike, TweenInfo.new(0.4), { CFrame = up - Vector3.new(0, h, 0), Transparency = 0.6 }):Play()
+		end)
+		Debris:AddItem(spike, 1.1)
+	end
+end
+
 function Effects.Ring(pos, color, radius, count, duration)
 	radius = radius or 12
 	count = count or 16

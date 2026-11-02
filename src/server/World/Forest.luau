@@ -5,6 +5,7 @@
 	  * Treetop Village: three treehouses joined by rope bridges (one is missing planks)
 	  * Bouncy Grove: giant mushrooms that fling you higher and higher
 	  * the Bog: lily pads over murky water, some of which sink
+	  * the Hollow: a ring of ancient trunks where Old Rootjaw waits (boss)
 ]]
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
@@ -109,7 +110,7 @@ function Forest.Build(B)
 		local p = W + V(math.cos(a) * r, 0, math.sin(a) * r)
 		B.paint(p, p + V(rng:NextNumber(-24, 24), 0, rng:NextNumber(-24, 24)), rng:NextNumber(10, 20), M.Grass, { M.LeafyGrass })
 	end
-	for _, h in ipairs({ { -860, 150, 30, 6 }, { -930, -40, 28, 5 }, { -640, 180, 22, 4 }, { -830, -110, 26, 5 }, { -960, 140, 24, 6 } }) do
+	for _, h in ipairs({ { -930, -40, 28, 5 }, { -640, 180, 22, 4 }, { -830, -110, 26, 5 }, { -980, 60, 20, 4 } }) do
 		B.hill(h[1], h[2], h[3], h[4], M.LeafyGrass)
 	end
 	for i = 0, 13 do
@@ -363,6 +364,47 @@ function Forest.Build(B)
 		B.crate(-700, -58)
 	end
 
+	--------------------------------------------------------------- the Hollow (Old Rootjaw's arena)
+	do
+		local hx, hz, hr = -890, 170, 32
+		local center = V(hx, 0, hz)
+		B.info.bossArenas = B.info.bossArenas or {}
+		B.info.bossArenas.rootjaw = { center = center, radius = hr }
+		T:FillCylinder(CFrame.new(hx, -3, hz), 6, hr + 8, M.Ground)
+		T:FillCylinder(CFrame.new(hx, 3, hz), 6, hr + 8, M.Air)
+		T:FillCylinder(CFrame.new(hx, -0.75, hz), 1.5, hr + 8, M.LeafyGrass)
+		B.paint(V(hx - 20, 0, hz), V(hx + 20, 0, hz), 30, M.Mud, { M.Grass, M.LeafyGrass })
+		-- a ring of ancient trunks, open toward the Elder Tree
+		local gap = math.atan2(60 - hz, -780 - hx)
+		for i = 0, 27 do
+			local a = i / 28 * math.pi * 2
+			local d = math.abs((a - gap + math.pi) % (math.pi * 2) - math.pi)
+			if d > 0.3 then
+				local r = hr + 6 + (i % 3)
+				local trunkR = 3.2 + (i % 2)
+				B.cyl(hx + math.cos(a) * r, -1, hz + math.sin(a) * r, trunkR, 34 + (i % 4) * 4, i % 3 == 0 and BARK_DARK or BARK, M.Wood)
+				B.blob(V(hx + math.cos(a) * (r + 2), 38 + (i % 3) * 3, hz + math.sin(a) * (r + 2)), V(18, 9, 18), i % 2 == 0 and P.LeafDark or MOSS_DARK)
+			end
+		end
+		-- glowing mushrooms around the edge give it a spooky light
+		for i = 0, 9 do
+			local a = i / 10 * math.pi * 2 + 0.15
+			local p = V(hx + math.cos(a) * (hr + 1), 0, hz + math.sin(a) * (hr + 1))
+			local cap = B.blob(p + V(0, 1.4, 0), V(3, 1.2, 3), Color3.fromRGB(120, 200, 190), M.Neon)
+			cap.CastShadow = false
+			local light = Instance.new("PointLight")
+			light.Color = Color3.fromRGB(140, 230, 210)
+			light.Range = 16
+			light.Brightness = 0.8
+			light.Parent = cap
+		end
+		B.golden("rootjaw", V(hx, 6, hz))
+		local entrance = V(hx + math.cos(gap) * (hr + 14), 0, hz + math.sin(gap) * (hr + 14))
+		B.sign(entrance + V(4, 0, 0), V(math.cos(gap), 0, math.sin(gap)), "THE HOLLOW", "Something big is growing...")
+		B.path(entrance, V(-800, 0, 90), 7)
+		B.crate(entrance.X - 6, entrance.Z + 4)
+	end
+
 	--------------------------------------------------------------- baddies
 	for _, p in ipairs({ V(-620, 0, 30), V(-690, 0, 60), V(-760, 0, 120), V(-840, 0, 80), V(-660, 0, 150), V(-880, 0, -60) }) do
 		B.enemy("mossling", p, "forest", 0)
@@ -383,7 +425,7 @@ function Forest.Build(B)
 	local avoid = {
 		{ V(-580, 0, 40), 26 }, { V(-592, 0, 72), 14 }, { W, 44 }, { V(-670, 0, -10), 30 }, { V(-630, 0, 100), 22 },
 		{ V(-700, 0, 190), 22 }, { V(-910, 0, 20), 36 }, { V(-952, 0, 31), 12 }, { V(-720, 0, -100), 46 },
-		{ V(-760, 0, 82), 10 }, { V(-990, 0, 60), 12 },
+		{ V(-760, 0, 82), 10 }, { V(-990, 0, 60), 12 }, { V(-890, 0, 170), 50 },
 	}
 	local function nearLine(p, a, b, w)
 		local ab = b - a

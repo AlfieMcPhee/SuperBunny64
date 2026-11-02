@@ -188,6 +188,26 @@ local SONGS = {
 			k . h . s . h h | k . h . s . h . | k . h . s . h h | k . s . k s s . ]],
 	},
 
+	-- Rootjaw & Thunderhead: "Wild Things" - the battle theme in D minor, galloping
+	rival = {
+		bpm = 160,
+		arpOctave = 4,
+		lead = [[
+			F5 F5 A5 F5 A#5 - A5 F5 | E5 E5 F5 E5 D5 - - . | F5 F5 A5 F5 A#5 - D6 C6 | A5 - A5 - A5 - C#5 - |
+			A#5 . A5 . F5 - E5 D5 | E5 - F5 - A5 - - . | A#5 A5 F5 E5 D5 E5 F5 G5 | A5 - - - C#5 - D5 - ]],
+		harmony = [[
+			D5 . . . D5 . . . | C5 . . . A4 . . . | D5 . . . F5 . . . | C#5 . . . E5 . . . |
+			D5 . . . D5 . . . | C5 . . . C5 . . . | D5 . . . C#5 . . . | E5 . . . A4 . . . ]],
+		arp = [[
+			Dm - - - - - - - | C - - - - - - - | Dm - - - - - - - | A7 - - - - - - - |
+			Gm - - - - - - - | C - - - - - - - | Bb - - - A7 - - - | Dm - - - A7 - - - ]],
+		bass = [[
+			D2 . D3 D2 . D3 D2 . | C2 . C3 C2 . C3 C2 . | D2 . D3 D2 . D3 D2 . | A1 . A2 A1 . A2 A1 . |
+			G1 . G2 G1 . G2 G1 . | C2 . C3 C2 . C3 C2 . | A#1 . A#2 . A1 . A2 . | D2 . D3 . A1 . A2 . ]],
+		drums = [[ k . h k s . h h | k . h k s . h h | k . h k s . h h | k . h k s s s . |
+			k . h k s . h h | k . h k s . h h | k . h k s . h h | k k s . k s s s ]],
+	},
+
 	-- Ending: "Home Again" - the full theme, warm and slow, every voice together
 	ending = {
 		bpm = 104,

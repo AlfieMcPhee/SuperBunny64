@@ -32,6 +32,29 @@ function WorldFX.SetSlot(slot)
 	slotRef = slot
 end
 local inArena = false
+local arenaBoss = nil -- the boss model whose arena we're standing in
+
+-- Which boss arena (if any) is this point in? Bosses publish their arena as attributes.
+local function bossAt(pos)
+	local folder = workspace:FindFirstChild("Boss")
+	if not folder then
+		return nil
+	end
+	for _, m in ipairs(folder:GetChildren()) do
+		if m:GetAttribute("Boss") then
+			local c = m:GetAttribute("ArenaCenter")
+			local r = m:GetAttribute("ArenaRadius")
+			local h = m:GetAttribute("ArenaHeight") or 80
+			if c and r then
+				local flat = Vector3.new(pos.X - c.X, 0, pos.Z - c.Z).Magnitude
+				if flat < r + 12 and pos.Y > c.Y - 10 and pos.Y < c.Y + h then
+					return m
+				end
+			end
+		end
+	end
+	return nil
+end
 
 -- Region looks -------------------------------------------------------------------
 local LOOKS = {
@@ -171,6 +194,10 @@ function WorldFX.InArena()
 	return inArena
 end
 
+function WorldFX.ArenaBoss()
+	return arenaBoss
+end
+
 function WorldFX.Init(effects, hud)
 	Effects, Hud = effects, hud
 	local world = workspace:WaitForChild("Bunny64World")
@@ -226,11 +253,13 @@ function WorldFX.Init(effects, hud)
 				Effects.SetMusic(region)
 			end
 		end
-		local arena = (Vector3.new(pos.X, 0, pos.Z) - Vector3.new(0, 0, 800)).Magnitude < 70 and pos.Y > 185
-		if arena ~= inArena then
+		local boss = bossAt(pos)
+		local arena = boss ~= nil and boss:GetAttribute("State") ~= "dead"
+		if arena ~= inArena or (arena and boss ~= arenaBoss) then
 			inArena = arena
-			Effects.SetMusic(arena and "boss" or region)
-			if arena then
+			arenaBoss = arena and boss or nil
+			Effects.SetMusic(arena and (boss:GetAttribute("Music") or "boss") or region)
+			if arena and boss:GetAttribute("BossId") == "grumble" then
 				Hud.RegionBanner("THRONE ROOM")
 			end
 		end
@@ -242,16 +271,20 @@ function WorldFX.Init(effects, hud)
 		if not bossFolder then
 			return
 		end
+		local flashing = {}
 		RunService.RenderStepped:Connect(function()
-			local boss = bossFolder:FindFirstChild("KingGrumble")
-			if not boss then
-				return
-			end
-			local hurt = boss:GetAttribute("State") == "hurt"
-			local flash = hurt and (math.floor(os.clock() * 12) % 2 == 0) and 0.6 or 0
-			for _, d in ipairs(boss:GetChildren()) do
-				if d:IsA("BasePart") and d.Name ~= "Root" then
-					d.LocalTransparencyModifier = flash
+			for _, boss in ipairs(bossFolder:GetChildren()) do
+				if boss:GetAttribute("Boss") then
+					local hurt = boss:GetAttribute("State") == "hurt"
+					if hurt or flashing[boss] then
+						flashing[boss] = hurt or nil
+						local flash = hurt and (math.floor(os.clock() * 12) % 2 == 0) and 0.6 or 0
+						for _, d in ipairs(boss:GetChildren()) do
+							if d:IsA("BasePart") and d.Name ~= "Root" and d.Transparency < 1 then
+								d.LocalTransparencyModifier = flash
+							end
+						end
+					end
 				end
 			end
 		end)

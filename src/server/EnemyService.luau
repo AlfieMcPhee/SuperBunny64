@@ -8,6 +8,11 @@
 	  puffshroom  Puffshroom      puffs a ring of spores      stomp it between puffs
 
 	Defeated baddies come back after Config.BugRespawnSeconds.
+
+	The server only runs their brains. Each baddie's transform is published a
+	few times a second as the model's "CF" attribute (plus "St" for its state,
+	"Alert" when it spots you and "Alive"); client/Baddies glides between
+	updates and adds the snappy animation, so they move smoothly for everyone.
 ]]
 
 local Players = game:GetService("Players")
@@ -27,7 +32,7 @@ rayParams.FilterType = Enum.RaycastFilterType.Include
 local callbacks
 local poundingUntil = {} -- [Player] = os.clock()
 
-local ATTACK_MOVES = { roll = true, slide = true, longjump = true }
+local ATTACK_MOVES = { roll = true, slide = true, longjump = true, dive = true }
 local FEET = 2.6 -- HumanoidRootPart centre to feet
 
 -- Per-kind shape: how tall the centre sits above the ground, contact radius, top height
@@ -71,7 +76,23 @@ local function center(e)
 end
 
 local function place(e, roll, pitch)
-	e.model:PivotTo(CFrame.new(center(e)) * CFrame.Angles(0, e.yaw, 0) * CFrame.Angles(pitch or 0, 0, roll or 0))
+	e.cf = CFrame.new(center(e)) * CFrame.Angles(0, e.yaw, 0) * CFrame.Angles(pitch or 0, 0, roll or 0)
+end
+
+-- A "!" over its head (and a little hop) when a baddie spots you
+local function alert(e)
+	local now = os.clock()
+	if now - (e.alertAt or -10) > 3 then
+		e.alertAt = now
+		e.model:SetAttribute("Alert", workspace:GetServerTimeNow())
+	end
+end
+
+-- Turn toward a heading at a limited rate, so baddies swing round rather than snap
+local function turnToward(e, yaw, rate, dt)
+	local d = (yaw - e.yaw + math.pi) % (math.pi * 2) - math.pi
+	local step = rate * dt
+	e.yaw += math.clamp(d, -step, step)
 end
 
 local function lookYaw(from, to)
@@ -86,18 +107,8 @@ end
 local function defeat(e, player)
 	e.alive = false
 	e.respawnAt = os.clock() + Config.BugRespawnSeconds
-	local c = center(e)
-	callbacks.effect("poof", c)
-	task.spawn(function()
-		for i = 1, 8 do
-			if not e.model.Parent then
-				break
-			end
-			e.model:PivotTo(CFrame.new(c + Vector3.new(0, math.sin(i / 8 * math.pi) * 2, 0)) * CFrame.Angles(0, e.yaw, i / 8 * math.pi))
-			task.wait(0.03)
-		end
-		e.model.Parent = nil
-	end)
+	callbacks.effect("poof", center(e))
+	e.model:SetAttribute("Alive", false) -- the client squashes it and hides it
 	if player then
 		callbacks.bopped(player)
 	end
@@ -109,6 +120,11 @@ local function build(e)
 	else
 		e.model, e.extra = EnemyModels[e.kind](e.skin, CFrame.new(e.pos))
 	end
+	e.model:SetAttribute("Kind", e.kind)
+	e.model:SetAttribute("Alive", true)
+	e.model:SetAttribute("St", "idle")
+	place(e)
+	e.model:SetAttribute("CF", e.cf)
 	e.model.Parent = folder
 end
 
@@ -148,6 +164,31 @@ function EnemyService.Start(info, cb)
 	RunService.Heartbeat:Connect(function(dt)
 		EnemyService.Step(dt)
 	end)
+end
+
+-- Bosses call in extra baddies: they don't respawn and vanish when despawned
+function EnemyService.Spawn(kind, pos, skin, range)
+	if not folder or not BEHAVIOUR[kind] then
+		return nil
+	end
+	local y = FLYING[kind] and pos.Y or (groundAt(pos + Vector3.new(0, 10, 0)) or pos.Y)
+	local p = Vector3.new(pos.X, y, pos.Z)
+	local e = {
+		kind = kind, skin = skin, home = p, pos = p, yaw = math.random() * math.pi * 2, alive = true, respawnAt = 0,
+		phase = math.random() * 6, state = "idle", t0 = os.clock() + 0.5, fast = skin == "castle", range = range or 30,
+		temp = true,
+	}
+	build(e)
+	table.insert(enemies, e)
+	return e
+end
+
+function EnemyService.Despawn(e)
+	if e and e.model then
+		e.gone = true
+		e.alive = false
+		e.model:Destroy()
+	end
 end
 
 function EnemyService.MarkPounding(player, seconds)
@@ -194,13 +235,20 @@ function BEHAVIOUR.bug(e, dt, now)
 	local fromHome = Vector3.new(e.pos.X - e.home.X, 0, e.pos.Z - e.home.Z).Magnitude
 	local speed = e.fast and 9 or 7
 	if target and fromHome < 60 then
-		e.yaw = lookYaw(e.pos, hrp.Position)
+		if not e.hadTarget then
+			alert(e)
+		end
+		turnToward(e, lookYaw(e.pos, hrp.Position), 7, dt)
 		speed = e.fast and 19 or 15
 	elseif fromHome > e.range then
-		e.yaw = lookYaw(e.pos, e.home)
+		turnToward(e, lookYaw(e.pos, e.home), 4, dt)
 	elseif now > e.t0 then
-		e.yaw += (math.random() - 0.5) * 2.5
+		e.wanderYaw = e.yaw + (math.random() - 0.5) * 2.5
 		e.t0 = now + 1 + math.random() * 2
+	end
+	e.hadTarget = target ~= nil and fromHome < 60
+	if e.wanderYaw and not e.hadTarget then
+		turnToward(e, e.wanderYaw, 3, dt)
 	end
 	local nextPos = e.pos + forward(e.yaw) * speed * dt
 	local gy, hit = groundAt(nextPos)
@@ -209,9 +257,8 @@ function BEHAVIOUR.bug(e, dt, now)
 	else
 		e.yaw += math.pi * (0.5 + math.random() * 0.5)
 	end
-	local step = now * (speed > 10 and 18 or 10) + e.phase
-	e.lift = math.abs(math.sin(step)) * 0.25
-	place(e, math.sin(step) * 0.06)
+	e.state = speed > 10 and "chase" or "idle"
+	place(e)
 end
 
 function BEHAVIOUR.toad(e, dt, now)
@@ -222,12 +269,16 @@ function BEHAVIOUR.toad(e, dt, now)
 			local _, hrp = nearestPlayer(e.pos, 40, 12)
 			local fromHome = (e.pos - e.home) * Vector3.new(1, 0, 1)
 			if hrp then
+				if not e.hadTarget then
+					alert(e)
+				end
 				e.yaw = lookYaw(e.pos, hrp.Position)
 			elseif fromHome.Magnitude > e.range then
 				e.yaw = lookYaw(e.pos, e.home)
 			else
 				e.yaw += (math.random() - 0.5) * 2.4
 			end
+			e.hadTarget = hrp ~= nil
 			local dist = hrp and 14 or 10
 			local dest = e.pos + forward(e.yaw) * dist
 			local gy, hit = groundAt(dest)
@@ -247,12 +298,6 @@ function BEHAVIOUR.toad(e, dt, now)
 		e.pos = flat
 		e.lift = math.sin(u * math.pi) * 7
 		place(e, 0, -0.35 * math.sin(u * math.pi))
-		if e.extra and e.extra.legs then
-			-- legs kick out behind while airborne
-			for _, leg in ipairs(e.extra.legs) do
-				leg.CFrame = leg.CFrame * CFrame.new(0, -math.sin(u * math.pi) * 0.6, math.sin(u * math.pi) * 0.9)
-			end
-		end
 		if u >= 1 then
 			e.state = "idle"
 			e.lift = 0
@@ -275,6 +320,7 @@ function BEHAVIOUR.bat(e, dt, now)
 				e.target = hrp.Position
 				e.t0 = now
 				e.yaw = lookYaw(e.pos, e.target)
+				alert(e)
 				callbacks.effect("screech", e.pos)
 			else
 				e.t0 = now + 0.5
@@ -296,14 +342,6 @@ function BEHAVIOUR.bat(e, dt, now)
 		end
 	end
 	place(e, 0, e.state == "swoop" and -0.5 or 0)
-	-- flap
-	local root = e.model.PrimaryPart.CFrame
-	local flap = math.sin(now * (e.state == "swoop" and 10 or 18) + e.phase) * 0.7
-	for _, w in ipairs(e.extra.wings) do
-		local hinge = root * w.offset * CFrame.Angles(0, 0, w.side * flap)
-		w.part.CFrame = hinge * w.local1
-		w.tip.CFrame = hinge * w.local2
-	end
 end
 
 function BEHAVIOUR.thornhog(e, dt, now)
@@ -316,10 +354,15 @@ function BEHAVIOUR.thornhog(e, dt, now)
 	if hrp then
 		local to = (hrp.Position - e.pos) * Vector3.new(1, 0, 1)
 		if to.Magnitude > 0.1 then
+			if not e.hadTarget then
+				alert(e)
+			end
 			moveDir = to.Unit
 			speed = e.fast and 26 or 22
 		end
 	end
+	e.hadTarget = hrp ~= nil
+	e.state = hrp and "chase" or "idle"
 	local nextPos = e.pos + moveDir * speed * dt
 	local along = (nextPos - e.home):Dot(axis)
 	local gy, hit = groundAt(nextPos)
@@ -330,9 +373,8 @@ function BEHAVIOUR.thornhog(e, dt, now)
 	else
 		e.dir = -e.dir
 	end
-	e.yaw = lookYaw(Vector3.zero, moveDir)
-	e.spin = (e.spin or 0) + dt * speed / 2.2
-	place(e, 0, -e.spin)
+	turnToward(e, lookYaw(Vector3.zero, moveDir), 9, dt)
+	place(e) -- the client spins it as it rolls
 end
 
 function BEHAVIOUR.puffshroom(e, dt, now)
@@ -377,6 +419,7 @@ function BEHAVIOUR.mossling(e, dt, now)
 				e.state = "pop"
 				e.t0 = now
 				e.yaw = lookYaw(e.pos, hrp.Position)
+				alert(e)
 				callbacks.effect("poof", e.pos + Vector3.new(0, 1, 0))
 			else
 				e.t0 = now + 0.25
@@ -395,10 +438,10 @@ function BEHAVIOUR.mossling(e, dt, now)
 		local toHome = (e.home - e.pos) * Vector3.new(1, 0, 1)
 		local speed = 0
 		if hrp and now - e.t0 < 7 and toHome.Magnitude < 45 then
-			e.yaw = lookYaw(e.pos, hrp.Position)
+			turnToward(e, lookYaw(e.pos, hrp.Position), 6, dt)
 			speed = 13
 		elseif toHome.Magnitude > 1.5 then
-			e.yaw = lookYaw(Vector3.zero, toHome)
+			turnToward(e, lookYaw(Vector3.zero, toHome), 6, dt)
 			speed = 9
 		else
 			e.state = "sink"
@@ -407,9 +450,8 @@ function BEHAVIOUR.mossling(e, dt, now)
 		if speed > 0 and not stepToward(e, forward(e.yaw), speed, dt) and not hrp then
 			e.pos = e.home -- stuck on the way home: just burrow back
 		end
-		local step = now * 14 + e.phase
-		e.lift = math.abs(math.sin(step)) * 0.5
-		place(e, math.sin(step) * 0.12)
+		e.lift = 0
+		place(e)
 	else -- sink back into the moss
 		local u = math.clamp((now - e.t0) / 0.5, 0, 1)
 		e.lift = HIDDEN * u
@@ -433,6 +475,7 @@ function BEHAVIOUR.snapper(e, dt, now)
 				e.yaw = lookYaw(e.pos, hrp.Position)
 				e.state = "wind"
 				e.t0 = now
+				alert(e)
 			else
 				e.yaw += math.sin(now + e.phase) * 0.05
 				e.t0 = now + 0.2
@@ -463,10 +506,6 @@ function BEHAVIOUR.snapper(e, dt, now)
 	place(e, 0, pitch)
 	local cf = CFrame.new(center(e)) * CFrame.Angles(0, e.yaw, 0) * CFrame.Angles(pitch, 0, 0)
 	e.head = (cf * CFrame.new(0, 4.6, 0)).Position
-	if e.extra and e.extra.jaw then
-		local open = (e.state == "wind" and 0.6) or (e.state == "lunge" and (now - e.t0 < 0.12 and 0.6 or 0)) or 0.15
-		e.extra.jaw.CFrame = cf * e.extra.jawRest * CFrame.Angles(-open, 0, 0) * e.extra.jawLocal
-	end
 end
 
 -- Puffer: a grumpy little cloud. Drifts, turns to face you, puffs up, then
@@ -474,7 +513,6 @@ end
 function BEHAVIOUR.puffer(e, dt, now)
 	local drift = Vector3.new(math.cos(now * 0.5 + e.phase) * 3, math.sin(now * 1.3 + e.phase) * 0.8, math.sin(now * 0.5 + e.phase) * 3)
 	e.pos = e.pos:Lerp(e.home + drift, math.clamp(dt * 2, 0, 1))
-	local scale = 1
 	if e.state == "idle" then
 		if now > e.t0 then
 			local _, hrp = nearestPlayer(e.pos, 36, 14)
@@ -482,6 +520,7 @@ function BEHAVIOUR.puffer(e, dt, now)
 				e.yaw = lookYaw(e.pos, hrp.Position)
 				e.state = "swell"
 				e.t0 = now
+				alert(e)
 			else
 				e.t0 = now + 0.4
 			end
@@ -492,7 +531,6 @@ function BEHAVIOUR.puffer(e, dt, now)
 			e.yaw = lookYaw(e.pos, hrp.Position)
 		end
 		local u = math.clamp((now - e.t0) / 0.9, 0, 1)
-		scale = 1 + u * 0.35
 		if u >= 1 then
 			e.state = "blow"
 			e.t0 = now
@@ -500,7 +538,6 @@ function BEHAVIOUR.puffer(e, dt, now)
 			callbacks.effect("gust", e.pos, forward(e.yaw))
 		end
 	elseif e.state == "blow" then
-		scale = 1.35 - math.clamp((now - e.t0) / 0.3, 0, 1) * 0.45
 		local dir = forward(e.yaw)
 		for _, player in ipairs(Players:GetPlayers()) do
 			local char = player.Character
@@ -519,14 +556,7 @@ function BEHAVIOUR.puffer(e, dt, now)
 			e.t0 = now + 2.4 + math.random()
 		end
 	end
-	place(e)
-	if e.extra and e.extra.puffs then
-		local root = e.model.PrimaryPart.CFrame
-		for _, pf in ipairs(e.extra.puffs) do
-			pf.part.Size = pf.size * scale
-			pf.part.CFrame = root * CFrame.new(pf.cf.Position * scale) * pf.cf.Rotation
-		end
-	end
+	place(e) -- the client puffs it up and down from its state
 end
 
 --------------------------------------------------------------------------------
@@ -578,22 +608,77 @@ local function contact(e, now)
 	end
 end
 
+-- Send a baddie's transform and state to clients: ~10 times a second, only
+-- when it changed, and only while somebody is near enough to see it.
+local SEND_EVERY = 0.1
+local SEE_DIST = 300
+local viewers = {}
+
+local function publish(e, now)
+	if e.state ~= e.sentState then
+		e.sentState = e.state
+		e.model:SetAttribute("St", e.state)
+	end
+	if not e.cf or now < (e.sendAt or 0) then
+		return
+	end
+	e.sendAt = now + SEND_EVERY
+	local last = e.sentCf
+	if last and (last.Position - e.cf.Position).Magnitude < 0.05 and last.LookVector:Dot(e.cf.LookVector) > 0.9997
+		and last.UpVector:Dot(e.cf.UpVector) > 0.9997 then
+		return
+	end
+	local p = e.cf.Position
+	for _, v in ipairs(viewers) do
+		if (v - p).Magnitude < SEE_DIST then
+			e.sentCf = e.cf
+			e.model:SetAttribute("CF", e.cf)
+			return
+		end
+	end
+end
+
 function EnemyService.Step(dt)
 	local now = os.clock()
-	for _, e in ipairs(enemies) do
+	table.clear(viewers)
+	for _, player in ipairs(Players:GetPlayers()) do
+		local char = player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			table.insert(viewers, hrp.Position)
+		end
+	end
+	for i = #enemies, 1, -1 do
+		local e = enemies[i]
+		if e.gone or (e.temp and not e.alive) then
+			-- a boss's minion: gone for good once bopped
+			if not e.gone then
+				e.gone = true
+				task.delay(0.6, function()
+					e.model:Destroy()
+				end)
+			end
+			table.remove(enemies, i)
+			continue
+		end
 		if not e.alive then
 			if now >= e.respawnAt then
 				e.alive = true
 				e.pos = e.home
 				e.state = "idle"
+				e.lift = 0
 				e.t0 = now + 1
-				e.model.Parent = folder
+				place(e)
+				e.sentCf = e.cf
+				e.model:SetAttribute("CF", e.cf)
+				e.model:SetAttribute("Alive", true)
 				callbacks.effect("poof", center(e))
 			end
 			continue
 		end
 		BEHAVIOUR[e.kind](e, dt, now)
 		contact(e, now)
+		publish(e, now)
 	end
 end
 

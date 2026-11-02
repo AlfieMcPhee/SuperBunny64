@@ -93,6 +93,9 @@ function COMMANDS.speed(admin)
 	local level = (speedLevel[admin] or 1) % 3 + 1
 	speedLevel[admin] = level
 	hum.WalkSpeed = Config.WalkSpeed * level
+	if hum.Parent then
+		hum.Parent:SetAttribute("SpeedBoost", level) -- the client builds up to this speed
+	end
 	return true, "SPEED x" .. level, level
 end
 
@@ -194,8 +197,12 @@ end
 
 -- World ----------------------------------------------------------------------------
 function COMMANDS.resetboss()
-	ctx.BossService.Reset()
-	return true, "KING GRUMBLE RESET"
+	if ctx.ResetBosses then
+		ctx.ResetBosses()
+	else
+		ctx.BossService.Reset()
+	end
+	return true, "ALL BOSSES RESET"
 end
 
 function COMMANDS.allgoldens(admin)
@@ -207,6 +214,10 @@ function COMMANDS.allgoldens(admin)
 		slot.goldens[g.id] = true
 	end
 	slot.bossDefeated = true
+	slot.bosses = {}
+	for _, b in ipairs(Config.Bosses) do
+		slot.bosses[b.id] = true
+	end
 	ctx.push(admin, nil)
 	return true, "ALL GOLDEN CARROTS GIVEN (THIS FILE)"
 end
