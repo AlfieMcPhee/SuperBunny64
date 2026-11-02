@@ -22,6 +22,45 @@ local bossFrame, bossPips, bossName
 local toastToken, bannerToken = 0, 0
 local onMenu
 
+-- Fade text in/out INCLUDING its outline (a UIStroke doesn't follow
+-- TextTransparency on its own, which used to leave ghost outlines on screen),
+-- then hide it completely once it's gone.
+local fadeTokens = {}
+local function fadeText(root, visible, time)
+	fadeTokens[root] = (fadeTokens[root] or 0) + 1
+	local token = fadeTokens[root]
+	local goal = visible and 0 or 1
+	local targets = { root }
+	for _, d in ipairs(root:GetDescendants()) do
+		table.insert(targets, d)
+	end
+	if visible then
+		root.Visible = true
+	end
+	for _, t in ipairs(targets) do
+		if t:IsA("TextLabel") then
+			if time > 0 then
+				TweenService:Create(t, TweenInfo.new(time), { TextTransparency = goal }):Play()
+			else
+				t.TextTransparency = goal
+			end
+		elseif t:IsA("UIStroke") then
+			if time > 0 then
+				TweenService:Create(t, TweenInfo.new(time), { Transparency = goal }):Play()
+			else
+				t.Transparency = goal
+			end
+		end
+	end
+	if not visible then
+		task.delay(time + 0.05, function()
+			if fadeTokens[root] == token then
+				root.Visible = false
+			end
+		end)
+	end
+end
+
 local function counter(parent, icon, y)
 	local row = Instance.new("Frame")
 	row.BackgroundTransparency = 1
@@ -111,6 +150,7 @@ function Hud.Init(menuCallback)
 		Position = UDim2.new(0.5, 0, 0.26, 0), Size = UDim2.new(0.9, 0, 0, 90), TextWrapped = true,
 		TextTransparency = 1, Stroke = 4,
 	})
+	fadeText(toastLabel, false, 0)
 
 	-- region title card
 	bannerHolder, bannerFace = UI.title(gui, "", 64, UDim2.new(0.5, 0, 0.14, 0), Vector2.new(0.5, 0.5))
@@ -181,14 +221,14 @@ function Hud.Toast(text, seconds, color)
 	local token = toastToken
 	toastLabel.Text = text
 	toastLabel.TextColor3 = color or UI.Cream
-	toastLabel.TextTransparency = 0
+	fadeText(toastLabel, true, 0)
 	local scale = toastLabel:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
 	scale.Parent = toastLabel
 	scale.Scale = 0.6
 	TweenService:Create(scale, TweenInfo.new(0.3, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 	task.delay(seconds or 2.5, function()
 		if token == toastToken then
-			TweenService:Create(toastLabel, TweenInfo.new(0.4), { TextTransparency = 1 }):Play()
+			fadeText(toastLabel, false, 0.4)
 		end
 	end)
 end
@@ -199,26 +239,15 @@ function Hud.RegionBanner(text)
 	for _, d in ipairs(bannerHolder:GetChildren()) do
 		if d:IsA("TextLabel") then
 			d.Text = text
-			d.TextTransparency = 0
 		end
 	end
-	bannerHolder.Visible = true
+	fadeText(bannerHolder, true, 0)
 	bannerHolder.Position = UDim2.new(0.5, 0, 0.08, 0)
 	TweenService:Create(bannerHolder, TweenInfo.new(0.5, Enum.EasingStyle.Back), { Position = UDim2.new(0.5, 0, 0.14, 0) }):Play()
 	task.delay(2.6, function()
-		if token ~= bannerToken then
-			return
+		if token == bannerToken then
+			fadeText(bannerHolder, false, 0.6)
 		end
-		for _, d in ipairs(bannerHolder:GetChildren()) do
-			if d:IsA("TextLabel") then
-				TweenService:Create(d, TweenInfo.new(0.6), { TextTransparency = 1 }):Play()
-			end
-		end
-		task.delay(0.7, function()
-			if token == bannerToken then
-				bannerHolder.Visible = false
-			end
-		end)
 	end)
 end
 

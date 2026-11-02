@@ -489,10 +489,15 @@ end
 function B.pineTree(x, y, z, s, color, snow)
 	B.cyl(x, y - 1, z, 0.7 * s, 5 * s, P.Wood, Enum.Material.Wood)
 	local c = color or P.Pine
+	-- foliage is walk-through (like the round trees); only the trunk is solid
 	for i, r in ipairs({ 4.2, 3.2, 2.1, 1.0 }) do
-		B.cyl(x, y + (i * 3) * s, z, r * s, (i == 4 and 2.5 or 3) * s, c, nil, B.decor)
+		local layer = B.cyl(x, y + (i * 3) * s, z, r * s, (i == 4 and 2.5 or 3) * s, c, nil, B.decor)
+		layer.CanCollide = false
+		layer.CanQuery = false
 		if snow then
-			B.cyl(x, y + (i * 3 + (i == 4 and 2.5 or 3)) * s - 0.3, z, r * s * 0.8, 0.5, P.Snow, Enum.Material.Snow, B.decor)
+			local cap = B.cyl(x, y + (i * 3 + (i == 4 and 2.5 or 3)) * s - 0.3, z, r * s * 0.8, 0.5, P.Snow, Enum.Material.Snow, B.decor)
+			cap.CanCollide = false
+			cap.CanQuery = false
 		end
 	end
 end
@@ -654,9 +659,9 @@ function B.torch(pos)
 	B.block(CFrame.new(pos), Vector3.new(0.6, 2.4, 0.6), P.Wood, Enum.Material.Wood)
 	local flame = B.blob(pos + Vector3.new(0, 1.7, 0), Vector3.new(0.9, 1.3, 0.9), P.Ember, Enum.Material.Neon)
 	local light = Instance.new("PointLight")
-	light.Color = Color3.fromRGB(255, 150, 80)
-	light.Range = 22
-	light.Brightness = 1.6
+	light.Color = Color3.fromRGB(255, 160, 96)
+	light.Range = 30
+	light.Brightness = 2.2
 	light.Shadows = false
 	light.Parent = flame
 	return flame
@@ -826,16 +831,23 @@ function B.exitPrompt(pos, checkpointId, text)
 	return pad
 end
 
-function B.checkpointFlag(id)
+-- Checkpoint flag beside the respawn point, standing on whatever ground is there.
+-- The flag cloth turns gold on the client when it's your active checkpoint.
+function B.checkpointFlag(id, offset)
 	local def = Config.Checkpoints[id]
-	local base = def.pos - Vector3.new(0, 4, 0)
-	local pos = base + Vector3.new(7, 0, 0)
-	B.block(CFrame.new(pos + Vector3.new(0, 5, 0)), Vector3.new(0.5, 10, 0.5), P.Stone, Enum.Material.Metal)
-	local flag = B.block(CFrame.new(pos + Vector3.new(1.6, 8.6, 0)), Vector3.new(3, 2, 0.15), P.Roof, Enum.Material.Fabric)
+	offset = offset or Vector3.new(-7, 0, 0)
+	local x, z = def.pos.X + offset.X, def.pos.Z + offset.Z
+	local y = B.groundY(x, z, def.pos.Y + 3)
+	local pos = Vector3.new(x, y, z)
+	B.cyl(x, y - 0.6, z, 1.6, 1, P.StoneDark, Enum.Material.Slate)
+	local pole = B.block(CFrame.new(pos + Vector3.new(0, 5, 0)), Vector3.new(0.5, 10, 0.5), P.Stone, Enum.Material.Metal)
+	pole.Name = "CheckpointPole"
+	B.blob(pos + Vector3.new(0, 10.2, 0), Vector3.new(0.8, 0.8, 0.8), P.Gold, Enum.Material.Metal)
+	local flag = B.block(CFrame.new(pos + Vector3.new(1.75, 8.7, 0)), Vector3.new(3, 2, 0.15), P.Roof, Enum.Material.Fabric)
 	flag.Name = "CheckpointFlag"
 	flag:SetAttribute("Checkpoint", id)
 	flag.CanCollide = false
-	B.cyl(pos.X, base.Y - 0.5, pos.Z, 1.6, 0.8, P.StoneDark)
+	flag.CanQuery = false
 end
 
 function B.warpBurrow(def)

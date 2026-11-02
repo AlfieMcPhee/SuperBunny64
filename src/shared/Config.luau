@@ -38,6 +38,14 @@ Config.MaxHearts = 3
 Config.HealEveryCarrots = 10   -- every N carrots restores a heart
 Config.WaterLevel = -6
 
+-- Admins ------------------------------------------------------------------------
+-- The place owner (or owning group's owner) is always an admin, and everyone is
+-- an admin while testing in Studio. Add friends' Roblox UserIds here.
+-- Admins press P (or the ADMIN button) for the admin panel.
+Config.Admins = {
+	-- 123456789,
+}
+
 -- Controls (players can rebind these in Options > Controls) -----------------------
 Config.Controls = {
 	{ id = "jump", name = "JUMP", key = "Space", pad = "ButtonA" },

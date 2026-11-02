@@ -30,7 +30,7 @@ local function setupLighting()
 	Lighting.ClockTime = 16.3
 	Lighting.GeographicLatitude = 35
 	Lighting.Brightness = 2.2
-	Lighting.Ambient = Color3.fromRGB(96, 90, 84)
+	Lighting.Ambient = Color3.fromRGB(120, 114, 106)
 	Lighting.OutdoorAmbient = Color3.fromRGB(132, 124, 112)
 	Lighting.ColorShift_Top = Color3.fromRGB(255, 232, 196)
 	Lighting.ColorShift_Bottom = Color3.fromRGB(0, 0, 0)

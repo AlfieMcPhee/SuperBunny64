@@ -18,6 +18,7 @@ local WorldBuilder = require(script:WaitForChild("WorldBuilder"))
 local EnemyService = require(script:WaitForChild("EnemyService"))
 local HazardService = require(script:WaitForChild("HazardService"))
 local BossService = require(script:WaitForChild("BossService"))
+local AdminService = require(script:WaitForChild("AdminService"))
 
 Players.CharacterAutoLoads = false
 
@@ -91,6 +92,7 @@ local function snapshot(player, event)
 		},
 		active = profile.active and tonumber(profile.active) or nil,
 		canSave = profile.canSave,
+		isAdmin = AdminService.IsAdmin(player),
 		totalCarrots = TOTAL_CARROTS,
 		event = event,
 	}
@@ -139,6 +141,9 @@ local function hurt(player, fromPos, velocity, ignoreInvuln)
 	if not (root and hum and st) or hum.Health <= 0 then
 		return false
 	end
+	if player.Character:GetAttribute("God") then
+		return false -- admin god mode
+	end
 	if not ignoreInvuln and os.clock() < st.invulnUntil then
 		return false
 	end
@@ -161,7 +166,7 @@ local function burn(player)
 	if not (root and hum and st) or hum.Health <= 0 then
 		return
 	end
-	if os.clock() >= st.invulnUntil then
+	if os.clock() >= st.invulnUntil and not player.Character:GetAttribute("God") then
 		st.invulnUntil = os.clock() + 1.5
 		hum:TakeDamage(1)
 	end
@@ -170,9 +175,16 @@ local function burn(player)
 end
 
 -- Characters --------------------------------------------------------------------------------
+local spawnRay = RaycastParams.new()
+spawnRay.FilterType = Enum.RaycastFilterType.Include
+spawnRay.FilterDescendantsInstances = { info.solidFolder, workspace.Terrain }
+
+-- Where a checkpoint respawns you: standing on the actual ground there
 local function checkpointCF(id)
 	local cp = Config.Checkpoints[id] or Config.Checkpoints.meadow
-	return CFrame.new(cp.pos)
+	local hit = workspace:Raycast(cp.pos + Vector3.new(0, 4, 0), Vector3.new(0, -30, 0), spawnRay)
+	local y = hit and (hit.Position.Y + 3) or cp.pos.Y
+	return CFrame.new(cp.pos.X, y, cp.pos.Z)
 end
 
 local function spawnCharacter(player)
@@ -190,6 +202,16 @@ local function onCharacter(player, character)
 		local cf = checkpointCF(slot.checkpoint)
 		character:PivotTo(cf)
 		root.AssemblyLinearVelocity = Vector3.zero
+		-- Roblox can still nudge a fresh character to its default spawn point right after
+		-- CharacterAdded, so put it back on the checkpoint a couple more times
+		for _, delay in ipairs({ 0, 0.1, 0.35 }) do
+			task.delay(delay, function()
+				if character.Parent and player.Character == character and (root.Position - cf.Position).Magnitude > 8 then
+					character:PivotTo(cf)
+					root.AssemblyLinearVelocity = Vector3.zero
+				end
+			end)
+		end
 		if st then
 			st.safe = cf
 			st.invulnUntil = os.clock() + 2
@@ -401,7 +423,7 @@ SetOptions.OnServerEvent:Connect(function(player, options)
 	end
 end)
 
-local VALID_MOVES = { [""] = true, roll = true, slide = true, longjump = true, pound = true, flip = true }
+local VALID_MOVES = { [""] = true, roll = true, slide = true, longjump = true, pound = true, flip = true, fly = true }
 SetMove.OnServerEvent:Connect(function(player, move)
 	local char = player.Character
 	if char and type(move) == "string" and VALID_MOVES[move] then
@@ -520,6 +542,24 @@ BossService.Start(info, {
 			end
 		end
 	end,
+})
+
+-- Admin perks ------------------------------------------------------------------------------------
+AdminService.Start({
+	remotes = remotes,
+	info = info,
+	push = push,
+	heal = heal,
+	teleport = teleport,
+	checkpointCF = checkpointCF,
+	bounce = function(player, vel)
+		Bounce:FireClient(player, vel, false, "stomp")
+	end,
+	effect = function(kind, pos)
+		Effect:FireAllClients(kind, pos)
+	end,
+	DataService = DataService,
+	BossService = BossService,
 })
 
 -- Players -----------------------------------------------------------------------------------------

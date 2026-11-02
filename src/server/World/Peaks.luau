@@ -27,7 +27,7 @@ function Peaks.Build(B)
 		local near = function(ang, w)
 			return math.abs(((a - ang + math.pi) % (2 * math.pi)) - math.pi) < w
 		end
-		if not (near(0, 0.32) or near(1.0, 0.25) or near(0.6 * math.pi, 0.15) or near(math.pi / 2, 0.15)) then
+		if not (near(0, 0.32) or near(1.0, 0.25) or near(0.6 * math.pi + 0.08, 0.25) or near(math.pi / 2, 0.15)) then
 			local p = C + V(math.cos(a) * r, 0, math.sin(a) * r)
 			if i % 3 == 0 then
 				B.outcrop(p + V(0, -2, 0), rng:NextNumber(4, 7), Enum.Material.Rock)
@@ -86,13 +86,17 @@ function Peaks.Build(B)
 		for k = 0, N - 1 do
 			local a, b = point(k / N), point((k + 1) / N)
 			local dir = (b - a).Unit
-			local floor = B.plank(a, b + dir * 0.8, 13, 1.5, P.Ice, Enum.Material.Ice)
+			-- floor overlaps its neighbours so curves leave no seams
+			local floor = B.plank(a - dir * 0.4, b + dir * 1.2, 13, 1.5, P.Ice, Enum.Material.Ice)
 			floor:SetAttribute("Slide", true)
 			floor.Name = "Chute"
 			local right = dir:Cross(up).Unit
-			for _, s in ipairs({ -1, 1 }) do
-				local off = right * s * 6.8 + up * 1.6
-				B.plank(a + off, b + dir * 0.8 + off, 0.8, 3.2, P.Snow, SNOW)
+			for _, side in ipairs({ -1, 1 }) do
+				-- walls rise 5 studs above the ice (the bunny's collision box floats 1.6-3.6 above
+				-- the floor, so anything lower is simply stepped over) and overlap at the joints
+				local off = right * side * 6.9 + up * 5
+				local wall = B.plank(a + off - dir * 1.2, b + off + dir * 2, 1, 6.5, P.Snow, SNOW)
+				wall.Name = "ChuteWall"
 			end
 			if k % 4 == 0 then
 				local support = B.cyl(a.X, 0, a.Z, 1.4, a.Y - 1.5, P.Rock, nil, B.decor)
@@ -105,11 +109,25 @@ function Peaks.Build(B)
 		-- entrance from the second-highest tier
 		B.block(CFrame.new(cx - 40, 95, cz), V(22, 2, 16), P.Snow, SNOW)
 		B.sign(V(cx - 34, 96, cz + 9), V(1, 0, 0), "ICE CHUTE", "Slide down, steer with the stick")
-		-- landing pillar at the bottom
-		local th = math.pi + 1.6 * math.pi
-		local ex, ez = cx + math.cos(th) * 188, cz + math.sin(th) * 188
-		B.cyl(ex, 0, ez, 12, 22, P.Rock, Enum.Material.Slate)
-		B.cyl(ex, 21, ez, 12.4, 1, P.Snow, SNOW)
+		-- landing pillar at the bottom, placed straight ahead of the chute's exit
+		local finish = point(1)
+		local exitDir = (finish - point((N - 1) / N)) * V(1, 0, 1)
+		exitDir = exitDir.Unit
+		local centre = finish + exitDir * 13.5
+		local ex, ez = centre.X, centre.Z
+		B.cyl(ex, 0, ez, 14, 22, P.Rock, Enum.Material.Slate)
+		B.cyl(ex, 21, ez, 14.4, 1, P.Snow, SNOW)
+		-- a short ramp of ice bridging the chute lip onto the pad
+		B.plank(finish - exitDir * 1, finish + exitDir * 3, 13, 1.5, P.Ice, Enum.Material.Ice)
+		-- snow bank around the far side so a fast slide stops instead of flying off
+		for i = 0, 15 do
+			local a = i / 16 * math.pi * 2
+			local d = V(math.cos(a), 0, math.sin(a))
+			if d:Dot(-exitDir) < 0.55 then
+				local p = V(ex, 0, ez) + d * 13.5
+				B.block(CFrame.lookAt(V(p.X, 24.5, p.Z), V(ex, 24.5, ez)), V(6, 5, 2.5), P.Snow, SNOW)
+			end
+		end
 		B.golden("chute", V(ex, 27, ez))
 	end
 
@@ -195,7 +213,7 @@ function Peaks.Build(B)
 			local d = math.abs(((ang - a + math.pi) % (2 * math.pi)) - math.pi)
 			return d < width
 		end
-		if near(0, 0.3) or near(1.0, 0.25) or near(0.6 * math.pi, 0.15) or near(math.pi / 2, 0.15) then
+		if near(0, 0.3) or near(1.0, 0.25) or near(0.6 * math.pi + 0.08, 0.25) or near(math.pi / 2, 0.15) then
 			return false
 		end
 		return true

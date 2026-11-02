@@ -32,7 +32,9 @@ function Castle.Build(B)
 		local a = i / 14 * math.pi * 2 + rng:NextNumber(-0.1, 0.1)
 		local p = V(math.cos(a) * rng:NextNumber(150, 235), 0, 800 + math.sin(a) * rng:NextNumber(150, 235))
 		local inDungeon = p.X > 120 and p.X < 240 and p.Z > 700 and p.Z < 900
-		if not inDungeon and not (math.abs(p.X) < 40 and p.Z < 700) then
+		local nearApproach = p.Z < 700 and math.abs(p.X) < 160 -- lava rivers, moat, paths
+		local nearWalls = math.abs(p.X) < 135 and p.Z > 660 and p.Z < 935
+		if not inDungeon and not nearApproach and not nearWalls then
 			B.paint(p, p + V(rng:NextNumber(-25, 25), 0, rng:NextNumber(-25, 25)), 7, Enum.Material.CrackedLava, { BASALT })
 			if i % 2 == 0 then
 				B.outcrop(p + V(rng:NextNumber(-10, 10), -1, rng:NextNumber(-10, 10)), rng:NextNumber(4, 7), BASALT)
@@ -66,7 +68,8 @@ function Castle.Build(B)
 
 	----------------------------------------------------------------- moat & drawbridge
 	B.lava(CF(0, 0.3, 672), V(290, 0.8, 32))
-	B.block(CF(0, 1, 672), V(24, 2, 40), P.Wood, Enum.Material.WoodPlanks)
+	-- drawbridge runs right through the gate to meet the courtyard floor (no step)
+	B.block(CF(0, 1, 676), V(24, 2, 48), P.Wood, Enum.Material.WoodPlanks)
 	for _, s in ipairs({ -1, 1 }) do
 		B.plank(V(s * 11, 2.5, 652), V(s * 11, 30, 690), 0.5, 0.5, Color3.fromRGB(60, 58, 58), Enum.Material.Metal).CanCollide = false
 	end
@@ -193,8 +196,10 @@ function Castle.Build(B)
 
 		B.lava(CF(0, 2.4, 857.5), V(112, 0.8, 67))
 		B.block(CF(0, 2, 832), V(20, 4, 16), dark, SLATE)
+		-- a step in the doorway up from the courtyard (floor 2) to the entry platform (4)
+		B.block(CF(0, 1.5, 820), V(16, 3, 8), dark, SLATE)
 		B.checkpointFlag("keep")
-		for _, p in ipairs({ V(-54.5, 20, 857), V(54.5, 20, 857), V(0, 20, 889.5), V(-54.5, 45, 840), V(54.5, 45, 870) }) do
+		for _, p in ipairs({ V(-54.5, 20, 857), V(54.5, 40, 857), V(0, 20, 889.5), V(-54.5, 45, 840), V(54.5, 45, 870) }) do
 			B.torch(p)
 		end
 
@@ -260,6 +265,7 @@ function Castle.Build(B)
 		B.checkpointFlag("dungeon")
 
 		B.lava(CF(180, 0.6, 806), V(96, 0.8, 144))
+		B.block(CF(180, 0.75, 718), V(20, 1.5, 7), stone, SLATE) -- doorstep
 		B.block(CF(180, 1.5, 728), V(96, 3, 12), stone, SLATE)
 		-- 1: stepping blocks (one sinks)
 		for i, step in ipairs({ { 742, 4 }, { 754, 6 }, { 766, 8 }, { 778, 6 } }) do
@@ -325,7 +331,8 @@ function Castle.Build(B)
 			B.torch(V(px, A.Y + 17.2, pz))
 		end
 		B.golden("boss", A + V(0, 5, 0))
-		B.exitPrompt(Config.Checkpoints.throne.pos + V(10, -6, 0), "courtyard", "Return to courtyard")
+		B.checkpointFlag("throne")
+		B.exitPrompt(Config.Checkpoints.throne.pos + V(10, -5.5, 0), "courtyard", "Return to courtyard")
 	end
 
 	----------------------------------------------------------------- scenery

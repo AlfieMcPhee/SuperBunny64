@@ -99,7 +99,8 @@ function Canyon.Build(B)
 		local low, high = V(600, 0, z), V(820, 60, z)
 		B.plank(low, high, 24, 3, P.SandstoneDark, SAND)
 		for _, s in ipairs({ -1, 1 }) do
-			B.plank(low + V(0, 2.5, s * 12.6), high + V(0, 2.5, s * 12.6), 1.2, 5, P.Sandstone, SAND)
+			-- walls stand 5 studs above the ramp so boulders and bunnies stay on it
+			B.plank(low + V(0, 5, s * 12.6), high + V(0, 5, s * 12.6), 1.2, 8, P.Sandstone, SAND)
 		end
 		-- temple on top
 		B.block(CFrame.new(838, 29.5, z), V(36, 61, 44), P.Sandstone, SAND)
@@ -109,8 +110,8 @@ function Canyon.Build(B)
 			end
 		end
 		B.block(CFrame.new(838, 73, z), V(32, 2, 36), P.SandstoneDark, SAND)
-		B.wedge(CFrame.new(838, 76, z - 9) , V(32, 4, 18), P.Roof, Enum.Material.Slate)
-		B.wedge(CFrame.new(838, 76, z + 9) * CFrame.Angles(0, math.pi, 0), V(32, 4, 18), P.Roof, Enum.Material.Slate)
+		B.plank(V(838, 74, z - 18), V(838, 78, z), 32, 1, P.Roof, Enum.Material.Slate)
+		B.plank(V(838, 74, z + 18), V(838, 78, z), 32, 1, P.Roof, Enum.Material.Slate)
 		B.golden("boulder", V(845, 65, z))
 		table.insert(B.info.boulderSpawns, { from = V(818, 68, z), dir = V(-1, 0, 0) })
 		for i = 1, 5 do
@@ -120,7 +121,7 @@ function Canyon.Build(B)
 	end
 
 	----------------------------------------------------------------- arrival
-	B.checkpointFlag("canyon")
+	B.checkpointFlag("canyon", Vector3.new(0, 0, 12)) -- beside the boardwalk, not on it
 	B.warpBurrow(Config.Warps[3])
 	B.carrotLine(V(560, 3, 30), V(640, 3, 30), 5)
 

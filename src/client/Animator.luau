@@ -101,7 +101,7 @@ local function poseFor(rig, char, dt, now, isLocal)
 		p.lArm, p.rArm = A(1.3, 0, 0.35), A(1.3, 0, -0.35)
 		p.neck = A(-0.55, 0, 0)
 		earTarget = 0.4
-	elseif move == "longjump" then
+	elseif move == "longjump" or move == "fly" then
 		p.root = A(-1.15, 0, 0)
 		p.lArm, p.rArm = A(2.7, 0, 0.25), A(2.7, 0, -0.25)
 		p.lLeg, p.rLeg = A(-0.45, 0, -0.08), A(-0.2, 0, 0.08)

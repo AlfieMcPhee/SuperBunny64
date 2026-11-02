@@ -58,8 +58,24 @@ tufts. Built things (towers, castles, platforms) stay chunky low-poly parts.
   pillar, or survive his ground slam (jump the fire ring). Then hop onto his
   back and jump on a weak point. He spits fireballs once he's angry.
 
-Checkpoint flags save where you respawn. Burrow Warps (one per region) let
+Checkpoint flags save where you respawn (your active flag glows gold). Burrow Warps (one per region) let
 you travel between regions once discovered.
+
+## Admin perks
+
+Press **P** (or the **ADMIN** button) for the admin panel. Admins are the
+place owner (or the owning group's owner), anyone whose UserId is listed in
+`Config.Admins`, and everyone while testing in Studio. The server checks every
+command.
+
+* **You:** fly (WASD where the camera looks, Space up, Shift down, Ctrl fast),
+  god mode, speed x1/x2/x3, full heal
+* **Teleport:** every checkpoint, plus straight to the boss
+* **Players:** go to, bring, freeze/unfreeze, launch, heal, and *control*
+  (they follow you for 20 seconds with their inputs locked; they're told who
+  is doing it)
+* **World:** reset King Grumble, give yourself every golden carrot on the
+  current file (for testing)
 
 ## Golden carrots (20)
 

@@ -41,6 +41,7 @@ local lastRollEnd = 0
 local lastBounce = 0
 local airborneSince = nil
 local sentMove = nil
+local flying = false -- admin fly mode (client/AdminPanel) takes over movement
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
@@ -144,7 +145,7 @@ local function launch(velocity, kind)
 end
 
 local function startRoll()
-	if not enabled or not root or move ~= "" or not grounded() or os.clock() - lastRollEnd < Config.RollCooldown then
+	if flying or not enabled or not root or move ~= "" or not grounded() or os.clock() - lastRollEnd < Config.RollCooldown then
 		return
 	end
 	moveDir = facingDir()
@@ -202,7 +203,7 @@ local function landPound()
 end
 
 local function crouch()
-	if not enabled or not root then
+	if flying or not enabled or not root then
 		return
 	end
 	if move == "" or move == "longjump" then
@@ -215,7 +216,7 @@ local function crouch()
 end
 
 local function tryJumpMove()
-	if not enabled or not root then
+	if flying or not enabled or not root then
 		return
 	end
 	if move == "roll" or (move == "slide" and os.clock() - moveStart > 0.08) then
@@ -240,6 +241,7 @@ end
 
 local function onCharacter(char)
 	character = char
+	flying = false
 	humanoid = char:WaitForChild("Humanoid")
 	root = char:WaitForChild("HumanoidRootPart")
 	move = ""
@@ -288,6 +290,17 @@ function Movement.SetEnabled(on)
 	end
 end
 
+function Movement.SetFlying(on)
+	flying = on
+	if on and move ~= "" and root then
+		setMove("")
+	end
+end
+
+function Movement.GetControls()
+	return controls
+end
+
 function Movement.IsEnabled()
 	return enabled
 end
@@ -295,7 +308,7 @@ end
 -- For the animator: what is the local bunny doing right now?
 function Movement.State()
 	return {
-		move = move,
+		move = flying and "fly" or move,
 		moveStart = moveStart,
 		flipAt = flipAt,
 		speed = moveSpeed,
@@ -306,8 +319,27 @@ end
 -- Per-frame update
 --------------------------------------------------------------------------------
 
+-- Springy mushrooms: launch the bunny when it lands on one. (Detected with a
+-- ray straight down, because the bunny's collision box hovers above the
+-- ground and never actually "touches" what it stands on.)
+local function bounceOff(part)
+	local now = os.clock()
+	if not root or now - lastBounce < 0.4 then
+		return
+	end
+	lastBounce = now
+	local power = part:GetAttribute("Bounce") or Config.MushroomBounce
+	if move == "pound" then
+		power *= 1.15
+	end
+	local v = root.AssemblyLinearVelocity
+	launch(Vector3.new(v.X, power, v.Z), "bounce")
+	Effects.Play("Boing", 0.7)
+	Effects.Burst(part.Position + Vector3.new(0, part.Size.Y / 2, 0), part.Color, 10, 8, 0.7, 3)
+end
+
 local function step(dt)
-	if not root or not humanoid or humanoid.Health <= 0 then
+	if not root or not humanoid or humanoid.Health <= 0 or flying then
 		return
 	end
 	local now = os.clock()
@@ -317,6 +349,14 @@ local function step(dt)
 		airborneSince = nil
 	elseif not airborneSince then
 		airborneSince = now
+	end
+
+	-- landed on a bounce pad?
+	if root.AssemblyLinearVelocity.Y < 5 then
+		local under = floorHit()
+		if under and under.Instance:GetAttribute("Bounce") and root.Position.Y - under.Position.Y < 3.6 then
+			bounceOff(under.Instance)
+		end
 	end
 
 	if move == "" and onGround and sentMove == "flip" then
@@ -413,22 +453,9 @@ end
 --------------------------------------------------------------------------------
 
 local function onBounceTouch(part, hit)
-	if not character or not hit:IsDescendantOf(character) then
-		return
+	if character and hit:IsDescendantOf(character) then
+		bounceOff(part)
 	end
-	local now = os.clock()
-	if now - lastBounce < 0.4 then
-		return
-	end
-	lastBounce = now
-	local power = part:GetAttribute("Bounce") or Config.MushroomBounce
-	if move == "pound" then
-		power *= 1.15
-	end
-	local v = root.AssemblyLinearVelocity
-	launch(Vector3.new(v.X, power, v.Z), "bounce")
-	Effects.Play("Boing", 0.7)
-	Effects.Burst(part.Position + Vector3.new(0, part.Size.Y / 2, 0), part.Color, 10, 8, 0.7, 3)
 end
 
 local function watchBouncers()

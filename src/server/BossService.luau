@@ -212,6 +212,14 @@ local function hurtPlayer(e, fromPos)
 	cb.hurt(e.player, fromPos)
 end
 
+-- Admin helper: put King Grumble back to full health, asleep in the middle
+function BossService.Reset()
+	if A then
+		reset()
+		place(0)
+	end
+end
+
 function BossService.Start(worldInfo, callbacks)
 	cb = callbacks
 	A = worldInfo.arenaCenter

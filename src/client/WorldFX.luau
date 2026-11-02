@@ -21,27 +21,31 @@ local WorldFX = {}
 local Effects, Hud
 local hazards = {}
 local gates = {}
+local flags = {}
+local activeCheckpoint = nil
 local goldenCount = 0
 local currentRegion = nil
 local inArena = false
 
 -- Region looks -------------------------------------------------------------------
 local LOOKS = {
+	-- ambient = outdoor fill light, indoor = light inside roofed rooms (keep, dungeon...)
 	meadow = {
 		fog = Color3.fromRGB(176, 182, 172), fogStart = 160, fogEnd = 900, ambient = Color3.fromRGB(132, 124, 112),
-		tint = Color3.fromRGB(255, 244, 228), sat = -0.18, clock = 16.3,
+		indoor = Color3.fromRGB(120, 114, 106), tint = Color3.fromRGB(255, 244, 228), sat = -0.18, clock = 16.3, brightness = 2.2,
 	},
 	peaks = {
 		fog = Color3.fromRGB(196, 206, 214), fogStart = 120, fogEnd = 700, ambient = Color3.fromRGB(138, 144, 156),
-		tint = Color3.fromRGB(236, 244, 255), sat = -0.25, clock = 14.5,
+		indoor = Color3.fromRGB(124, 130, 140), tint = Color3.fromRGB(236, 244, 255), sat = -0.25, clock = 14.5, brightness = 2.2,
 	},
 	canyon = {
 		fog = Color3.fromRGB(206, 178, 140), fogStart = 160, fogEnd = 850, ambient = Color3.fromRGB(150, 126, 100),
-		tint = Color3.fromRGB(255, 236, 210), sat = -0.12, clock = 17.2,
+		indoor = Color3.fromRGB(130, 112, 94), tint = Color3.fromRGB(255, 236, 210), sat = -0.12, clock = 17.2, brightness = 2.3,
 	},
+	-- moody but readable: warm red haze far out, plenty of fill light indoors
 	castle = {
-		fog = Color3.fromRGB(70, 34, 30), fogStart = 60, fogEnd = 520, ambient = Color3.fromRGB(110, 70, 60),
-		tint = Color3.fromRGB(255, 214, 196), sat = -0.1, clock = 18.6,
+		fog = Color3.fromRGB(150, 98, 82), fogStart = 160, fogEnd = 950, ambient = Color3.fromRGB(168, 138, 126),
+		indoor = Color3.fromRGB(150, 122, 110), tint = Color3.fromRGB(255, 234, 220), sat = -0.08, clock = 16.6, brightness = 2.6,
 	},
 }
 
@@ -61,7 +65,7 @@ local function applyLook(id)
 	local info = TweenInfo.new(2.5, Enum.EasingStyle.Sine)
 	TweenService:Create(Lighting, info, {
 		FogColor = look.fog, FogStart = look.fogStart, FogEnd = look.fogEnd,
-		OutdoorAmbient = look.ambient, ClockTime = look.clock,
+		OutdoorAmbient = look.ambient, Ambient = look.indoor, ClockTime = look.clock, Brightness = look.brightness,
 	}):Play()
 	local grade = Lighting:FindFirstChild("Bunny64Grade")
 	if grade then
@@ -121,6 +125,20 @@ local function refreshGates()
 	end
 end
 
+local function refreshFlags()
+	for _, f in ipairs(flags) do
+		local on = f:GetAttribute("Checkpoint") == activeCheckpoint
+		f.Color = on and Color3.fromRGB(226, 182, 74) or Color3.fromRGB(136, 66, 54)
+		f.Material = on and Enum.Material.Neon or Enum.Material.Fabric
+	end
+end
+
+-- The flag of the checkpoint you'll respawn at glows gold
+function WorldFX.SetCheckpoint(id)
+	activeCheckpoint = id
+	refreshFlags()
+end
+
 function WorldFX.SetGoldenCount(n)
 	goldenCount = n or 0
 	refreshGates()
@@ -141,9 +159,12 @@ function WorldFX.Init(effects, hud)
 	for _, d in ipairs(world:WaitForChild("Solid"):GetDescendants()) do
 		if d:IsA("BasePart") and d:GetAttribute("GoldenGate") then
 			table.insert(gates, d)
+		elseif d:IsA("BasePart") and d:GetAttribute("Checkpoint") then
+			table.insert(flags, d)
 		end
 	end
 	refreshGates()
+	refreshFlags()
 
 	local nextZoneCheck = 0
 	RunService.RenderStepped:Connect(function()

@@ -18,6 +18,7 @@ local Movement = require(script:WaitForChild("Movement"))
 local Animator = require(script:WaitForChild("Animator"))
 local Collectibles = require(script:WaitForChild("Collectibles"))
 local WorldFX = require(script:WaitForChild("WorldFX"))
+local AdminPanel = require(script:WaitForChild("AdminPanel"))
 
 local player = Players.LocalPlayer
 
@@ -40,7 +41,7 @@ workspace.CurrentCamera.FieldOfView = 65
 local remotes = {}
 for _, name in ipairs({
 	"GetProfile", "SelectSlot", "EraseSlot", "Customise", "QuitToTitle", "SetOptions", "Collect",
-	"Update", "Pound", "Bounce", "Effect", "SetMove", "WarpMenu", "Warp",
+	"Update", "Pound", "Bounce", "Effect", "SetMove", "WarpMenu", "Warp", "AdminCommand", "AdminNotice",
 }) do
 	remotes[name] = Remotes:WaitForChild(name)
 end
@@ -63,10 +64,12 @@ local function applySnapshot(s)
 	snap = s
 	Menus.SetSnapshot(s)
 	Effects.SetOptions(s.menu.options)
+	AdminPanel.SetAdmin(s.isAdmin)
 	Collectibles.Sync(s.slot)
 	if s.slot then
 		Hud.SetProgress(s.slot, s.canSave)
 		WorldFX.SetGoldenCount(s.slot.goldenCount)
+		WorldFX.SetCheckpoint(s.slot.checkpoint)
 	else
 		WorldFX.SetGoldenCount(0)
 	end
@@ -218,6 +221,7 @@ Menus.Init({
 	WorldFX = WorldFX,
 	onPlay = function()
 		WorldFX.ResetRegion()
+		AdminPanel.SetVisible(true)
 		Hud.SetVisible(true)
 		if snap and snap.slot then
 			Hud.SetProgress(snap.slot, snap.canSave)
@@ -231,9 +235,17 @@ Menus.Init({
 		end
 	end,
 	onQuit = function()
+		AdminPanel.SetVisible(false)
 		remotes.QuitToTitle:FireServer()
 		Menus.BackToTitle()
 	end,
+})
+AdminPanel.Init({
+	Remotes = remotes,
+	Movement = Movement,
+	Hud = Hud,
+	Effects = Effects,
+	Menus = Menus,
 })
 Effects.SetMusic("title")
 

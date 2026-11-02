@@ -123,8 +123,17 @@ function Meadow.Build(B)
 		for _, dx in ipairs({ -6, 6 }) do
 			B.block(CFrame.new(x + dx, 6.5, z + 8.05), V(3.4, 3, 0.3), Color3.fromRGB(70, 82, 86), Enum.Material.Glass)
 		end
-		B.wedge(CFrame.new(x, wallTop + 3.5, z - 4.5), V(25, 7, 9), P.Roof, Enum.Material.Slate)
-		B.wedge(CFrame.new(x, wallTop + 3.5, z + 4.5) * CFrame.Angles(0, math.pi, 0), V(25, 7, 9), P.Roof, Enum.Material.Slate)
+		-- gable roof as two tilted slabs meeting at the ridge (walkable up from the crates)
+		B.plank(V(x, wallTop, z - 9.6), V(x, wallTop + 7, z), 25, 1.2, P.Roof, Enum.Material.Slate)
+		B.plank(V(x, wallTop, z + 9.6), V(x, wallTop + 7, z), 25, 1.2, P.Roof, Enum.Material.Slate)
+		B.block(CFrame.new(x, wallTop + 7, z), V(25.4, 0.8, 1.4), P.Wood, Enum.Material.Wood)
+		-- gable ends
+		for _, gx in ipairs({ -11.6, 11.6 }) do
+			for row = 0, 5 do
+				local w = 16 * (1 - row / 6)
+				B.block(CFrame.new(x + gx, wallTop + 0.6 + row * 1.15, z), V(0.8, 1.15, w), P.Plaster)
+			end
+		end
 		B.block(CFrame.new(x + 6, wallTop + 7, z - 2), V(2.6, 6, 2.6), P.StoneDark, Enum.Material.Brick)
 		B.block(CFrame.new(x - 6, 3, z + 13), V(6, 6, 6), P.WoodLight, Enum.Material.WoodPlanks)
 		B.block(CFrame.new(x + 2, 6, z + 13), V(6, 12, 6), P.WoodLight, Enum.Material.WoodPlanks)

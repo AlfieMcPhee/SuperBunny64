@@ -429,6 +429,14 @@ Config.MaxHearts = 3
 Config.HealEveryCarrots = 10   -- every N carrots restores a heart
 Config.WaterLevel = -6
 
+-- Admins ------------------------------------------------------------------------
+-- The place owner (or owning group's owner) is always an admin, and everyone is
+-- an admin while testing in Studio. Add friends' Roblox UserIds here.
+-- Admins press P (or the ADMIN button) for the admin panel.
+Config.Admins = {
+	-- 123456789,
+}
+
 -- Controls (players can rebind these in Options > Controls) -----------------------
 Config.Controls = {
 	{ id = "jump", name = "JUMP", key = "Space", pad = "ButtonA" },
@@ -703,7 +711,7 @@ function HazardMath.SegmentDistance(p, a, b)
 end
 
 return HazardMath
-]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX00000016"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX00000015"><Properties><string name="Name">Bunny64Server</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX00000017"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX00000016"><Properties><string name="Name">Bunny64Server</string><ProtectedString name="Source"><![CDATA[--[[
 	Bunny 64 - server entry point.
 	Builds the world, runs save files, pickups, hearts, hazards, checkpoints,
 	warps, enemies, the boss and customisation.
@@ -723,6 +731,7 @@ local WorldBuilder = require(script:WaitForChild("WorldBuilder"))
 local EnemyService = require(script:WaitForChild("EnemyService"))
 local HazardService = require(script:WaitForChild("HazardService"))
 local BossService = require(script:WaitForChild("BossService"))
+local AdminService = require(script:WaitForChild("AdminService"))
 
 Players.CharacterAutoLoads = false
 
@@ -796,6 +805,7 @@ local function snapshot(player, event)
 		},
 		active = profile.active and tonumber(profile.active) or nil,
 		canSave = profile.canSave,
+		isAdmin = AdminService.IsAdmin(player),
 		totalCarrots = TOTAL_CARROTS,
 		event = event,
 	}
@@ -844,6 +854,9 @@ local function hurt(player, fromPos, velocity, ignoreInvuln)
 	if not (root and hum and st) or hum.Health <= 0 then
 		return false
 	end
+	if player.Character:GetAttribute("God") then
+		return false -- admin god mode
+	end
 	if not ignoreInvuln and os.clock() < st.invulnUntil then
 		return false
 	end
@@ -866,7 +879,7 @@ local function burn(player)
 	if not (root and hum and st) or hum.Health <= 0 then
 		return
 	end
-	if os.clock() >= st.invulnUntil then
+	if os.clock() >= st.invulnUntil and not player.Character:GetAttribute("God") then
 		st.invulnUntil = os.clock() + 1.5
 		hum:TakeDamage(1)
 	end
@@ -875,9 +888,16 @@ local function burn(player)
 end
 
 -- Characters --------------------------------------------------------------------------------
+local spawnRay = RaycastParams.new()
+spawnRay.FilterType = Enum.RaycastFilterType.Include
+spawnRay.FilterDescendantsInstances = { info.solidFolder, workspace.Terrain }
+
+-- Where a checkpoint respawns you: standing on the actual ground there
 local function checkpointCF(id)
 	local cp = Config.Checkpoints[id] or Config.Checkpoints.meadow
-	return CFrame.new(cp.pos)
+	local hit = workspace:Raycast(cp.pos + Vector3.new(0, 4, 0), Vector3.new(0, -30, 0), spawnRay)
+	local y = hit and (hit.Position.Y + 3) or cp.pos.Y
+	return CFrame.new(cp.pos.X, y, cp.pos.Z)
 end
 
 local function spawnCharacter(player)
@@ -895,6 +915,16 @@ local function onCharacter(player, character)
 		local cf = checkpointCF(slot.checkpoint)
 		character:PivotTo(cf)
 		root.AssemblyLinearVelocity = Vector3.zero
+		-- Roblox can still nudge a fresh character to its default spawn point right after
+		-- CharacterAdded, so put it back on the checkpoint a couple more times
+		for _, delay in ipairs({ 0, 0.1, 0.35 }) do
+			task.delay(delay, function()
+				if character.Parent and player.Character == character and (root.Position - cf.Position).Magnitude > 8 then
+					character:PivotTo(cf)
+					root.AssemblyLinearVelocity = Vector3.zero
+				end
+			end)
+		end
 		if st then
 			st.safe = cf
 			st.invulnUntil = os.clock() + 2
@@ -1106,7 +1136,7 @@ SetOptions.OnServerEvent:Connect(function(player, options)
 	end
 end)
 
-local VALID_MOVES = { [""] = true, roll = true, slide = true, longjump = true, pound = true, flip = true }
+local VALID_MOVES = { [""] = true, roll = true, slide = true, longjump = true, pound = true, flip = true, fly = true }
 SetMove.OnServerEvent:Connect(function(player, move)
 	local char = player.Character
 	if char and type(move) == "string" and VALID_MOVES[move] then
@@ -1227,6 +1257,24 @@ BossService.Start(info, {
 	end,
 })
 
+-- Admin perks ------------------------------------------------------------------------------------
+AdminService.Start({
+	remotes = remotes,
+	info = info,
+	push = push,
+	heal = heal,
+	teleport = teleport,
+	checkpointCF = checkpointCF,
+	bounce = function(player, vel)
+		Bounce:FireClient(player, vel, false, "stomp")
+	end,
+	effect = function(kind, pos)
+		Effect:FireAllClients(kind, pos)
+	end,
+	DataService = DataService,
+	BossService = BossService,
+})
+
 -- Players -----------------------------------------------------------------------------------------
 local function onPlayerAdded(player)
 	state[player] = { safe = checkpointCF("meadow"), invulnUntil = 0 }
@@ -1306,7 +1354,283 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 print(string.format("[Bunny64] Ready: %d carrots, %d golden carrots, %d bugs.", TOTAL_CARROTS, #Config.Goldens, #info.enemies))
-]]></ProtectedString><token name="RunContext">0</token></Properties><Item class="ModuleScript" referent="RBX00000008"><Properties><string name="Name">BossService</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString><token name="RunContext">0</token></Properties><Item class="ModuleScript" referent="RBX00000008"><Properties><string name="Name">AdminService</string><ProtectedString name="Source"><![CDATA[--[[
+	AdminService - fun admin perks for the game owner and friends.
+
+	Who is an admin:
+	  * the place owner (or the owner rank of the owning group)
+	  * anyone whose UserId is in Config.Admins
+	  * everyone while testing in Roblox Studio
+
+	Every command is checked here on the server; the client panel only asks.
+
+	  Self:    fly, god mode, speed boost, full heal
+	  Travel:  teleport to any checkpoint / the throne room / another player
+	  Others:  bring, freeze, launch, heal, control (they follow you, inputs locked)
+	  World:   reset King Grumble, give yourself every golden carrot (testing)
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+
+local AdminService = {}
+
+local ctx
+local controlled = {} -- [targetPlayer] = { by = adminPlayer, untilTime = number }
+local speedLevel = {} -- [Player] = 1..3
+local Notice
+
+function AdminService.IsAdmin(player)
+	if RunService:IsStudio() then
+		return true
+	end
+	for _, id in ipairs(Config.Admins or {}) do
+		if player.UserId == id then
+			return true
+		end
+	end
+	if game.CreatorType == Enum.CreatorType.User then
+		return player.UserId == game.CreatorId
+	end
+	local ok, rank = pcall(function()
+		return player:GetRankInGroup(game.CreatorId)
+	end)
+	return ok and rank == 255
+end
+
+local function rootOf(player)
+	local char = player and player.Character
+	return char and char:FindFirstChild("HumanoidRootPart"), char and char:FindFirstChildOfClass("Humanoid"), char
+end
+
+local function findPlayer(userId)
+	if type(userId) ~= "number" then
+		return nil
+	end
+	return Players:GetPlayerByUserId(userId)
+end
+
+local function notify(player, text)
+	if player and player.Parent then
+		Notice:FireClient(player, "toast", text)
+	end
+end
+
+local function release(target)
+	local c = controlled[target]
+	controlled[target] = nil
+	if c and target.Parent then
+		Notice:FireClient(target, "control", false)
+		notify(target, "YOU'RE FREE AGAIN!")
+	end
+end
+
+local COMMANDS = {}
+
+-- Self ---------------------------------------------------------------------------
+function COMMANDS.god(admin)
+	local _, _, char = rootOf(admin)
+	if not char then
+		return false, "No character"
+	end
+	local on = not char:GetAttribute("God")
+	char:SetAttribute("God", on)
+	return true, on and "GOD MODE ON" or "GOD MODE OFF", on
+end
+
+function COMMANDS.speed(admin)
+	local _, hum = rootOf(admin)
+	if not hum then
+		return false, "No character"
+	end
+	local level = (speedLevel[admin] or 1) % 3 + 1
+	speedLevel[admin] = level
+	hum.WalkSpeed = Config.WalkSpeed * level
+	return true, "SPEED x" .. level, level
+end
+
+function COMMANDS.heal(admin, targetId)
+	local target = targetId and findPlayer(targetId) or admin
+	if not target then
+		return false, "Player not found"
+	end
+	ctx.heal(target, Config.MaxHearts)
+	if target ~= admin then
+		notify(target, "AN ADMIN HEALED YOU")
+	end
+	return true, "HEALED " .. string.upper(target.DisplayName)
+end
+
+-- the client moves the bunny while flying; the server just shows the pose to everyone
+function COMMANDS.fly(admin, on)
+	local _, _, char = rootOf(admin)
+	if not char then
+		return false, "No character"
+	end
+	char:SetAttribute("Move", on and "fly" or "")
+	char:SetAttribute("MoveAt", workspace:GetServerTimeNow())
+	return true, on and "FLYING - WASD + SPACE/SHIFT" or "FLY OFF", on == true
+end
+
+-- Travel -------------------------------------------------------------------------
+function COMMANDS.tp(admin, where)
+	local cf
+	if where == "boss" then
+		cf = ctx.checkpointCF("throne")
+	elseif type(where) == "string" and Config.Checkpoints[where] then
+		cf = ctx.checkpointCF(where)
+	end
+	if not cf then
+		return false, "Unknown place"
+	end
+	ctx.teleport(admin, cf)
+	return true, "WHOOSH!"
+end
+
+function COMMANDS["goto"](admin, targetId)
+	local target = findPlayer(targetId)
+	local troot = rootOf(target)
+	if not troot then
+		return false, "Player not found"
+	end
+	ctx.teleport(admin, troot.CFrame * CFrame.new(0, 0, 6))
+	return true, "WENT TO " .. string.upper(target.DisplayName)
+end
+
+-- Other players ---------------------------------------------------------------------
+function COMMANDS.bring(admin, targetId)
+	local target = findPlayer(targetId)
+	local aroot = rootOf(admin)
+	if not target or not aroot or not rootOf(target) then
+		return false, "Player not found"
+	end
+	ctx.teleport(target, aroot.CFrame * CFrame.new(0, 0, -6))
+	notify(target, string.upper(admin.DisplayName) .. " BROUGHT YOU HERE")
+	return true, "BROUGHT " .. string.upper(target.DisplayName)
+end
+
+function COMMANDS.freeze(admin, targetId)
+	local target = findPlayer(targetId)
+	local troot = rootOf(target)
+	if not troot then
+		return false, "Player not found"
+	end
+	troot.Anchored = not troot.Anchored
+	notify(target, troot.Anchored and "BRRR! AN ADMIN FROZE YOU" or "YOU THAWED OUT")
+	return true, (troot.Anchored and "FROZE " or "UNFROZE ") .. string.upper(target.DisplayName)
+end
+
+function COMMANDS.launch(admin, targetId)
+	local target = findPlayer(targetId)
+	if not rootOf(target) then
+		return false, "Player not found"
+	end
+	ctx.bounce(target, Vector3.new(math.random(-20, 20), 160, math.random(-20, 20)))
+	notify(target, "WHEEEE!")
+	return true, "LAUNCHED " .. string.upper(target.DisplayName)
+end
+
+function COMMANDS.control(admin, targetId)
+	local target = findPlayer(targetId)
+	if not target or target == admin or not rootOf(target) then
+		return false, "Pick someone else"
+	end
+	if controlled[target] then
+		release(target)
+		return true, "RELEASED " .. string.upper(target.DisplayName)
+	end
+	controlled[target] = { by = admin, untilTime = os.clock() + 20 }
+	Notice:FireClient(target, "control", true)
+	notify(target, string.upper(admin.DisplayName) .. " IS CONTROLLING YOU!\nFOLLOW THE LEADER...")
+	return true, string.upper(target.DisplayName) .. " FOLLOWS YOU FOR 20s"
+end
+
+-- World ----------------------------------------------------------------------------
+function COMMANDS.resetboss()
+	ctx.BossService.Reset()
+	return true, "KING GRUMBLE RESET"
+end
+
+function COMMANDS.allgoldens(admin)
+	local slot = ctx.DataService.ActiveSlot(admin)
+	if not slot then
+		return false, "Load a file first"
+	end
+	for _, g in ipairs(Config.Goldens) do
+		slot.goldens[g.id] = true
+	end
+	slot.bossDefeated = true
+	ctx.push(admin, nil)
+	return true, "ALL GOLDEN CARROTS GIVEN (THIS FILE)"
+end
+
+--------------------------------------------------------------------------------
+
+function AdminService.Start(context)
+	ctx = context
+	local fn = Instance.new("RemoteFunction")
+	fn.Name = "AdminCommand"
+	fn.Parent = ctx.remotes
+	Notice = Instance.new("RemoteEvent")
+	Notice.Name = "AdminNotice"
+	Notice.Parent = ctx.remotes
+
+	fn.OnServerInvoke = function(player, command, arg)
+		if not AdminService.IsAdmin(player) then
+			return false, "Admins only"
+		end
+		local handler = type(command) == "string" and COMMANDS[command]
+		if not handler then
+			return false, "Unknown command"
+		end
+		local ok, a, b, c = pcall(handler, player, arg)
+		if not ok then
+			warn("[Bunny64] Admin command failed:", a)
+			return false, "Something went wrong"
+		end
+		return a, b, c
+	end
+
+	-- controlled players walk toward their admin
+	local acc = 0
+	RunService.Heartbeat:Connect(function(dt)
+		acc += dt
+		if acc < 0.25 then
+			return
+		end
+		acc = 0
+		local now = os.clock()
+		for target, c in pairs(controlled) do
+			local aroot = rootOf(c.by)
+			local troot, thum = rootOf(target)
+			if not target.Parent or not c.by.Parent or not aroot or not thum or now > c.untilTime then
+				release(target)
+			else
+				local behind = aroot.CFrame * CFrame.new(math.sin(now) * 3, 0, 7)
+				thum:MoveTo(behind.Position)
+				if (troot.Position - aroot.Position).Magnitude > 120 then
+					troot.CFrame = behind
+				end
+			end
+		end
+	end)
+
+	Players.PlayerRemoving:Connect(function(player)
+		controlled[player] = nil
+		speedLevel[player] = nil
+		for target, c in pairs(controlled) do
+			if c.by == player then
+				release(target)
+			end
+		end
+	end)
+end
+
+return AdminService
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000009"><Properties><string name="Name">BossService</string><ProtectedString name="Source"><![CDATA[--[[
 	BossService - King Grumble, the giant crowned Grumblebug in the throne room.
 
 	His three glowing weak points sit on top of his shell. They are only
@@ -1518,6 +1842,14 @@ end
 
 local function hurtPlayer(e, fromPos)
 	cb.hurt(e.player, fromPos)
+end
+
+-- Admin helper: put King Grumble back to full health, asleep in the middle
+function BossService.Reset()
+	if A then
+		reset()
+		place(0)
+	end
 end
 
 function BossService.Start(worldInfo, callbacks)
@@ -1755,7 +2087,7 @@ function BossService.Start(worldInfo, callbacks)
 end
 
 return BossService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000009"><Properties><string name="Name">BugModel</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000A"><Properties><string name="Name">BugModel</string><ProtectedString name="Source"><![CDATA[--[[
 	BugModel - builds a Grumblebug: a round beetle with split wing cases,
 	a shield-shaped thorax, mandibles, glossy eyes under a cross brow,
 	clubbed antennae and six two-part legs.
@@ -1842,7 +2174,7 @@ function BugModel.Build(skinName, scale, origin)
 end
 
 return BugModel
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000A"><Properties><string name="Name">DataService</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000B"><Properties><string name="Name">DataService</string><ProtectedString name="Source"><![CDATA[--[[
 	DataService - loads and saves each player's progress with DataStoreService.
 
 	Save layout (one DataStore key per player):
@@ -2241,7 +2573,7 @@ game:BindToClose(function()
 end)
 
 return DataService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000B"><Properties><string name="Name">EnemyModels</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000C"><Properties><string name="Name">EnemyModels</string><ProtectedString name="Source"><![CDATA[--[[
 	EnemyModels - builds the non-beetle baddies. Each builder returns
 	(model, extras) with the model's PrimaryPart at the enemy's centre;
 	front is -Z. Everything is anchored and non-colliding (the server moves
@@ -2437,7 +2769,7 @@ function EnemyModels.puffshroom(skinName, origin)
 end
 
 return EnemyModels
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000C"><Properties><string name="Name">EnemyService</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000D"><Properties><string name="Name">EnemyService</string><ProtectedString name="Source"><![CDATA[--[[
 	EnemyService - all the baddies.
 
 	  bug         Grumblebug      wanders, charges            stomp / pound / roll / slide
@@ -2858,7 +3190,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 return EnemyService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000D"><Properties><string name="Name">HazardService</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000E"><Properties><string name="Name">HazardService</string><ProtectedString name="Source"><![CDATA[--[[
 	HazardService - decides who gets hurt by firebars, crushers, lava and
 	boulders. Firebars and crushers move on the shared server clock (see
 	shared/HazardMath); clients animate them, the server checks collisions.
@@ -2998,7 +3330,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 return HazardService
-]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX00000013"><Properties><string name="Name">World</string></Properties><Item class="ModuleScript" referent="RBX0000000E"><Properties><string name="Name">Builder</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX00000014"><Properties><string name="Name">World</string></Properties><Item class="ModuleScript" referent="RBX0000000F"><Properties><string name="Name">Builder</string><ProtectedString name="Source"><![CDATA[--[[
 	Builder - shared helpers for constructing the world out of chunky parts,
 	plus the registry of collectibles, enemies, hazards and checkpoints that
 	the rest of the server reads.
@@ -3489,10 +3821,15 @@ end
 function B.pineTree(x, y, z, s, color, snow)
 	B.cyl(x, y - 1, z, 0.7 * s, 5 * s, P.Wood, Enum.Material.Wood)
 	local c = color or P.Pine
+	-- foliage is walk-through (like the round trees); only the trunk is solid
 	for i, r in ipairs({ 4.2, 3.2, 2.1, 1.0 }) do
-		B.cyl(x, y + (i * 3) * s, z, r * s, (i == 4 and 2.5 or 3) * s, c, nil, B.decor)
+		local layer = B.cyl(x, y + (i * 3) * s, z, r * s, (i == 4 and 2.5 or 3) * s, c, nil, B.decor)
+		layer.CanCollide = false
+		layer.CanQuery = false
 		if snow then
-			B.cyl(x, y + (i * 3 + (i == 4 and 2.5 or 3)) * s - 0.3, z, r * s * 0.8, 0.5, P.Snow, Enum.Material.Snow, B.decor)
+			local cap = B.cyl(x, y + (i * 3 + (i == 4 and 2.5 or 3)) * s - 0.3, z, r * s * 0.8, 0.5, P.Snow, Enum.Material.Snow, B.decor)
+			cap.CanCollide = false
+			cap.CanQuery = false
 		end
 	end
 end
@@ -3654,9 +3991,9 @@ function B.torch(pos)
 	B.block(CFrame.new(pos), Vector3.new(0.6, 2.4, 0.6), P.Wood, Enum.Material.Wood)
 	local flame = B.blob(pos + Vector3.new(0, 1.7, 0), Vector3.new(0.9, 1.3, 0.9), P.Ember, Enum.Material.Neon)
 	local light = Instance.new("PointLight")
-	light.Color = Color3.fromRGB(255, 150, 80)
-	light.Range = 22
-	light.Brightness = 1.6
+	light.Color = Color3.fromRGB(255, 160, 96)
+	light.Range = 30
+	light.Brightness = 2.2
 	light.Shadows = false
 	light.Parent = flame
 	return flame
@@ -3826,16 +4163,23 @@ function B.exitPrompt(pos, checkpointId, text)
 	return pad
 end
 
-function B.checkpointFlag(id)
+-- Checkpoint flag beside the respawn point, standing on whatever ground is there.
+-- The flag cloth turns gold on the client when it's your active checkpoint.
+function B.checkpointFlag(id, offset)
 	local def = Config.Checkpoints[id]
-	local base = def.pos - Vector3.new(0, 4, 0)
-	local pos = base + Vector3.new(7, 0, 0)
-	B.block(CFrame.new(pos + Vector3.new(0, 5, 0)), Vector3.new(0.5, 10, 0.5), P.Stone, Enum.Material.Metal)
-	local flag = B.block(CFrame.new(pos + Vector3.new(1.6, 8.6, 0)), Vector3.new(3, 2, 0.15), P.Roof, Enum.Material.Fabric)
+	offset = offset or Vector3.new(-7, 0, 0)
+	local x, z = def.pos.X + offset.X, def.pos.Z + offset.Z
+	local y = B.groundY(x, z, def.pos.Y + 3)
+	local pos = Vector3.new(x, y, z)
+	B.cyl(x, y - 0.6, z, 1.6, 1, P.StoneDark, Enum.Material.Slate)
+	local pole = B.block(CFrame.new(pos + Vector3.new(0, 5, 0)), Vector3.new(0.5, 10, 0.5), P.Stone, Enum.Material.Metal)
+	pole.Name = "CheckpointPole"
+	B.blob(pos + Vector3.new(0, 10.2, 0), Vector3.new(0.8, 0.8, 0.8), P.Gold, Enum.Material.Metal)
+	local flag = B.block(CFrame.new(pos + Vector3.new(1.75, 8.7, 0)), Vector3.new(3, 2, 0.15), P.Roof, Enum.Material.Fabric)
 	flag.Name = "CheckpointFlag"
 	flag:SetAttribute("Checkpoint", id)
 	flag.CanCollide = false
-	B.cyl(pos.X, base.Y - 0.5, pos.Z, 1.6, 0.8, P.StoneDark)
+	flag.CanQuery = false
 end
 
 function B.warpBurrow(def)
@@ -3864,7 +4208,7 @@ function B.warpBurrow(def)
 end
 
 return B
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000F"><Properties><string name="Name">Canyon</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000010"><Properties><string name="Name">Canyon</string><ProtectedString name="Source"><![CDATA[--[[
 	Dustbowl Canyon - a sun-baked mesa island east of the meadow.
 	  * Canyon Leap: pillars too far apart for a double jump; roll + jump to long jump
 	  * Eagle's Mesa: a tall mesa ringed with ledges
@@ -3965,7 +4309,8 @@ function Canyon.Build(B)
 		local low, high = V(600, 0, z), V(820, 60, z)
 		B.plank(low, high, 24, 3, P.SandstoneDark, SAND)
 		for _, s in ipairs({ -1, 1 }) do
-			B.plank(low + V(0, 2.5, s * 12.6), high + V(0, 2.5, s * 12.6), 1.2, 5, P.Sandstone, SAND)
+			-- walls stand 5 studs above the ramp so boulders and bunnies stay on it
+			B.plank(low + V(0, 5, s * 12.6), high + V(0, 5, s * 12.6), 1.2, 8, P.Sandstone, SAND)
 		end
 		-- temple on top
 		B.block(CFrame.new(838, 29.5, z), V(36, 61, 44), P.Sandstone, SAND)
@@ -3975,8 +4320,8 @@ function Canyon.Build(B)
 			end
 		end
 		B.block(CFrame.new(838, 73, z), V(32, 2, 36), P.SandstoneDark, SAND)
-		B.wedge(CFrame.new(838, 76, z - 9) , V(32, 4, 18), P.Roof, Enum.Material.Slate)
-		B.wedge(CFrame.new(838, 76, z + 9) * CFrame.Angles(0, math.pi, 0), V(32, 4, 18), P.Roof, Enum.Material.Slate)
+		B.plank(V(838, 74, z - 18), V(838, 78, z), 32, 1, P.Roof, Enum.Material.Slate)
+		B.plank(V(838, 74, z + 18), V(838, 78, z), 32, 1, P.Roof, Enum.Material.Slate)
 		B.golden("boulder", V(845, 65, z))
 		table.insert(B.info.boulderSpawns, { from = V(818, 68, z), dir = V(-1, 0, 0) })
 		for i = 1, 5 do
@@ -3986,7 +4331,7 @@ function Canyon.Build(B)
 	end
 
 	----------------------------------------------------------------- arrival
-	B.checkpointFlag("canyon")
+	B.checkpointFlag("canyon", Vector3.new(0, 0, 12)) -- beside the boardwalk, not on it
 	B.warpBurrow(Config.Warps[3])
 	B.carrotLine(V(560, 3, 30), V(640, 3, 30), 5)
 
@@ -4045,7 +4390,7 @@ function Canyon.Build(B)
 end
 
 return Canyon
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000010"><Properties><string name="Name">Castle</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000011"><Properties><string name="Name">Castle</string><ProtectedString name="Source"><![CDATA[--[[
 	Infernal Castle - a volcanic island south of the meadow. The hard part.
 
 	  Approach      lava rivers, cinderbugs, a drawbridge over the lava moat
@@ -4079,7 +4424,9 @@ function Castle.Build(B)
 		local a = i / 14 * math.pi * 2 + rng:NextNumber(-0.1, 0.1)
 		local p = V(math.cos(a) * rng:NextNumber(150, 235), 0, 800 + math.sin(a) * rng:NextNumber(150, 235))
 		local inDungeon = p.X > 120 and p.X < 240 and p.Z > 700 and p.Z < 900
-		if not inDungeon and not (math.abs(p.X) < 40 and p.Z < 700) then
+		local nearApproach = p.Z < 700 and math.abs(p.X) < 160 -- lava rivers, moat, paths
+		local nearWalls = math.abs(p.X) < 135 and p.Z > 660 and p.Z < 935
+		if not inDungeon and not nearApproach and not nearWalls then
 			B.paint(p, p + V(rng:NextNumber(-25, 25), 0, rng:NextNumber(-25, 25)), 7, Enum.Material.CrackedLava, { BASALT })
 			if i % 2 == 0 then
 				B.outcrop(p + V(rng:NextNumber(-10, 10), -1, rng:NextNumber(-10, 10)), rng:NextNumber(4, 7), BASALT)
@@ -4113,7 +4460,8 @@ function Castle.Build(B)
 
 	----------------------------------------------------------------- moat & drawbridge
 	B.lava(CF(0, 0.3, 672), V(290, 0.8, 32))
-	B.block(CF(0, 1, 672), V(24, 2, 40), P.Wood, Enum.Material.WoodPlanks)
+	-- drawbridge runs right through the gate to meet the courtyard floor (no step)
+	B.block(CF(0, 1, 676), V(24, 2, 48), P.Wood, Enum.Material.WoodPlanks)
 	for _, s in ipairs({ -1, 1 }) do
 		B.plank(V(s * 11, 2.5, 652), V(s * 11, 30, 690), 0.5, 0.5, Color3.fromRGB(60, 58, 58), Enum.Material.Metal).CanCollide = false
 	end
@@ -4240,8 +4588,10 @@ function Castle.Build(B)
 
 		B.lava(CF(0, 2.4, 857.5), V(112, 0.8, 67))
 		B.block(CF(0, 2, 832), V(20, 4, 16), dark, SLATE)
+		-- a step in the doorway up from the courtyard (floor 2) to the entry platform (4)
+		B.block(CF(0, 1.5, 820), V(16, 3, 8), dark, SLATE)
 		B.checkpointFlag("keep")
-		for _, p in ipairs({ V(-54.5, 20, 857), V(54.5, 20, 857), V(0, 20, 889.5), V(-54.5, 45, 840), V(54.5, 45, 870) }) do
+		for _, p in ipairs({ V(-54.5, 20, 857), V(54.5, 40, 857), V(0, 20, 889.5), V(-54.5, 45, 840), V(54.5, 45, 870) }) do
 			B.torch(p)
 		end
 
@@ -4307,6 +4657,7 @@ function Castle.Build(B)
 		B.checkpointFlag("dungeon")
 
 		B.lava(CF(180, 0.6, 806), V(96, 0.8, 144))
+		B.block(CF(180, 0.75, 718), V(20, 1.5, 7), stone, SLATE) -- doorstep
 		B.block(CF(180, 1.5, 728), V(96, 3, 12), stone, SLATE)
 		-- 1: stepping blocks (one sinks)
 		for i, step in ipairs({ { 742, 4 }, { 754, 6 }, { 766, 8 }, { 778, 6 } }) do
@@ -4372,7 +4723,8 @@ function Castle.Build(B)
 			B.torch(V(px, A.Y + 17.2, pz))
 		end
 		B.golden("boss", A + V(0, 5, 0))
-		B.exitPrompt(Config.Checkpoints.throne.pos + V(10, -6, 0), "courtyard", "Return to courtyard")
+		B.checkpointFlag("throne")
+		B.exitPrompt(Config.Checkpoints.throne.pos + V(10, -5.5, 0), "courtyard", "Return to courtyard")
 	end
 
 	----------------------------------------------------------------- scenery
@@ -4389,7 +4741,7 @@ function Castle.Build(B)
 end
 
 return Castle
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000011"><Properties><string name="Name">Meadow</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000012"><Properties><string name="Name">Meadow</string><ProtectedString name="Source"><![CDATA[--[[
 	Carrot Meadow - the hub island, plus the routes out to the other regions:
 	a grassy causeway north to Frostbite Peaks, a boardwalk east to Dustbowl
 	Canyon and a long stone bridge south to the Infernal Castle.
@@ -4514,8 +4866,17 @@ function Meadow.Build(B)
 		for _, dx in ipairs({ -6, 6 }) do
 			B.block(CFrame.new(x + dx, 6.5, z + 8.05), V(3.4, 3, 0.3), Color3.fromRGB(70, 82, 86), Enum.Material.Glass)
 		end
-		B.wedge(CFrame.new(x, wallTop + 3.5, z - 4.5), V(25, 7, 9), P.Roof, Enum.Material.Slate)
-		B.wedge(CFrame.new(x, wallTop + 3.5, z + 4.5) * CFrame.Angles(0, math.pi, 0), V(25, 7, 9), P.Roof, Enum.Material.Slate)
+		-- gable roof as two tilted slabs meeting at the ridge (walkable up from the crates)
+		B.plank(V(x, wallTop, z - 9.6), V(x, wallTop + 7, z), 25, 1.2, P.Roof, Enum.Material.Slate)
+		B.plank(V(x, wallTop, z + 9.6), V(x, wallTop + 7, z), 25, 1.2, P.Roof, Enum.Material.Slate)
+		B.block(CFrame.new(x, wallTop + 7, z), V(25.4, 0.8, 1.4), P.Wood, Enum.Material.Wood)
+		-- gable ends
+		for _, gx in ipairs({ -11.6, 11.6 }) do
+			for row = 0, 5 do
+				local w = 16 * (1 - row / 6)
+				B.block(CFrame.new(x + gx, wallTop + 0.6 + row * 1.15, z), V(0.8, 1.15, w), P.Plaster)
+			end
+		end
 		B.block(CFrame.new(x + 6, wallTop + 7, z - 2), V(2.6, 6, 2.6), P.StoneDark, Enum.Material.Brick)
 		B.block(CFrame.new(x - 6, 3, z + 13), V(6, 6, 6), P.WoodLight, Enum.Material.WoodPlanks)
 		B.block(CFrame.new(x + 2, 6, z + 13), V(6, 12, 6), P.WoodLight, Enum.Material.WoodPlanks)
@@ -4852,7 +5213,7 @@ function Meadow.Build(B)
 end
 
 return Meadow
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000012"><Properties><string name="Name">Peaks</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000013"><Properties><string name="Name">Peaks</string><ProtectedString name="Source"><![CDATA[--[[
 	Frostbite Peaks - a snowy island north of the meadow.
 	  * A terraced mountain with winding ramps up to the summit
 	  * A long ice slide chute spiralling down the outside of the mountain
@@ -4881,7 +5242,7 @@ function Peaks.Build(B)
 		local near = function(ang, w)
 			return math.abs(((a - ang + math.pi) % (2 * math.pi)) - math.pi) < w
 		end
-		if not (near(0, 0.32) or near(1.0, 0.25) or near(0.6 * math.pi, 0.15) or near(math.pi / 2, 0.15)) then
+		if not (near(0, 0.32) or near(1.0, 0.25) or near(0.6 * math.pi + 0.08, 0.25) or near(math.pi / 2, 0.15)) then
 			local p = C + V(math.cos(a) * r, 0, math.sin(a) * r)
 			if i % 3 == 0 then
 				B.outcrop(p + V(0, -2, 0), rng:NextNumber(4, 7), Enum.Material.Rock)
@@ -4940,13 +5301,17 @@ function Peaks.Build(B)
 		for k = 0, N - 1 do
 			local a, b = point(k / N), point((k + 1) / N)
 			local dir = (b - a).Unit
-			local floor = B.plank(a, b + dir * 0.8, 13, 1.5, P.Ice, Enum.Material.Ice)
+			-- floor overlaps its neighbours so curves leave no seams
+			local floor = B.plank(a - dir * 0.4, b + dir * 1.2, 13, 1.5, P.Ice, Enum.Material.Ice)
 			floor:SetAttribute("Slide", true)
 			floor.Name = "Chute"
 			local right = dir:Cross(up).Unit
-			for _, s in ipairs({ -1, 1 }) do
-				local off = right * s * 6.8 + up * 1.6
-				B.plank(a + off, b + dir * 0.8 + off, 0.8, 3.2, P.Snow, SNOW)
+			for _, side in ipairs({ -1, 1 }) do
+				-- walls rise 5 studs above the ice (the bunny's collision box floats 1.6-3.6 above
+				-- the floor, so anything lower is simply stepped over) and overlap at the joints
+				local off = right * side * 6.9 + up * 5
+				local wall = B.plank(a + off - dir * 1.2, b + off + dir * 2, 1, 6.5, P.Snow, SNOW)
+				wall.Name = "ChuteWall"
 			end
 			if k % 4 == 0 then
 				local support = B.cyl(a.X, 0, a.Z, 1.4, a.Y - 1.5, P.Rock, nil, B.decor)
@@ -4959,11 +5324,25 @@ function Peaks.Build(B)
 		-- entrance from the second-highest tier
 		B.block(CFrame.new(cx - 40, 95, cz), V(22, 2, 16), P.Snow, SNOW)
 		B.sign(V(cx - 34, 96, cz + 9), V(1, 0, 0), "ICE CHUTE", "Slide down, steer with the stick")
-		-- landing pillar at the bottom
-		local th = math.pi + 1.6 * math.pi
-		local ex, ez = cx + math.cos(th) * 188, cz + math.sin(th) * 188
-		B.cyl(ex, 0, ez, 12, 22, P.Rock, Enum.Material.Slate)
-		B.cyl(ex, 21, ez, 12.4, 1, P.Snow, SNOW)
+		-- landing pillar at the bottom, placed straight ahead of the chute's exit
+		local finish = point(1)
+		local exitDir = (finish - point((N - 1) / N)) * V(1, 0, 1)
+		exitDir = exitDir.Unit
+		local centre = finish + exitDir * 13.5
+		local ex, ez = centre.X, centre.Z
+		B.cyl(ex, 0, ez, 14, 22, P.Rock, Enum.Material.Slate)
+		B.cyl(ex, 21, ez, 14.4, 1, P.Snow, SNOW)
+		-- a short ramp of ice bridging the chute lip onto the pad
+		B.plank(finish - exitDir * 1, finish + exitDir * 3, 13, 1.5, P.Ice, Enum.Material.Ice)
+		-- snow bank around the far side so a fast slide stops instead of flying off
+		for i = 0, 15 do
+			local a = i / 16 * math.pi * 2
+			local d = V(math.cos(a), 0, math.sin(a))
+			if d:Dot(-exitDir) < 0.55 then
+				local p = V(ex, 0, ez) + d * 13.5
+				B.block(CFrame.lookAt(V(p.X, 24.5, p.Z), V(ex, 24.5, ez)), V(6, 5, 2.5), P.Snow, SNOW)
+			end
+		end
 		B.golden("chute", V(ex, 27, ez))
 	end
 
@@ -5049,7 +5428,7 @@ function Peaks.Build(B)
 			local d = math.abs(((ang - a + math.pi) % (2 * math.pi)) - math.pi)
 			return d < width
 		end
-		if near(0, 0.3) or near(1.0, 0.25) or near(0.6 * math.pi, 0.15) or near(math.pi / 2, 0.15) then
+		if near(0, 0.3) or near(1.0, 0.25) or near(0.6 * math.pi + 0.08, 0.25) or near(math.pi / 2, 0.15) then
 			return false
 		end
 		return true
@@ -5090,7 +5469,7 @@ function Peaks.Build(B)
 end
 
 return Peaks
-]]></ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX00000014"><Properties><string name="Name">WorldBuilder</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX00000015"><Properties><string name="Name">WorldBuilder</string><ProtectedString name="Source"><![CDATA[--[[
 	WorldBuilder - builds the whole world at server start.
 
 	  Carrot Meadow (hub)      centre            World/Meadow
@@ -5122,7 +5501,7 @@ local function setupLighting()
 	Lighting.ClockTime = 16.3
 	Lighting.GeographicLatitude = 35
 	Lighting.Brightness = 2.2
-	Lighting.Ambient = Color3.fromRGB(96, 90, 84)
+	Lighting.Ambient = Color3.fromRGB(120, 114, 106)
 	Lighting.OutdoorAmbient = Color3.fromRGB(132, 124, 112)
 	Lighting.ColorShift_Top = Color3.fromRGB(255, 232, 196)
 	Lighting.ColorShift_Bottom = Color3.fromRGB(0, 0, 0)
@@ -5206,7 +5585,7 @@ function WorldBuilder.Build()
 end
 
 return WorldBuilder
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000025"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="EnableMouseLockOption">false</bool></Properties><Item class="StarterPlayerScripts" referent="RBX00000021"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX00000020"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000027"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="EnableMouseLockOption">false</bool></Properties><Item class="StarterPlayerScripts" referent="RBX00000023"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX00000022"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
 	Bunny 64 - client entry point. Wires together menus, HUD, movement,
 	animation, collectibles and world effects, and reacts to server events.
 ]]
@@ -5226,6 +5605,7 @@ local Movement = require(script:WaitForChild("Movement"))
 local Animator = require(script:WaitForChild("Animator"))
 local Collectibles = require(script:WaitForChild("Collectibles"))
 local WorldFX = require(script:WaitForChild("WorldFX"))
+local AdminPanel = require(script:WaitForChild("AdminPanel"))
 
 local player = Players.LocalPlayer
 
@@ -5248,7 +5628,7 @@ workspace.CurrentCamera.FieldOfView = 65
 local remotes = {}
 for _, name in ipairs({
 	"GetProfile", "SelectSlot", "EraseSlot", "Customise", "QuitToTitle", "SetOptions", "Collect",
-	"Update", "Pound", "Bounce", "Effect", "SetMove", "WarpMenu", "Warp",
+	"Update", "Pound", "Bounce", "Effect", "SetMove", "WarpMenu", "Warp", "AdminCommand", "AdminNotice",
 }) do
 	remotes[name] = Remotes:WaitForChild(name)
 end
@@ -5271,10 +5651,12 @@ local function applySnapshot(s)
 	snap = s
 	Menus.SetSnapshot(s)
 	Effects.SetOptions(s.menu.options)
+	AdminPanel.SetAdmin(s.isAdmin)
 	Collectibles.Sync(s.slot)
 	if s.slot then
 		Hud.SetProgress(s.slot, s.canSave)
 		WorldFX.SetGoldenCount(s.slot.goldenCount)
+		WorldFX.SetCheckpoint(s.slot.checkpoint)
 	else
 		WorldFX.SetGoldenCount(0)
 	end
@@ -5426,6 +5808,7 @@ Menus.Init({
 	WorldFX = WorldFX,
 	onPlay = function()
 		WorldFX.ResetRegion()
+		AdminPanel.SetVisible(true)
 		Hud.SetVisible(true)
 		if snap and snap.slot then
 			Hud.SetProgress(snap.slot, snap.canSave)
@@ -5439,9 +5822,17 @@ Menus.Init({
 		end
 	end,
 	onQuit = function()
+		AdminPanel.SetVisible(false)
 		remotes.QuitToTitle:FireServer()
 		Menus.BackToTitle()
 	end,
+})
+AdminPanel.Init({
+	Remotes = remotes,
+	Movement = Movement,
+	Hud = Hud,
+	Effects = Effects,
+	Menus = Menus,
 })
 Effects.SetMusic("title")
 
@@ -5461,7 +5852,402 @@ task.spawn(function()
 		applySnapshot(s)
 	end
 end)
-]]></ProtectedString></Properties><Item class="ModuleScript" referent="RBX00000017"><Properties><string name="Name">Animator</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties><Item class="ModuleScript" referent="RBX00000018"><Properties><string name="Name">AdminPanel</string><ProtectedString name="Source"><![CDATA[--[[
+	AdminPanel - the admin perks menu (press P, or the ADMIN button).
+	Only shows for admins; the server checks every command anyway.
+
+	Flying is done here on the client: a LinearVelocity carries the bunny
+	where the camera points (WASD / stick), Space goes up, Shift goes down,
+	hold Ctrl to go faster.
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ContextActionService = game:GetService("ContextActionService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+local UI = require(script.Parent:WaitForChild("UI"))
+
+local player = Players.LocalPlayer
+local AdminPanel = {}
+
+local deps
+local isAdmin = false
+local gui, panel, openButton, playerList
+local visible = false
+local flying = false
+local flyLV, flyAO, flyConn
+
+local function run(command, arg)
+	local remote = deps.Remotes.AdminCommand
+	if not remote then
+		return nil
+	end
+	local ok, msg, value = remote:InvokeServer(command, arg)
+	if msg then
+		deps.Hud.Toast(msg, 1.8, ok and UI.Gold or Color3.fromRGB(240, 140, 120))
+	end
+	return ok, value
+end
+
+--------------------------------------------------------------------------------
+-- Flying
+--------------------------------------------------------------------------------
+
+local function stopFly()
+	flying = false
+	if flyConn then
+		flyConn:Disconnect()
+		flyConn = nil
+	end
+	if flyLV then
+		flyLV:Destroy()
+		flyLV = nil
+	end
+	if flyAO then
+		flyAO:Destroy()
+		flyAO = nil
+	end
+	local char = player.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.PlatformStand = false
+		hum:ChangeState(Enum.HumanoidStateType.Freefall)
+	end
+	deps.Movement.SetFlying(false)
+end
+
+local function startFly()
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if not root or not hum then
+		return false
+	end
+	flying = true
+	deps.Movement.SetFlying(true)
+	local att = root:FindFirstChild("MoveAttachment") or Instance.new("Attachment")
+	att.Name = "MoveAttachment"
+	att.Parent = root
+	flyLV = Instance.new("LinearVelocity")
+	flyLV.Name = "AdminFly"
+	flyLV.Attachment0 = att
+	flyLV.RelativeTo = Enum.ActuatorRelativeTo.World
+	flyLV.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+	flyLV.MaxForce = 1e6
+	flyLV.VectorVelocity = Vector3.zero
+	flyLV.Parent = root
+	flyAO = Instance.new("AlignOrientation")
+	flyAO.Name = "AdminFlyTurn"
+	flyAO.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	flyAO.Attachment0 = att
+	flyAO.MaxTorque = 1e6
+	flyAO.Responsiveness = 40
+	flyAO.CFrame = root.CFrame - root.Position
+	flyAO.Parent = root
+	hum.PlatformStand = true
+
+	flyConn = RunService.RenderStepped:Connect(function()
+		if not root.Parent or hum.Health <= 0 then
+			stopFly()
+			return
+		end
+		local cam = workspace.CurrentCamera
+		local controls = deps.Movement.GetControls()
+		local moveVec = controls and controls:GetMoveVector() or Vector3.zero
+		local dir = cam.CFrame:VectorToWorldSpace(moveVec)
+		local up = 0
+		if UserInputService:IsKeyDown(Enum.KeyCode.Space) or UserInputService:IsGamepadButtonDown(Enum.UserInputType.Gamepad1, Enum.KeyCode.ButtonA) then
+			up += 1
+		end
+		if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsGamepadButtonDown(Enum.UserInputType.Gamepad1, Enum.KeyCode.ButtonB) then
+			up -= 1
+		end
+		local v = dir + Vector3.new(0, up, 0)
+		local fast = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsGamepadButtonDown(Enum.UserInputType.Gamepad1, Enum.KeyCode.ButtonR2)
+		local speed = fast and 160 or 70
+		flyLV.VectorVelocity = v.Magnitude > 0.05 and v.Unit * speed or Vector3.zero
+		local look = cam.CFrame.LookVector
+		local flat = Vector3.new(look.X, 0, look.Z)
+		if flat.Magnitude > 0.01 then
+			flyAO.CFrame = CFrame.lookAt(Vector3.zero, flat.Unit)
+		end
+	end)
+	return true
+end
+
+local function toggleFly()
+	if flying then
+		stopFly()
+		run("fly", false)
+	elseif startFly() then
+		run("fly", true)
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Panel
+--------------------------------------------------------------------------------
+
+local function button(parent, text, order, onClick, width)
+	local b = Instance.new("TextButton")
+	b.AutoButtonColor = true
+	b.Text = text
+	b.Font = UI.BODY
+	b.TextSize = 16
+	b.TextColor3 = UI.Cream
+	b.BackgroundColor3 = Color3.fromRGB(58, 62, 108)
+	b.Size = UDim2.new(width or 1, -6, 0, 30)
+	b.LayoutOrder = order or 0
+	UI.corner(b, 6)
+	UI.stroke(b, 2, UI.Gold, Enum.ApplyStrokeMode.Border)
+	UI.stroke(b, 2)
+	b.Parent = parent
+	b.Activated:Connect(function()
+		deps.Effects.Play("MenuSelect", 1.2)
+		onClick(b)
+	end)
+	return b
+end
+
+local function heading(parent, text, order)
+	UI.label(parent, { Text = text, Font = UI.TITLE, TextSize = 20, TextColor3 = UI.Gold, Size = UDim2.new(1, 0, 0, 26), LayoutOrder = order, Stroke = 3 })
+end
+
+local function grid(parent, order, cellWidth)
+	local f = Instance.new("Frame")
+	f.BackgroundTransparency = 1
+	f.Size = UDim2.new(1, 0, 0, 0)
+	f.AutomaticSize = Enum.AutomaticSize.Y
+	f.LayoutOrder = order
+	f.Parent = parent
+	local g = Instance.new("UIGridLayout")
+	g.CellSize = UDim2.new(cellWidth or 0.5, -4, 0, 30)
+	g.CellPadding = UDim2.fromOffset(4, 4)
+	g.SortOrder = Enum.SortOrder.LayoutOrder
+	g.Parent = f
+	return f
+end
+
+local function refreshPlayers()
+	if not playerList then
+		return
+	end
+	playerList:ClearAllChildren()
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 6)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = playerList
+	local others = 0
+	for i, p in ipairs(Players:GetPlayers()) do
+		if p ~= player then
+			others += 1
+			UI.label(playerList, { Text = string.upper(p.DisplayName), TextSize = 18, Size = UDim2.new(1, 0, 0, 22), LayoutOrder = i * 2 - 1, TextXAlignment = Enum.TextXAlignment.Left, Stroke = 2 })
+			local row = grid(playerList, i * 2, 1 / 3)
+			local id = p.UserId
+			button(row, "GO TO", 1, function() run("goto", id) end)
+			button(row, "BRING", 2, function() run("bring", id) end)
+			button(row, "FREEZE", 3, function() run("freeze", id) end)
+			button(row, "LAUNCH", 4, function() run("launch", id) end)
+			button(row, "CONTROL", 5, function() run("control", id) end)
+			button(row, "HEAL", 6, function() run("heal", id) end)
+		end
+	end
+	if others == 0 then
+		UI.label(playerList, { Text = "No one else is here yet.", TextSize = 16, Size = UDim2.new(1, 0, 0, 22), Stroke = 2 })
+	end
+end
+
+local function build()
+	gui = Instance.new("ScreenGui")
+	gui.Name = "Bunny64Admin"
+	gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true
+	gui.DisplayOrder = 5
+	gui.Enabled = false
+	gui.Parent = player:WaitForChild("PlayerGui")
+
+	openButton = Instance.new("TextButton")
+	openButton.Text = "ADMIN"
+	openButton.Font = UI.TITLE
+	openButton.TextSize = 18
+	openButton.TextColor3 = UI.Gold
+	openButton.BackgroundColor3 = Color3.fromRGB(90, 40, 50)
+	openButton.Size = UDim2.fromOffset(92, 30)
+	openButton.Position = UDim2.fromOffset(20, 160)
+	UI.corner(openButton, 8)
+	UI.stroke(openButton, 3, UI.Gold, Enum.ApplyStrokeMode.Border)
+	UI.stroke(openButton, 2)
+	openButton.Parent = gui
+	openButton.Activated:Connect(function()
+		AdminPanel.Toggle()
+	end)
+
+	local frame, shadow = UI.panel(gui, UDim2.fromOffset(380, 560), UDim2.new(1, -210, 0.5, 0))
+	panel = shadow
+	panel.Visible = false
+	UI.label(frame, { Text = "ADMIN PERKS", Font = UI.TITLE, TextSize = 30, TextColor3 = UI.Gold, Size = UDim2.new(1, 0, 0, 36), Position = UDim2.fromOffset(0, 10), Stroke = 4 })
+	local close = Instance.new("TextButton")
+	close.Text = "X"
+	close.Font = UI.TITLE
+	close.TextSize = 22
+	close.TextColor3 = UI.Cream
+	close.BackgroundTransparency = 1
+	close.Size = UDim2.fromOffset(36, 36)
+	close.Position = UDim2.new(1, -44, 0, 8)
+	close.Parent = frame
+	close.Activated:Connect(function()
+		AdminPanel.Toggle(false)
+	end)
+
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.BackgroundTransparency = 1
+	scroll.BorderSizePixel = 0
+	scroll.Size = UDim2.new(1, -24, 1, -64)
+	scroll.Position = UDim2.fromOffset(12, 52)
+	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	scroll.CanvasSize = UDim2.new()
+	scroll.ScrollBarThickness = 6
+	scroll.ScrollBarImageColor3 = UI.Gold
+	scroll.Parent = frame
+	local list = Instance.new("UIListLayout")
+	list.Padding = UDim.new(0, 6)
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Parent = scroll
+
+	heading(scroll, "YOU", 1)
+	local me = grid(scroll, 2)
+	button(me, "FLY", 1, function(b)
+		toggleFly()
+		b.Text = flying and "FLY: ON" or "FLY"
+	end)
+	button(me, "GOD MODE", 2, function(b)
+		local ok, on = run("god")
+		if ok then
+			b.Text = on and "GOD: ON" or "GOD MODE"
+		end
+	end)
+	button(me, "SPEED x1", 3, function(b)
+		local ok, level = run("speed")
+		if ok then
+			b.Text = "SPEED x" .. tostring(level)
+		end
+	end)
+	button(me, "FULL HEAL", 4, function()
+		run("heal")
+	end)
+
+	heading(scroll, "TELEPORT", 3)
+	local tp = grid(scroll, 4)
+	local places = {
+		{ "MEADOW", "meadow" }, { "PEAKS", "peaks" }, { "CANYON", "canyon" }, { "CASTLE GATE", "castle" },
+		{ "COURTYARD", "courtyard" }, { "THE KEEP", "keep" }, { "DUNGEON", "dungeon" }, { "BOSS!", "boss" },
+	}
+	for i, p in ipairs(places) do
+		button(tp, p[1], i, function()
+			run("tp", p[2])
+		end)
+	end
+
+	heading(scroll, "WORLD", 5)
+	local world = grid(scroll, 6)
+	button(world, "RESET BOSS", 1, function()
+		run("resetboss")
+	end)
+	button(world, "ALL GOLDENS", 2, function()
+		run("allgoldens")
+	end)
+
+	heading(scroll, "PLAYERS", 7)
+	playerList = Instance.new("Frame")
+	playerList.BackgroundTransparency = 1
+	playerList.Size = UDim2.new(1, 0, 0, 0)
+	playerList.AutomaticSize = Enum.AutomaticSize.Y
+	playerList.LayoutOrder = 8
+	playerList.Parent = scroll
+	refreshPlayers()
+	Players.PlayerAdded:Connect(refreshPlayers)
+	Players.PlayerRemoving:Connect(function()
+		task.defer(refreshPlayers)
+	end)
+	UI.label(scroll, {
+		Text = "Fly: WASD + Space up, Shift down, Ctrl fast. Control makes a player follow you for 20s.",
+		TextSize = 13, TextWrapped = true, Size = UDim2.new(1, 0, 0, 40), LayoutOrder = 9, Stroke = 2, TextTransparency = 0.2,
+	})
+end
+
+function AdminPanel.Toggle(force)
+	if not isAdmin or not gui then
+		return
+	end
+	local open = force
+	if open == nil then
+		open = not panel.Visible
+	end
+	panel.Visible = open
+	if open then
+		refreshPlayers()
+	end
+end
+
+function AdminPanel.SetAdmin(on)
+	isAdmin = on == true
+	if gui then
+		gui.Enabled = isAdmin and visible
+	end
+	if isAdmin then
+		ContextActionService:BindAction("Bunny64Admin", function(_, state)
+			if state == Enum.UserInputState.Begin then
+				AdminPanel.Toggle()
+			end
+			return Enum.ContextActionResult.Pass
+		end, false, Enum.KeyCode.P)
+	else
+		ContextActionService:UnbindAction("Bunny64Admin")
+	end
+end
+
+function AdminPanel.SetVisible(on)
+	visible = on
+	if gui then
+		gui.Enabled = isAdmin and on
+	end
+	if not on and flying then
+		stopFly()
+	end
+end
+
+function AdminPanel.Init(dependencies)
+	deps = dependencies
+	build()
+	player.CharacterAdded:Connect(function()
+		if flying then
+			flying = false
+			flyConn = flyConn and flyConn:Disconnect() or nil
+			flyLV, flyAO = nil, nil
+		end
+	end)
+	-- messages for everyone (being controlled, being launched...)
+	local notice = deps.Remotes.AdminNotice
+	if notice then
+		notice.OnClientEvent:Connect(function(kind, value)
+			if kind == "toast" then
+				deps.Hud.Toast(value, 3, UI.Gold)
+			elseif kind == "control" then
+				if value then
+					deps.Movement.SetEnabled(false)
+				elseif deps.Menus.Screen() == nil then
+					deps.Movement.SetEnabled(true)
+				end
+			end
+		end)
+	end
+end
+
+return AdminPanel
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000019"><Properties><string name="Name">Animator</string><ProtectedString name="Source"><![CDATA[--[[
 	Animator - procedural animation for every bunny in the server.
 
 	No animation assets: each frame we compute a pose from the bunny's
@@ -5564,7 +6350,7 @@ local function poseFor(rig, char, dt, now, isLocal)
 		p.lArm, p.rArm = A(1.3, 0, 0.35), A(1.3, 0, -0.35)
 		p.neck = A(-0.55, 0, 0)
 		earTarget = 0.4
-	elseif move == "longjump" then
+	elseif move == "longjump" or move == "fly" then
 		p.root = A(-1.15, 0, 0)
 		p.lArm, p.rArm = A(2.7, 0, 0.25), A(2.7, 0, -0.25)
 		p.lLeg, p.rLeg = A(-0.45, 0, -0.08), A(-0.2, 0, 0.08)
@@ -5680,7 +6466,7 @@ function Animator.Init(movement)
 end
 
 return Animator
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000018"><Properties><string name="Name">Chiptune</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001A"><Properties><string name="Name">Chiptune</string><ProtectedString name="Source"><![CDATA[--[[
 	Chiptune - a tiny 8-bit music sequencer.
 
 	Roblox can't synthesise sound, so this "tracker" plays one short blip
@@ -5963,7 +6749,7 @@ function Chiptune.Has(name)
 end
 
 return Chiptune
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000019"><Properties><string name="Name">Collectibles</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001B"><Properties><string name="Name">Collectibles</string><ProtectedString name="Source"><![CDATA[--[[
 	Collectibles - spins the carrots, hides the ones this file already has,
 	and asks the server to collect carrots the bunny touches.
 	Each player has their own carrots, so pickups are client-side visuals
@@ -6103,7 +6889,7 @@ function Collectibles.Init(effects, remotes)
 end
 
 return Collectibles
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001A"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001C"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
 	Effects - local sounds, music, chunky block particles and camera shake.
 ]]
 
@@ -6301,7 +7087,7 @@ RunService:BindToRenderStep("Bunny64Shake", Enum.RenderPriority.Camera.Value + 1
 end)
 
 return Effects
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001B"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001D"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
 	Hud - in-game overlay: hearts, golden carrot and carrot counters,
 	region title cards, toasts, the boss health bar and the MENU button.
 ]]
@@ -6324,6 +7110,45 @@ local goldenLabel, carrotLabel, saveLabel, toastLabel, bannerHolder, bannerFace
 local bossFrame, bossPips, bossName
 local toastToken, bannerToken = 0, 0
 local onMenu
+
+-- Fade text in/out INCLUDING its outline (a UIStroke doesn't follow
+-- TextTransparency on its own, which used to leave ghost outlines on screen),
+-- then hide it completely once it's gone.
+local fadeTokens = {}
+local function fadeText(root, visible, time)
+	fadeTokens[root] = (fadeTokens[root] or 0) + 1
+	local token = fadeTokens[root]
+	local goal = visible and 0 or 1
+	local targets = { root }
+	for _, d in ipairs(root:GetDescendants()) do
+		table.insert(targets, d)
+	end
+	if visible then
+		root.Visible = true
+	end
+	for _, t in ipairs(targets) do
+		if t:IsA("TextLabel") then
+			if time > 0 then
+				TweenService:Create(t, TweenInfo.new(time), { TextTransparency = goal }):Play()
+			else
+				t.TextTransparency = goal
+			end
+		elseif t:IsA("UIStroke") then
+			if time > 0 then
+				TweenService:Create(t, TweenInfo.new(time), { Transparency = goal }):Play()
+			else
+				t.Transparency = goal
+			end
+		end
+	end
+	if not visible then
+		task.delay(time + 0.05, function()
+			if fadeTokens[root] == token then
+				root.Visible = false
+			end
+		end)
+	end
+end
 
 local function counter(parent, icon, y)
 	local row = Instance.new("Frame")
@@ -6414,6 +7239,7 @@ function Hud.Init(menuCallback)
 		Position = UDim2.new(0.5, 0, 0.26, 0), Size = UDim2.new(0.9, 0, 0, 90), TextWrapped = true,
 		TextTransparency = 1, Stroke = 4,
 	})
+	fadeText(toastLabel, false, 0)
 
 	-- region title card
 	bannerHolder, bannerFace = UI.title(gui, "", 64, UDim2.new(0.5, 0, 0.14, 0), Vector2.new(0.5, 0.5))
@@ -6484,14 +7310,14 @@ function Hud.Toast(text, seconds, color)
 	local token = toastToken
 	toastLabel.Text = text
 	toastLabel.TextColor3 = color or UI.Cream
-	toastLabel.TextTransparency = 0
+	fadeText(toastLabel, true, 0)
 	local scale = toastLabel:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
 	scale.Parent = toastLabel
 	scale.Scale = 0.6
 	TweenService:Create(scale, TweenInfo.new(0.3, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 	task.delay(seconds or 2.5, function()
 		if token == toastToken then
-			TweenService:Create(toastLabel, TweenInfo.new(0.4), { TextTransparency = 1 }):Play()
+			fadeText(toastLabel, false, 0.4)
 		end
 	end)
 end
@@ -6502,26 +7328,15 @@ function Hud.RegionBanner(text)
 	for _, d in ipairs(bannerHolder:GetChildren()) do
 		if d:IsA("TextLabel") then
 			d.Text = text
-			d.TextTransparency = 0
 		end
 	end
-	bannerHolder.Visible = true
+	fadeText(bannerHolder, true, 0)
 	bannerHolder.Position = UDim2.new(0.5, 0, 0.08, 0)
 	TweenService:Create(bannerHolder, TweenInfo.new(0.5, Enum.EasingStyle.Back), { Position = UDim2.new(0.5, 0, 0.14, 0) }):Play()
 	task.delay(2.6, function()
-		if token ~= bannerToken then
-			return
+		if token == bannerToken then
+			fadeText(bannerHolder, false, 0.6)
 		end
-		for _, d in ipairs(bannerHolder:GetChildren()) do
-			if d:IsA("TextLabel") then
-				TweenService:Create(d, TweenInfo.new(0.6), { TextTransparency = 1 }):Play()
-			end
-		end
-		task.delay(0.7, function()
-			if token == bannerToken then
-				bannerHolder.Visible = false
-			end
-		end)
 	end)
 end
 
@@ -6545,7 +7360,7 @@ function Hud.WatchBoss(inArenaFn)
 end
 
 return Hud
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001C"><Properties><string name="Name">Menus</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001E"><Properties><string name="Name">Menus</string><ProtectedString name="Source"><![CDATA[--[[
 	Menus - every full-screen menu:
 	  Title (PRESS START) -> File Select (File A/B/C, erase) -> game
 	  Customise (fur, accent colour, hat, neckwear with a live 3D preview)
@@ -7472,7 +8287,7 @@ function Menus.Init(dependencies)
 end
 
 return Menus
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001D"><Properties><string name="Name">Movement</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001F"><Properties><string name="Name">Movement</string><ProtectedString name="Source"><![CDATA[--[[
 	Movement - the bunny's moveset on top of Roblox's humanoid.
 
 	  Jump            Space / A / jump button
@@ -7515,6 +8330,7 @@ local lastRollEnd = 0
 local lastBounce = 0
 local airborneSince = nil
 local sentMove = nil
+local flying = false -- admin fly mode (client/AdminPanel) takes over movement
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
@@ -7618,7 +8434,7 @@ local function launch(velocity, kind)
 end
 
 local function startRoll()
-	if not enabled or not root or move ~= "" or not grounded() or os.clock() - lastRollEnd < Config.RollCooldown then
+	if flying or not enabled or not root or move ~= "" or not grounded() or os.clock() - lastRollEnd < Config.RollCooldown then
 		return
 	end
 	moveDir = facingDir()
@@ -7676,7 +8492,7 @@ local function landPound()
 end
 
 local function crouch()
-	if not enabled or not root then
+	if flying or not enabled or not root then
 		return
 	end
 	if move == "" or move == "longjump" then
@@ -7689,7 +8505,7 @@ local function crouch()
 end
 
 local function tryJumpMove()
-	if not enabled or not root then
+	if flying or not enabled or not root then
 		return
 	end
 	if move == "roll" or (move == "slide" and os.clock() - moveStart > 0.08) then
@@ -7714,6 +8530,7 @@ end
 
 local function onCharacter(char)
 	character = char
+	flying = false
 	humanoid = char:WaitForChild("Humanoid")
 	root = char:WaitForChild("HumanoidRootPart")
 	move = ""
@@ -7762,6 +8579,17 @@ function Movement.SetEnabled(on)
 	end
 end
 
+function Movement.SetFlying(on)
+	flying = on
+	if on and move ~= "" and root then
+		setMove("")
+	end
+end
+
+function Movement.GetControls()
+	return controls
+end
+
 function Movement.IsEnabled()
 	return enabled
 end
@@ -7769,7 +8597,7 @@ end
 -- For the animator: what is the local bunny doing right now?
 function Movement.State()
 	return {
-		move = move,
+		move = flying and "fly" or move,
 		moveStart = moveStart,
 		flipAt = flipAt,
 		speed = moveSpeed,
@@ -7780,8 +8608,27 @@ end
 -- Per-frame update
 --------------------------------------------------------------------------------
 
+-- Springy mushrooms: launch the bunny when it lands on one. (Detected with a
+-- ray straight down, because the bunny's collision box hovers above the
+-- ground and never actually "touches" what it stands on.)
+local function bounceOff(part)
+	local now = os.clock()
+	if not root or now - lastBounce < 0.4 then
+		return
+	end
+	lastBounce = now
+	local power = part:GetAttribute("Bounce") or Config.MushroomBounce
+	if move == "pound" then
+		power *= 1.15
+	end
+	local v = root.AssemblyLinearVelocity
+	launch(Vector3.new(v.X, power, v.Z), "bounce")
+	Effects.Play("Boing", 0.7)
+	Effects.Burst(part.Position + Vector3.new(0, part.Size.Y / 2, 0), part.Color, 10, 8, 0.7, 3)
+end
+
 local function step(dt)
-	if not root or not humanoid or humanoid.Health <= 0 then
+	if not root or not humanoid or humanoid.Health <= 0 or flying then
 		return
 	end
 	local now = os.clock()
@@ -7791,6 +8638,14 @@ local function step(dt)
 		airborneSince = nil
 	elseif not airborneSince then
 		airborneSince = now
+	end
+
+	-- landed on a bounce pad?
+	if root.AssemblyLinearVelocity.Y < 5 then
+		local under = floorHit()
+		if under and under.Instance:GetAttribute("Bounce") and root.Position.Y - under.Position.Y < 3.6 then
+			bounceOff(under.Instance)
+		end
 	end
 
 	if move == "" and onGround and sentMove == "flip" then
@@ -7887,22 +8742,9 @@ end
 --------------------------------------------------------------------------------
 
 local function onBounceTouch(part, hit)
-	if not character or not hit:IsDescendantOf(character) then
-		return
+	if character and hit:IsDescendantOf(character) then
+		bounceOff(part)
 	end
-	local now = os.clock()
-	if now - lastBounce < 0.4 then
-		return
-	end
-	lastBounce = now
-	local power = part:GetAttribute("Bounce") or Config.MushroomBounce
-	if move == "pound" then
-		power *= 1.15
-	end
-	local v = root.AssemblyLinearVelocity
-	launch(Vector3.new(v.X, power, v.Z), "bounce")
-	Effects.Play("Boing", 0.7)
-	Effects.Burst(part.Position + Vector3.new(0, part.Size.Y / 2, 0), part.Color, 10, 8, 0.7, 3)
 end
 
 local function watchBouncers()
@@ -8038,7 +8880,7 @@ function Movement.Init(effects, remotes)
 end
 
 return Movement
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001E"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000020"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--[[
 	UI - shared building blocks for Bunny 64's late-90s console look:
 	chunky beveled panels with gold trim, gradient title lettering, a bouncing
 	carrot cursor, and menu navigation that works with keyboard, gamepad,
@@ -8430,7 +9272,7 @@ function UI.list(parent, padding)
 end
 
 return UI
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001F"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000021"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--[[
 	WorldFX - client-side world behaviour:
 	  * animates firebars and crushers from the shared server clock
 	  * opens golden-carrot gates for players who have enough golden carrots
@@ -8453,27 +9295,31 @@ local WorldFX = {}
 local Effects, Hud
 local hazards = {}
 local gates = {}
+local flags = {}
+local activeCheckpoint = nil
 local goldenCount = 0
 local currentRegion = nil
 local inArena = false
 
 -- Region looks -------------------------------------------------------------------
 local LOOKS = {
+	-- ambient = outdoor fill light, indoor = light inside roofed rooms (keep, dungeon...)
 	meadow = {
 		fog = Color3.fromRGB(176, 182, 172), fogStart = 160, fogEnd = 900, ambient = Color3.fromRGB(132, 124, 112),
-		tint = Color3.fromRGB(255, 244, 228), sat = -0.18, clock = 16.3,
+		indoor = Color3.fromRGB(120, 114, 106), tint = Color3.fromRGB(255, 244, 228), sat = -0.18, clock = 16.3, brightness = 2.2,
 	},
 	peaks = {
 		fog = Color3.fromRGB(196, 206, 214), fogStart = 120, fogEnd = 700, ambient = Color3.fromRGB(138, 144, 156),
-		tint = Color3.fromRGB(236, 244, 255), sat = -0.25, clock = 14.5,
+		indoor = Color3.fromRGB(124, 130, 140), tint = Color3.fromRGB(236, 244, 255), sat = -0.25, clock = 14.5, brightness = 2.2,
 	},
 	canyon = {
 		fog = Color3.fromRGB(206, 178, 140), fogStart = 160, fogEnd = 850, ambient = Color3.fromRGB(150, 126, 100),
-		tint = Color3.fromRGB(255, 236, 210), sat = -0.12, clock = 17.2,
+		indoor = Color3.fromRGB(130, 112, 94), tint = Color3.fromRGB(255, 236, 210), sat = -0.12, clock = 17.2, brightness = 2.3,
 	},
+	-- moody but readable: warm red haze far out, plenty of fill light indoors
 	castle = {
-		fog = Color3.fromRGB(70, 34, 30), fogStart = 60, fogEnd = 520, ambient = Color3.fromRGB(110, 70, 60),
-		tint = Color3.fromRGB(255, 214, 196), sat = -0.1, clock = 18.6,
+		fog = Color3.fromRGB(150, 98, 82), fogStart = 160, fogEnd = 950, ambient = Color3.fromRGB(168, 138, 126),
+		indoor = Color3.fromRGB(150, 122, 110), tint = Color3.fromRGB(255, 234, 220), sat = -0.08, clock = 16.6, brightness = 2.6,
 	},
 }
 
@@ -8493,7 +9339,7 @@ local function applyLook(id)
 	local info = TweenInfo.new(2.5, Enum.EasingStyle.Sine)
 	TweenService:Create(Lighting, info, {
 		FogColor = look.fog, FogStart = look.fogStart, FogEnd = look.fogEnd,
-		OutdoorAmbient = look.ambient, ClockTime = look.clock,
+		OutdoorAmbient = look.ambient, Ambient = look.indoor, ClockTime = look.clock, Brightness = look.brightness,
 	}):Play()
 	local grade = Lighting:FindFirstChild("Bunny64Grade")
 	if grade then
@@ -8553,6 +9399,20 @@ local function refreshGates()
 	end
 end
 
+local function refreshFlags()
+	for _, f in ipairs(flags) do
+		local on = f:GetAttribute("Checkpoint") == activeCheckpoint
+		f.Color = on and Color3.fromRGB(226, 182, 74) or Color3.fromRGB(136, 66, 54)
+		f.Material = on and Enum.Material.Neon or Enum.Material.Fabric
+	end
+end
+
+-- The flag of the checkpoint you'll respawn at glows gold
+function WorldFX.SetCheckpoint(id)
+	activeCheckpoint = id
+	refreshFlags()
+end
+
 function WorldFX.SetGoldenCount(n)
 	goldenCount = n or 0
 	refreshGates()
@@ -8573,9 +9433,12 @@ function WorldFX.Init(effects, hud)
 	for _, d in ipairs(world:WaitForChild("Solid"):GetDescendants()) do
 		if d:IsA("BasePart") and d:GetAttribute("GoldenGate") then
 			table.insert(gates, d)
+		elseif d:IsA("BasePart") and d:GetAttribute("Checkpoint") then
+			table.insert(flags, d)
 		end
 	end
 	refreshGates()
+	refreshFlags()
 
 	local nextZoneCheck = 0
 	RunService.RenderStepped:Connect(function()
@@ -8648,8 +9511,8 @@ function WorldFX.Region()
 end
 
 return WorldFX
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterCharacterScripts" referent="RBX00000024"><Properties><string name="Name">StarterCharacterScripts</string></Properties><Item class="LocalScript" referent="RBX00000022"><Properties><string name="Name">Animate</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default "Animate" script.
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterCharacterScripts" referent="RBX00000026"><Properties><string name="Name">StarterCharacterScripts</string></Properties><Item class="LocalScript" referent="RBX00000024"><Properties><string name="Name">Animate</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default "Animate" script.
 -- The bunny is animated procedurally by StarterPlayerScripts.Bunny64Client.Animator.
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX00000023"><Properties><string name="Name">Health</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default health regeneration.
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX00000025"><Properties><string name="Name">Health</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default health regeneration.
 -- In Bunny 64 hearts only come back from carrots and golden carrots.
 ]]></ProtectedString><token name="RunContext">0</token></Properties></Item></Item></Item></roblox>
