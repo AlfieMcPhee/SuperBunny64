@@ -372,13 +372,13 @@ end
 -- Collectibles
 --------------------------------------------------------------------------------
 
-local function carrotModel(pos, golden)
+local function carrotModel(pos, golden, silver)
 	local model = Instance.new("Model")
-	model.Name = golden and "GoldenCarrot" or "Carrot"
-	local body = golden and P.Gold or P.Carrot
-	local dark = golden and P.GoldDark or P.CarrotDark
-	local leaf = golden and Color3.fromRGB(236, 222, 170) or P.CarrotLeaf
-	local s = golden and 1.8 or 1
+	model.Name = golden and "GoldenCarrot" or (silver and "SilverCarrot" or "Carrot")
+	local body = golden and P.Gold or (silver and Color3.fromRGB(206, 212, 222) or P.Carrot)
+	local dark = golden and P.GoldDark or (silver and Color3.fromRGB(150, 158, 172) or P.CarrotDark)
+	local leaf = golden and Color3.fromRGB(236, 222, 170) or (silver and Color3.fromRGB(226, 232, 240) or P.CarrotLeaf)
+	local s = golden and 1.8 or (silver and 1.3 or 1)
 	local function piece(offset, size, color)
 		return B.make("Part", {
 			Size = size * s,
@@ -387,7 +387,7 @@ local function carrotModel(pos, golden)
 			CanCollide = false,
 			CanQuery = false,
 			CanTouch = false,
-			Material = golden and Enum.Material.Metal or SMOOTH,
+			Material = (golden or silver) and Enum.Material.Metal or SMOOTH,
 		}, model)
 	end
 	local root = piece(Vector3.new(0, 0.5, 0), Vector3.new(1.4, 1.2, 1.4), body)
@@ -455,6 +455,47 @@ function B.carrotRing(center, radius, n)
 	for i = 0, n - 1 do
 		local a = i / n * math.pi * 2
 		B.carrot(center + Vector3.new(math.cos(a) * radius, 0, math.sin(a) * radius))
+	end
+end
+
+-- Silver carrots: five per hunt; the golden reward appears once you have them all
+function B.silver(setId, index, pos)
+	local id = string.format("s_%s_%d", setId, index)
+	B.info.silvers = B.info.silvers or {}
+	B.info.silvers[id] = { pos = pos, set = setId }
+	local m = carrotModel(pos, false, true)
+	m:SetAttribute("CollectId", id)
+	m:SetAttribute("Kind", "silver")
+	m:SetAttribute("SilverSet", setId)
+	local light = Instance.new("PointLight")
+	light.Color = Color3.fromRGB(210, 226, 255)
+	light.Range = 10
+	light.Brightness = 1
+	light.Parent = m.PrimaryPart
+end
+
+-- A glowing start pad for a time trial
+function B.trialPad(id, def)
+	local y = B.groundY(def.start.X, def.start.Z, def.start.Y + 20)
+	local pad = B.cyl(def.start.X, y - 0.3, def.start.Z, 6, 0.6, Color3.fromRGB(110, 190, 220), Enum.Material.Neon)
+	pad.Name = "TrialPad"
+	pad:SetAttribute("Trial", id)
+	pad.CanCollide = false
+	B.cyl(def.start.X, y - 0.5, def.start.Z, 7, 0.6, P.StoneDark, Enum.Material.Slate)
+	B.sign(Vector3.new(def.start.X + 9, y, def.start.Z), Vector3.new(-1, 0, 0), def.name, string.format("Step on the pad: %d seconds!", def.time))
+	-- a ring marking the finish line
+	for i = 0, 11 do
+		local a = i / 12 * math.pi * 2
+		local p = def.finish + Vector3.new(math.cos(a) * def.finishRadius, 0.6, math.sin(a) * def.finishRadius)
+		B.make("Part", {
+			Size = Vector3.new(0.6, 1.2, 0.6),
+			CFrame = CFrame.new(p),
+			Color = Color3.fromRGB(110, 190, 220),
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			CanQuery = false,
+			CastShadow = false,
+		}, B.decor)
 	end
 end
 

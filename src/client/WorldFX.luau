@@ -67,6 +67,9 @@ local function regionAt(pos)
 end
 
 local function applyLook(id)
+	if WorldFX.OnRegion then
+		WorldFX.OnRegion(id)
+	end
 	local look = LOOKS[id]
 	local info = TweenInfo.new(2.5, Enum.EasingStyle.Sine)
 	TweenService:Create(Lighting, info, {

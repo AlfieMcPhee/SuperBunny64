@@ -54,6 +54,8 @@ function DataService.NewSlot()
 		bossDefeated = false,
 		tips = {},
 		stamps = {},
+		silvers = {},
+		trials = {},
 		stats = { crates = 0, longjumps = 0 },
 		regions = {},
 		friends = {},
@@ -232,6 +234,9 @@ function DataService.Save(player, release)
 				warn("[Bunny64] Save skipped for " .. player.Name .. ": session owned by another server.")
 				profile.canSave = false
 				return false
+			end
+			if DataService.OnSaved and not release then
+				pcall(DataService.OnSaved, player)
 			end
 			return true
 		end

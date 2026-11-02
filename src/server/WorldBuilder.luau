@@ -109,6 +109,23 @@ function WorldBuilder.Build()
 		end
 	end
 
+	-- silver carrot hunts and time trials (data lives in Config)
+	local ok, err = pcall(function()
+		for setId, set in pairs(Config.SilverSets) do
+			for i, spot in ipairs(set.spots) do
+				B.silver(setId, i, spot)
+			end
+			B.golden(setId, set.reward)
+		end
+		for id, trial in pairs(Config.Trials) do
+			B.trialPad(id, trial)
+			B.golden(id, trial.reward)
+		end
+	end)
+	if not ok then
+		warn("[Bunny64] Building silver hunts / trials failed: " .. tostring(err))
+	end
+
 	B.Finish()
 
 	local info = B.info

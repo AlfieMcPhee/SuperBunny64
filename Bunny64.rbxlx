@@ -490,6 +490,72 @@ Config.Goldens = {
 	{ id = "rampart", region = "castle", name = "Rampart Watch", hint = "Walk the castle walls to the north-east tower." },
 	{ id = "keep", region = "castle", name = "Keep Climb", hint = "Climb the ledges inside the keep. Don't touch the lava." },
 	{ id = "boss", region = "castle", name = "King Grumble's Crown", hint = "Defeat King Grumble in the throne room above the castle.", req = "boss" },
+	-- Silver carrot hunts: find all five silver carrots in a region
+	{ id = "silver_meadow", region = "meadow", name = "Meadow Silver Hunt", hint = "Five silver carrots hide around the meadow: high, low and far.", req = "silver" },
+	{ id = "silver_peaks", region = "peaks", name = "Peaks Silver Hunt", hint = "Five silver carrots glint in the snow, up the mountain and by the pond.", req = "silver" },
+	{ id = "silver_canyon", region = "canyon", name = "Canyon Silver Hunt", hint = "Five silver carrots in the canyon. Look on top of things.", req = "silver" },
+	{ id = "silver_castle", region = "castle", name = "Castle Silver Hunt", hint = "Five silver carrots in and around the castle. One is very warm.", req = "silver" },
+	-- Time trials: step on the glowing start pad and race the clock
+	{ id = "trial_summit", region = "peaks", name = "Summit Sprint", hint = "Race from the pad by Pip to the summit before time runs out.", req = "trial" },
+	{ id = "trial_boulder", region = "canyon", name = "Boulder Dash", hint = "Race up Boulder Run to the temple. Boulders don't wait.", req = "trial" },
+}
+
+-- Silver carrot hunts (5 per region); the golden reward appears at `reward`
+Config.SilverSets = {
+	silver_meadow = {
+		reward = Vector3.new(0, 7, 24),
+		spots = {
+			Vector3.new(-54, 25.5, -42), -- on the cottage chimney
+			Vector3.new(-95, 17.5, -120), -- tower terrace, far side
+			Vector3.new(92.0, 55.5, 131.1), -- halfway up the old oak
+			Vector3.new(-330, 17.5, 40), -- on the islet shrine roof
+			Vector3.new(24, 104.5, 0), -- edge of the spinning sky disc
+		},
+	},
+	silver_peaks = {
+		reward = Vector3.new(20, 7, -562),
+		spots = {
+			Vector3.new(152.5, 3.5, -720), -- the frozen pond's icy rim
+			Vector3.new(-40, 99.5, -714), -- the ice chute's start platform
+			Vector3.new(104.75, 59, -568.5), -- on the snowman's hat brim
+			Vector3.new(-60.1, 45.5, -789.6), -- third mountain tier, back side
+			Vector3.new(-10, 117.5, -726), -- behind the summit pine
+		},
+	},
+	silver_canyon = {
+		reward = Vector3.new(580, 8, 50),
+		spots = {
+			Vector3.new(790, 26.5, 60), -- on the rock arch
+			Vector3.new(595, 43.5, -75), -- on the Canyon Leap start mesa
+			Vector3.new(718, 3.5, -60), -- canyon floor under the leap pillars
+			Vector3.new(838, 81.5, 160), -- the temple roof ridge
+			Vector3.new(674.8, 52.5, 93.6), -- a ledge on Eagle's Mesa
+		},
+	},
+	silver_castle = {
+		reward = Vector3.new(0, 8, 760),
+		spots = {
+			Vector3.new(65, 31.5, 750), -- on the Crusher Hall roof
+			Vector3.new(-110, 63.5, 910), -- south-west tower top
+			Vector3.new(135, 13.5, 870), -- back corner of the dungeon goal
+			Vector3.new(52, 67.5, 888), -- keep roof, far corner
+			Vector3.new(100, 6, 615), -- over a lava vent outside
+		},
+	},
+}
+
+-- Time trials: start pad -> finish within `time` seconds unlocks a golden at `reward`
+Config.Trials = {
+	trial_summit = {
+		name = "SUMMIT SPRINT", time = 90,
+		start = Vector3.new(-26, 0, -560), finish = Vector3.new(0, 114, -720), finishRadius = 18,
+		reward = Vector3.new(8, 119, -716),
+	},
+	trial_boulder = {
+		name = "BOULDER DASH", time = 20,
+		start = Vector3.new(586, 0, 160), finish = Vector3.new(838, 60, 160), finishRadius = 14,
+		reward = Vector3.new(830, 66, 170),
+	},
 }
 
 -- Respawn points (also act as checkpoints once touched)
@@ -517,7 +583,7 @@ Config.Warps = {
 Config.Stamps = {
 	{ id = "golden1", name = "SHINY!", desc = "Find your first golden carrot." },
 	{ id = "golden10", name = "HALFWAY HOP", desc = "Find 10 golden carrots." },
-	{ id = "golden20", name = "CARROT CHAMPION", desc = "Find all 20 golden carrots." },
+	{ id = "golden20", name = "CARROT CHAMPION", desc = "Find every golden carrot." },
 	{ id = "carrots", name = "CRUNCH TIME", desc = "Collect every single carrot." },
 	{ id = "regions", name = "SIGHTSEER", desc = "Visit all four regions." },
 	{ id = "friends", name = "SOCIAL BUNNY", desc = "Chat with all six friends." },
@@ -527,7 +593,7 @@ Config.Stamps = {
 	{ id = "walljump", name = "BOING BOING BOING", desc = "Wall jump 3 times in a row." },
 	{ id = "boss", name = "CROWN JEWEL", desc = "Defeat King Grumble." },
 	{ id = "bossnohit", name = "UNTOUCHABLE", desc = "Defeat King Grumble without getting hurt." },
-	{ id = "speedy", name = "SPEEDY BUNNY", desc = "Find all 20 golden carrots in under 2 hours." },
+	{ id = "speedy", name = "SPEEDY BUNNY", desc = "Find every golden carrot in under 3 hours." },
 }
 Config.Badges = {
 	-- golden20 = 1234567890,
@@ -681,7 +747,7 @@ Config.FurColors = {
 	{ name = "ROSE", fur = rgb(190, 140, 140), cream = rgb(236, 214, 204) },
 	{ name = "MOSS", fur = rgb(120, 128, 92), cream = rgb(214, 210, 180) },
 	-- post-game reward
-	{ name = "GOLDEN", fur = rgb(214, 172, 72), cream = rgb(244, 226, 170), need = 20 },
+	{ name = "GOLDEN", fur = rgb(214, 172, 72), cream = rgb(244, 226, 170), need = 26 },
 }
 Config.AccentColors = {
 	{ name = "CRIMSON", color = rgb(140, 50, 48) },
@@ -963,6 +1029,11 @@ local WarpMenu = remote("RemoteEvent", "WarpMenu")
 local Warp = remote("RemoteEvent", "Warp")
 remotes.Parent = Shared
 
+-- a little "SAVED" icon on the player's screen whenever their progress is stored
+DataService.OnSaved = function(player)
+	Effect:FireClient(player, "saved")
+end
+
 -- World -------------------------------------------------------------------------------
 local info = WorldBuilder.Build()
 
@@ -1018,6 +1089,8 @@ local function snapshot(player, event)
 			bossDefeated = slot.bossDefeated,
 			tips = slot.tips or {},
 			stamps = slot.stamps or {},
+			silvers = slot.silvers or {},
+			trials = slot.trials or {},
 		}
 	end
 	return snap
@@ -1155,6 +1228,10 @@ end
 
 local function onCharacter(player, character)
 	local st = state[player]
+	if st and st.trial then
+		st.trial = nil
+		Effect:FireClient(player, "trialstop")
+	end
 	local slot, profile = DataService.ActiveSlot(player)
 	local humanoid = character:WaitForChild("Humanoid")
 	local root = character:WaitForChild("HumanoidRootPart")
@@ -1255,6 +1332,25 @@ Collect.OnServerEvent:Connect(function(player, id)
 		return
 	end
 
+	-- silver carrots
+	local silver = info.silvers and info.silvers[id]
+	if silver then
+		slot.silvers = slot.silvers or {}
+		if slot.silvers[id] or (root.Position - silver.pos).Magnitude > 18 then
+			return
+		end
+		slot.silvers[id] = true
+		local set = Config.SilverSets[silver.set]
+		local got = 0
+		for sid, data in pairs(info.silvers) do
+			if data.set == silver.set and slot.silvers[sid] then
+				got += 1
+			end
+		end
+		push(player, { kind = "silver", set = silver.set, got = got, total = #set.spots })
+		return
+	end
+
 	local goldPos = info.goldens[id]
 	local def = goldenDefs[id]
 	if goldPos and def then
@@ -1267,6 +1363,19 @@ Collect.OnServerEvent:Connect(function(player, id)
 			return
 		elseif def.req == "boss" and not slot.bossDefeated then
 			return
+		elseif def.req == "trial" and not (slot.trials and slot.trials[id]) then
+			return
+		elseif def.req == "silver" then
+			local set = Config.SilverSets[id]
+			local got = 0
+			for sid, data in pairs(info.silvers or {}) do
+				if data.set == id and slot.silvers and slot.silvers[sid] then
+					got += 1
+				end
+			end
+			if not set or got < #set.spots then
+				return
+			end
 		end
 		local before = DataService.Progress(player)
 		slot.goldens[id] = true
@@ -1282,7 +1391,7 @@ Collect.OnServerEvent:Connect(function(player, id)
 			end
 			if n >= #Config.Goldens then
 				awardStamp(player, "golden20")
-				if DataService.GetPlayTime(player) < 2 * 3600 then
+				if DataService.GetPlayTime(player) < 3 * 3600 then
 					awardStamp(player, "speedy")
 				end
 			end
@@ -1474,6 +1583,9 @@ for _, w in ipairs(Config.Warps) do
 end
 
 local function teleport(player, cf)
+	if state[player] then
+		state[player].trial = nil -- warping out of a time trial cancels it
+	end
 	local char = player.Character
 	if char then
 		char:PivotTo(cf)
@@ -1704,6 +1816,38 @@ RunService.Heartbeat:Connect(function(dt)
 			elseif hit and not hit.Instance:GetAttribute("Moving") and hit.Instance.Anchored
 				and hit.Instance:GetAttribute("Bounce") == nil and hit.Instance:GetAttribute("Slide") == nil then
 				st.safe = CFrame.new(hit.Position + Vector3.new(0, 3, 0)) * (root.CFrame - root.CFrame.Position)
+			end
+
+			-- time trials
+			local now = os.clock()
+			if st.trial then
+				local trial = Config.Trials[st.trial.id]
+				local elapsed = now - st.trial.t0
+				local flat = Vector3.new(pos.X - trial.finish.X, 0, pos.Z - trial.finish.Z).Magnitude
+				if elapsed > trial.time then
+					st.trial = nil
+					push(player, { kind = "trialfail" })
+				elseif flat < trial.finishRadius and math.abs(pos.Y - 2.6 - trial.finish.Y) < 10 then
+					local id = st.trial.id
+					st.trial = nil
+					slot.trials = slot.trials or {}
+					local first = not slot.trials[id]
+					slot.trials[id] = true
+					push(player, { kind = "trialwin", id = id, time = elapsed, first = first })
+				end
+			else
+				local onPad = nil
+				for id, trial in pairs(Config.Trials) do
+					local flat = Vector3.new(pos.X - trial.start.X, 0, pos.Z - trial.start.Z).Magnitude
+					if flat < 6 and math.abs(pos.Y - trial.start.Y) < 10 then
+						onPad = id
+					end
+				end
+				if onPad and st.lastPad ~= onPad then
+					st.trial = { id = onPad, t0 = now }
+					push(player, { kind = "trialstart", id = onPad, time = Config.Trials[onPad].time })
+				end
+				st.lastPad = onPad
 			end
 
 			-- regions visited (for the SIGHTSEER stamp)
@@ -2704,6 +2848,8 @@ function DataService.NewSlot()
 		bossDefeated = false,
 		tips = {},
 		stamps = {},
+		silvers = {},
+		trials = {},
 		stats = { crates = 0, longjumps = 0 },
 		regions = {},
 		friends = {},
@@ -2882,6 +3028,9 @@ function DataService.Save(player, release)
 				warn("[Bunny64] Save skipped for " .. player.Name .. ": session owned by another server.")
 				profile.canSave = false
 				return false
+			end
+			if DataService.OnSaved and not release then
+				pcall(DataService.OnSaved, player)
 			end
 			return true
 		end
@@ -3812,7 +3961,7 @@ return HazardService
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000010"><Properties><string name="Name">Leaderboard</string><ProtectedString name="Source"><![CDATA[--[[
 	Leaderboard - the "FASTEST BUNNIES" board by the meadow spawn.
 
-	When a file finds all 20 golden carrots, its clear time is stored in an
+	When a file finds every golden carrot, its clear time is stored in an
 	OrderedDataStore (keeping each player's best). The board shows the top 10
 	across every server and refreshes every couple of minutes.
 	Without DataStore access (e.g. Studio with API access off) the board just
@@ -3886,7 +4035,7 @@ local function build()
 		return t
 	end
 	label("FASTEST BUNNIES", 10, 50, 44)
-	label("all 20 golden carrots", 56, 26, 22, Color3.fromRGB(110, 76, 50))
+	label("every golden carrot", 56, 26, 22, Color3.fromRGB(110, 76, 50))
 	for i = 1, 10 do
 		rows[i] = label("", 84 + (i - 1) * 25, 24, 21, nil, Enum.TextXAlignment.Left)
 	end
@@ -4523,13 +4672,13 @@ end
 -- Collectibles
 --------------------------------------------------------------------------------
 
-local function carrotModel(pos, golden)
+local function carrotModel(pos, golden, silver)
 	local model = Instance.new("Model")
-	model.Name = golden and "GoldenCarrot" or "Carrot"
-	local body = golden and P.Gold or P.Carrot
-	local dark = golden and P.GoldDark or P.CarrotDark
-	local leaf = golden and Color3.fromRGB(236, 222, 170) or P.CarrotLeaf
-	local s = golden and 1.8 or 1
+	model.Name = golden and "GoldenCarrot" or (silver and "SilverCarrot" or "Carrot")
+	local body = golden and P.Gold or (silver and Color3.fromRGB(206, 212, 222) or P.Carrot)
+	local dark = golden and P.GoldDark or (silver and Color3.fromRGB(150, 158, 172) or P.CarrotDark)
+	local leaf = golden and Color3.fromRGB(236, 222, 170) or (silver and Color3.fromRGB(226, 232, 240) or P.CarrotLeaf)
+	local s = golden and 1.8 or (silver and 1.3 or 1)
 	local function piece(offset, size, color)
 		return B.make("Part", {
 			Size = size * s,
@@ -4538,7 +4687,7 @@ local function carrotModel(pos, golden)
 			CanCollide = false,
 			CanQuery = false,
 			CanTouch = false,
-			Material = golden and Enum.Material.Metal or SMOOTH,
+			Material = (golden or silver) and Enum.Material.Metal or SMOOTH,
 		}, model)
 	end
 	local root = piece(Vector3.new(0, 0.5, 0), Vector3.new(1.4, 1.2, 1.4), body)
@@ -4606,6 +4755,47 @@ function B.carrotRing(center, radius, n)
 	for i = 0, n - 1 do
 		local a = i / n * math.pi * 2
 		B.carrot(center + Vector3.new(math.cos(a) * radius, 0, math.sin(a) * radius))
+	end
+end
+
+-- Silver carrots: five per hunt; the golden reward appears once you have them all
+function B.silver(setId, index, pos)
+	local id = string.format("s_%s_%d", setId, index)
+	B.info.silvers = B.info.silvers or {}
+	B.info.silvers[id] = { pos = pos, set = setId }
+	local m = carrotModel(pos, false, true)
+	m:SetAttribute("CollectId", id)
+	m:SetAttribute("Kind", "silver")
+	m:SetAttribute("SilverSet", setId)
+	local light = Instance.new("PointLight")
+	light.Color = Color3.fromRGB(210, 226, 255)
+	light.Range = 10
+	light.Brightness = 1
+	light.Parent = m.PrimaryPart
+end
+
+-- A glowing start pad for a time trial
+function B.trialPad(id, def)
+	local y = B.groundY(def.start.X, def.start.Z, def.start.Y + 20)
+	local pad = B.cyl(def.start.X, y - 0.3, def.start.Z, 6, 0.6, Color3.fromRGB(110, 190, 220), Enum.Material.Neon)
+	pad.Name = "TrialPad"
+	pad:SetAttribute("Trial", id)
+	pad.CanCollide = false
+	B.cyl(def.start.X, y - 0.5, def.start.Z, 7, 0.6, P.StoneDark, Enum.Material.Slate)
+	B.sign(Vector3.new(def.start.X + 9, y, def.start.Z), Vector3.new(-1, 0, 0), def.name, string.format("Step on the pad: %d seconds!", def.time))
+	-- a ring marking the finish line
+	for i = 0, 11 do
+		local a = i / 12 * math.pi * 2
+		local p = def.finish + Vector3.new(math.cos(a) * def.finishRadius, 0.6, math.sin(a) * def.finishRadius)
+		B.make("Part", {
+			Size = Vector3.new(0.6, 1.2, 0.6),
+			CFrame = CFrame.new(p),
+			Color = Color3.fromRGB(110, 190, 220),
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			CanQuery = false,
+			CastShadow = false,
+		}, B.decor)
 	end
 end
 
@@ -6464,6 +6654,23 @@ function WorldBuilder.Build()
 		end
 	end
 
+	-- silver carrot hunts and time trials (data lives in Config)
+	local ok, err = pcall(function()
+		for setId, set in pairs(Config.SilverSets) do
+			for i, spot in ipairs(set.spots) do
+				B.silver(setId, i, spot)
+			end
+			B.golden(setId, set.reward)
+		end
+		for id, trial in pairs(Config.Trials) do
+			B.trialPad(id, trial)
+			B.golden(id, trial.reward)
+		end
+	end)
+	if not ok then
+		warn("[Bunny64] Building silver hunts / trials failed: " .. tostring(err))
+	end
+
 	B.Finish()
 
 	local info = B.info
@@ -6473,7 +6680,7 @@ function WorldBuilder.Build()
 end
 
 return WorldBuilder
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX0000002D"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="EnableMouseLockOption">false</bool></Properties><Item class="StarterPlayerScripts" referent="RBX00000029"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX00000028"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX0000002E"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="EnableMouseLockOption">false</bool></Properties><Item class="StarterPlayerScripts" referent="RBX0000002A"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX00000029"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
 	Bunny 64 - client entry point. Wires together menus, HUD, movement,
 	animation, collectibles and world effects, and reacts to server events.
 ]]
@@ -6497,6 +6704,7 @@ local AdminPanel = require(script:WaitForChild("AdminPanel"))
 local Shadows = require(script:WaitForChild("Shadows"))
 local Dialogue = require(script:WaitForChild("Dialogue"))
 local PhotoMode = require(script:WaitForChild("PhotoMode"))
+local Weather = require(script:WaitForChild("Weather"))
 
 local player = Players.LocalPlayer
 
@@ -6602,6 +6810,30 @@ local function handleEvent(s, event)
 	elseif kind == "warpfound" then
 		Effects.Play("MenuSelect", 1.4)
 		Hud.Toast("BURROW WARP FOUND:\n" .. (warpNames[event.id] or ""), 2.5, GOLD)
+	elseif kind == "silver" then
+		if event.got >= event.total then
+			Effects.Jingle()
+			Hud.Toast(string.format("SILVER CARROT %d/%d\nALL FIVE! A GOLDEN CARROT HAS APPEARED...", event.got, event.total), 4, GOLD)
+		else
+			Hud.Toast(string.format("SILVER CARROT %d/%d", event.got, event.total), 2, Color3.fromRGB(210, 224, 245))
+		end
+	elseif kind == "trialstart" then
+		local trial = Config.Trials[event.id]
+		Effects.Play("MenuSelect", 1.5)
+		Hud.Toast(trial and (trial.name .. "!\nGO GO GO!") or "GO!", 1.5, Color3.fromRGB(150, 210, 255))
+		Hud.StartTimer(event.time, trial and trial.name or "")
+	elseif kind == "trialfail" then
+		Hud.StopTimer()
+		Effects.Play("Hurt", 0.7)
+		Hud.Toast("TIME'S UP!\nSTEP ON THE PAD TO TRY AGAIN", 3, Color3.fromRGB(240, 140, 120))
+	elseif kind == "trialwin" then
+		Hud.StopTimer()
+		Effects.Jingle()
+		local msg = string.format("TRIAL CLEAR!  %.1f s", event.time or 0)
+		if event.first then
+			msg ..= "\nA GOLDEN CARROT HAS APPEARED AT THE FINISH!"
+		end
+		Hud.Toast(msg, 4, GOLD)
 	elseif kind == "stamp" then
 		local name = event.id
 		for _, st in ipairs(Config.Stamps) do
@@ -6659,6 +6891,15 @@ remotes.Effect.OnClientEvent:Connect(function(kind, pos, extra)
 	elseif kind == "bossroar" then
 		Effects.Play("Boss", 0.6)
 		Effects.Shake(1.5, 1.5)
+		-- the boss's title card, the way old games introduced them
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if root and (root.Position - pos).Magnitude < 120 then
+			Hud.RegionBanner("KING GRUMBLE")
+			task.delay(0.6, function()
+				Hud.Toast("TYRANT OF THE INFERNAL CASTLE", 2.2, Color3.fromRGB(240, 150, 110))
+			end)
+		end
 	elseif kind == "bosscharge" then
 		Effects.Play("Roll", 0.5)
 	elseif kind == "bossbonk" then
@@ -6677,6 +6918,10 @@ remotes.Effect.OnClientEvent:Connect(function(kind, pos, extra)
 		Hud.IrisBlink(0.2, 0.15, 0.5)
 		Effects.Play("Boing", 1.2)
 		Effects.Burst(pos, Config.Palette.Dirt, 14, 6, 0.7, 6)
+	elseif kind == "saved" then
+		Hud.ShowSaved()
+	elseif kind == "trialstop" then
+		Hud.StopTimer()
 	elseif kind == "crate" then
 		Effects.Play("Crate", 1.3)
 		Effects.Burst(pos, Config.Palette.WoodLight, 14, 7, 0.8, 7)
@@ -6816,6 +7061,8 @@ Dialogue.Init({
 	end,
 })
 task.spawn(Shadows.Init)
+Weather.Init()
+WorldFX.OnRegion = Weather.SetRegion
 Effects.SetMusic("title")
 
 task.spawn(function()
@@ -7939,11 +8186,27 @@ for _, g in ipairs(Config.Goldens) do
 	reqOf[g.id] = g.req
 end
 
+local function silverCount(setId)
+	local got = 0
+	for sid in pairs(slot and slot.silvers or {}) do
+		if string.sub(sid, 1, #setId + 3) == "s_" .. setId .. "_" then
+			got += 1
+		end
+	end
+	return got
+end
+
 local function isLocked(id)
 	if not slot then
 		return true
 	end
 	local req = reqOf[id]
+	if req == "silver" then
+		local set = Config.SilverSets[id]
+		return not set or silverCount(id) < #set.spots
+	elseif req == "trial" then
+		return not (slot.trials and slot.trials[id])
+	end
 	if req == "carrots" then
 		return slot.carrotCount < Config.CollectorGoal
 	elseif req == "bugs" then
@@ -7960,6 +8223,10 @@ local function shouldShow(item)
 	end
 	if item.kind == "golden" then
 		if slot.goldens[item.id] or isLocked(item.id) then
+			return false
+		end
+	elseif item.kind == "silver" then
+		if slot.silvers and slot.silvers[item.id] then
 			return false
 		end
 	elseif slot.carrots[item.id] then
@@ -8047,7 +8314,10 @@ function Collectibles.Init(effects, remotes)
 						item.pendingAt = t
 						model.Parent = nil
 						Remotes.Collect:FireServer(item.id)
-						if golden then
+						if item.kind == "silver" then
+							Effects.Play("Golden", 1.5)
+							Effects.Burst(item.pivot.Position, Color3.fromRGB(220, 230, 245), 14, 8, 0.7, 6, Enum.Material.Neon)
+						elseif golden then
 							Effects.Burst(item.pivot.Position, Config.Palette.Gold, 24, 12, 0.9, 10)
 						else
 							combo = (t - lastPickup < 1.5) and math.min(combo + 1, 10) or 0
@@ -8727,6 +8997,61 @@ function Hud.Tip(text)
 				end
 			end)
 		end
+	end)
+end
+
+--------------------------------------------------------------------------------
+-- Time-trial countdown and the little save icon
+--------------------------------------------------------------------------------
+
+local timerLabel, timerConn
+function Hud.StartTimer(seconds, title)
+	Hud.StopTimer()
+	if not timerLabel then
+		timerLabel = UI.label(gui, {
+			Text = "", Font = UI.TITLE, TextSize = 48, AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.new(0.5, 0, 0, 92), Size = UDim2.new(0, 300, 0, 54), Stroke = 4,
+		})
+	end
+	local endAt = os.clock() + seconds
+	timerLabel.Visible = true
+	timerConn = RunService.RenderStepped:Connect(function()
+		local left = math.max(0, endAt - os.clock())
+		timerLabel.Text = string.format("%s  %d.%d", title or "", math.floor(left), math.floor((left % 1) * 10))
+		timerLabel.TextColor3 = left < 5 and Color3.fromRGB(240, 110, 100) or UI.Cream
+	end)
+end
+
+function Hud.StopTimer()
+	if timerConn then
+		timerConn:Disconnect()
+		timerConn = nil
+	end
+	if timerLabel then
+		timerLabel.Visible = false
+	end
+end
+
+local savedIcon
+function Hud.ShowSaved()
+	if not savedIcon then
+		savedIcon = Instance.new("Frame")
+		savedIcon.BackgroundTransparency = 1
+		savedIcon.AnchorPoint = Vector2.new(1, 1)
+		savedIcon.Position = UDim2.new(1, -20, 1, -16)
+		savedIcon.Size = UDim2.fromOffset(130, 34)
+		savedIcon.Parent = gui
+		UI.carrot(savedIcon, Config.Palette.Carrot, 1, UDim2.fromOffset(0, 2))
+		UI.label(savedIcon, { Text = "SAVED", Font = UI.TITLE, TextSize = 22, Size = UDim2.fromOffset(100, 30), Position = UDim2.fromOffset(28, 2), TextXAlignment = Enum.TextXAlignment.Left, Stroke = 3 })
+	end
+	savedIcon.Visible = true
+	local carrot = savedIcon:FindFirstChildOfClass("Frame")
+	if carrot then
+		carrot.Rotation = 0
+		TweenService:Create(carrot, TweenInfo.new(0.6, Enum.EasingStyle.Back), { Rotation = 360 }):Play()
+	end
+	task.delay(1.8, function()
+		savedIcon.Visible = false
 	end)
 end
 
@@ -9870,12 +10195,76 @@ function Menus.ShowWarp(ids)
 	UI.SetNav(entries, Menus.Close)
 end
 
+local CREDITS = {
+	{ "BUNNY 64", true },
+	{ "" },
+	{ "STARRING", true }, { "A plush bunny with a patched ear" },
+	{ "" },
+	{ "FRIENDS", true }, { "Elder Shellby" }, { "Granny Clover" }, { "Pip" }, { "Prospector Digby" }, { "Guard Nibbles" }, { "Sir Ember" },
+	{ "" },
+	{ "BADDIES", true }, { "Grumblebugs" }, { "Hopscotch Toads" }, { "Flitbats" }, { "Thornhogs" }, { "Puffshrooms" },
+	{ "and King Grumble as himself" },
+	{ "" },
+	{ "MUSIC", true }, { "Bunny's Theme and its many moods" },
+	{ "" },
+	{ "PLACES", true }, { "Carrot Meadow" }, { "Frostbite Peaks" }, { "Dustbowl Canyon" }, { "The Infernal Castle" },
+	{ "" },
+	{ "FOR", true }, { "everyone who ever chased" }, { "one more golden carrot" },
+	{ "" }, { "" },
+	{ "THANK YOU FOR PLAYING", true },
+}
+
+local function rollCredits(done)
+	screen = "credits"
+	clear()
+	gui.Enabled = true
+	UI.backdrop(layer, 0.05)
+	bunnyViewport(layer, UDim2.fromOffset(220, 220), UDim2.new(0.82, 0, 0.5, 0), snap.menu.custom)
+	local holder = Instance.new("Frame")
+	holder.BackgroundTransparency = 1
+	holder.AnchorPoint = Vector2.new(0.5, 0)
+	holder.Size = UDim2.new(0.6, 0, 0, #CREDITS * 40)
+	holder.Position = UDim2.new(0.42, 0, 1, 20)
+	holder.Parent = layer
+	for i, line in ipairs(CREDITS) do
+		UI.label(holder, {
+			Text = line[1], Font = line[2] and UI.TITLE or UI.BODY, TextSize = line[2] and 34 or 24,
+			TextColor3 = line[2] and UI.Gold or UI.Cream, Size = UDim2.new(1, 0, 0, 38),
+			Position = UDim2.fromOffset(0, (i - 1) * 40), Stroke = line[2] and 4 or 3,
+		})
+	end
+	local finished = false
+	local function finish()
+		if finished then
+			return
+		end
+		finished = true
+		done()
+	end
+	local roll = TweenService:Create(holder, TweenInfo.new(32, Enum.EasingStyle.Linear), { Position = UDim2.new(0.42, 0, 0, -#CREDITS * 40 - 20) })
+	roll:Play()
+	roll.Completed:Connect(finish)
+	local skip = UI.item(layer, "SKIP", { Size = UDim2.fromOffset(140, 36), AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -16, 1, -12), TextSize = 20 })
+	UI.SetNav({ { button = skip, select = function()
+		roll:Cancel()
+		finish()
+	end } })
+end
+
 function Menus.ShowEnding(s)
+	gui.Enabled = true
+	deps.Movement.SetEnabled(false)
+	deps.Effects.SetMusic("ending") -- "Home Again": the full reprise of Bunny's Theme
+	rollCredits(function()
+		Menus.ShowEndingCard(s)
+	end)
+end
+
+function Menus.ShowEndingCard(s)
 	screen = "ending"
 	clear()
 	gui.Enabled = true
 	deps.Movement.SetEnabled(false)
-	deps.Effects.SetMusic("ending") -- "Home Again": the full reprise of Bunny's Theme
 	UI.backdrop(layer, 0.2)
 	UI.title(layer, "CONGRATULATIONS!", 76, UDim2.new(0.5, 0, 0, 40), Vector2.new(0.5, 0))
 	bunnyViewport(layer, UDim2.fromOffset(260, 260), UDim2.fromScale(0.5, 0.42), snap.menu.custom)
@@ -11446,7 +11835,119 @@ function UI.list(parent, padding)
 end
 
 return UI
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">Weather</string><ProtectedString name="Source"><![CDATA[--[[
+	Weather - a little atmosphere for each region, drawn around the camera:
+	  meadow  drifting pollen motes
+	  peaks   gentle snowfall
+	  canyon  wind-blown dust
+	  castle  rising embers
+	Uses particle textures that ship with Roblox, so no uploads are needed.
+]]
+
+local RunService = game:GetService("RunService")
+
+local Weather = {}
+
+local SPARK = "rbxasset://textures/particles/sparkles_main.dds"
+local SMOKE = "rbxasset://textures/particles/smoke_main.dds"
+local FIRE = "rbxasset://textures/particles/fire_main.dds"
+
+local STYLES = {
+	meadow = {
+		texture = SPARK, rate = 6, lifetime = NumberRange.new(6, 9), speed = NumberRange.new(0.5, 1.5),
+		accel = Vector3.new(0.6, 0.2, 0.3), size = 0.35, color = Color3.fromRGB(255, 240, 170), light = 0.4,
+		offset = Vector3.new(0, 4, 0), dir = Enum.NormalId.Top, spread = 180,
+	},
+	peaks = {
+		texture = SPARK, rate = 60, lifetime = NumberRange.new(6, 8), speed = NumberRange.new(4, 7),
+		accel = Vector3.new(1.2, -1, 0.4), size = 0.4, color = Color3.fromRGB(246, 250, 255), light = 0.2,
+		offset = Vector3.new(0, 30, 0), dir = Enum.NormalId.Bottom, spread = 20,
+	},
+	canyon = {
+		texture = SMOKE, rate = 4, lifetime = NumberRange.new(4, 6), speed = NumberRange.new(8, 12),
+		accel = Vector3.new(4, 0, 1), size = 4, color = Color3.fromRGB(214, 180, 130), light = 0,
+		offset = Vector3.new(-30, 1, 0), dir = Enum.NormalId.Right, spread = 30, transparency = 0.8,
+	},
+	castle = {
+		texture = FIRE, rate = 14, lifetime = NumberRange.new(3, 5), speed = NumberRange.new(2, 5),
+		accel = Vector3.new(0.5, 2.5, 0.2), size = 0.3, color = Color3.fromRGB(255, 150, 70), light = 1,
+		offset = Vector3.new(0, -8, 0), dir = Enum.NormalId.Top, spread = 40,
+	},
+}
+
+local emitterPart, emitter
+local current = nil
+
+local function apply(style)
+	emitter.Texture = style.texture
+	emitter.Rate = style.rate
+	emitter.Lifetime = style.lifetime
+	emitter.Speed = style.speed
+	emitter.Acceleration = style.accel
+	emitter.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(0.15, style.size),
+		NumberSequenceKeypoint.new(0.85, style.size),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	emitter.Color = ColorSequence.new(style.color)
+	emitter.LightEmission = style.light
+	local t = style.transparency or 0.15
+	emitter.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.2, t),
+		NumberSequenceKeypoint.new(0.8, t),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	emitter.EmissionDirection = style.dir
+	emitter.SpreadAngle = Vector2.new(style.spread, style.spread)
+	emitter.Enabled = true
+end
+
+function Weather.SetRegion(region)
+	if region == current or not emitter then
+		return
+	end
+	current = region
+	local style = STYLES[region]
+	if style then
+		apply(style)
+	else
+		emitter.Enabled = false
+	end
+end
+
+function Weather.SetEnabled(on)
+	if emitter then
+		emitter.Enabled = on and current ~= nil and STYLES[current] ~= nil
+	end
+end
+
+function Weather.Init()
+	emitterPart = Instance.new("Part")
+	emitterPart.Name = "WeatherEmitter"
+	emitterPart.Anchored = true
+	emitterPart.CanCollide = false
+	emitterPart.CanQuery = false
+	emitterPart.CanTouch = false
+	emitterPart.Transparency = 1
+	emitterPart.Size = Vector3.new(90, 1, 90)
+	emitterPart.Parent = workspace:FindFirstChild("Bunny64LocalFX") or workspace
+	emitter = Instance.new("ParticleEmitter")
+	emitter.Enabled = false
+	emitter.LockedToPart = false
+	emitter.Parent = emitterPart
+	RunService.RenderStepped:Connect(function()
+		local style = STYLES[current or ""]
+		local cam = workspace.CurrentCamera
+		if style then
+			emitterPart.CFrame = CFrame.new(cam.CFrame.Position + style.offset)
+		end
+	end)
+end
+
+return Weather
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000028"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--[[
 	WorldFX - client-side world behaviour:
 	  * animates firebars and crushers from the shared server clock
 	  * opens golden-carrot gates for players who have enough golden carrots
@@ -11515,6 +12016,9 @@ local function regionAt(pos)
 end
 
 local function applyLook(id)
+	if WorldFX.OnRegion then
+		WorldFX.OnRegion(id)
+	end
 	local look = LOOKS[id]
 	local info = TweenInfo.new(2.5, Enum.EasingStyle.Sine)
 	TweenService:Create(Lighting, info, {
@@ -11700,8 +12204,8 @@ function WorldFX.Region()
 end
 
 return WorldFX
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterCharacterScripts" referent="RBX0000002C"><Properties><string name="Name">StarterCharacterScripts</string></Properties><Item class="LocalScript" referent="RBX0000002A"><Properties><string name="Name">Animate</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default "Animate" script.
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterCharacterScripts" referent="RBX0000002D"><Properties><string name="Name">StarterCharacterScripts</string></Properties><Item class="LocalScript" referent="RBX0000002B"><Properties><string name="Name">Animate</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default "Animate" script.
 -- The bunny is animated procedurally by StarterPlayerScripts.Bunny64Client.Animator.
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX0000002B"><Properties><string name="Name">Health</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default health regeneration.
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX0000002C"><Properties><string name="Name">Health</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default health regeneration.
 -- In Bunny 64 hearts only come back from carrots and golden carrots.
 ]]></ProtectedString><token name="RunContext">0</token></Properties></Item></Item></Item></roblox>

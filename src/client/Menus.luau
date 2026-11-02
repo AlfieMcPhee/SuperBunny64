@@ -1020,12 +1020,76 @@ function Menus.ShowWarp(ids)
 	UI.SetNav(entries, Menus.Close)
 end
 
+local CREDITS = {
+	{ "BUNNY 64", true },
+	{ "" },
+	{ "STARRING", true }, { "A plush bunny with a patched ear" },
+	{ "" },
+	{ "FRIENDS", true }, { "Elder Shellby" }, { "Granny Clover" }, { "Pip" }, { "Prospector Digby" }, { "Guard Nibbles" }, { "Sir Ember" },
+	{ "" },
+	{ "BADDIES", true }, { "Grumblebugs" }, { "Hopscotch Toads" }, { "Flitbats" }, { "Thornhogs" }, { "Puffshrooms" },
+	{ "and King Grumble as himself" },
+	{ "" },
+	{ "MUSIC", true }, { "Bunny's Theme and its many moods" },
+	{ "" },
+	{ "PLACES", true }, { "Carrot Meadow" }, { "Frostbite Peaks" }, { "Dustbowl Canyon" }, { "The Infernal Castle" },
+	{ "" },
+	{ "FOR", true }, { "everyone who ever chased" }, { "one more golden carrot" },
+	{ "" }, { "" },
+	{ "THANK YOU FOR PLAYING", true },
+}
+
+local function rollCredits(done)
+	screen = "credits"
+	clear()
+	gui.Enabled = true
+	UI.backdrop(layer, 0.05)
+	bunnyViewport(layer, UDim2.fromOffset(220, 220), UDim2.new(0.82, 0, 0.5, 0), snap.menu.custom)
+	local holder = Instance.new("Frame")
+	holder.BackgroundTransparency = 1
+	holder.AnchorPoint = Vector2.new(0.5, 0)
+	holder.Size = UDim2.new(0.6, 0, 0, #CREDITS * 40)
+	holder.Position = UDim2.new(0.42, 0, 1, 20)
+	holder.Parent = layer
+	for i, line in ipairs(CREDITS) do
+		UI.label(holder, {
+			Text = line[1], Font = line[2] and UI.TITLE or UI.BODY, TextSize = line[2] and 34 or 24,
+			TextColor3 = line[2] and UI.Gold or UI.Cream, Size = UDim2.new(1, 0, 0, 38),
+			Position = UDim2.fromOffset(0, (i - 1) * 40), Stroke = line[2] and 4 or 3,
+		})
+	end
+	local finished = false
+	local function finish()
+		if finished then
+			return
+		end
+		finished = true
+		done()
+	end
+	local roll = TweenService:Create(holder, TweenInfo.new(32, Enum.EasingStyle.Linear), { Position = UDim2.new(0.42, 0, 0, -#CREDITS * 40 - 20) })
+	roll:Play()
+	roll.Completed:Connect(finish)
+	local skip = UI.item(layer, "SKIP", { Size = UDim2.fromOffset(140, 36), AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -16, 1, -12), TextSize = 20 })
+	UI.SetNav({ { button = skip, select = function()
+		roll:Cancel()
+		finish()
+	end } })
+end
+
 function Menus.ShowEnding(s)
+	gui.Enabled = true
+	deps.Movement.SetEnabled(false)
+	deps.Effects.SetMusic("ending") -- "Home Again": the full reprise of Bunny's Theme
+	rollCredits(function()
+		Menus.ShowEndingCard(s)
+	end)
+end
+
+function Menus.ShowEndingCard(s)
 	screen = "ending"
 	clear()
 	gui.Enabled = true
 	deps.Movement.SetEnabled(false)
-	deps.Effects.SetMusic("ending") -- "Home Again": the full reprise of Bunny's Theme
 	UI.backdrop(layer, 0.2)
 	UI.title(layer, "CONGRATULATIONS!", 76, UDim2.new(0.5, 0, 0, 40), Vector2.new(0.5, 0))
 	bunnyViewport(layer, UDim2.fromOffset(260, 260), UDim2.fromScale(0.5, 0.42), snap.menu.custom)

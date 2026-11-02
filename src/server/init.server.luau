@@ -85,6 +85,11 @@ local WarpMenu = remote("RemoteEvent", "WarpMenu")
 local Warp = remote("RemoteEvent", "Warp")
 remotes.Parent = Shared
 
+-- a little "SAVED" icon on the player's screen whenever their progress is stored
+DataService.OnSaved = function(player)
+	Effect:FireClient(player, "saved")
+end
+
 -- World -------------------------------------------------------------------------------
 local info = WorldBuilder.Build()
 
@@ -140,6 +145,8 @@ local function snapshot(player, event)
 			bossDefeated = slot.bossDefeated,
 			tips = slot.tips or {},
 			stamps = slot.stamps or {},
+			silvers = slot.silvers or {},
+			trials = slot.trials or {},
 		}
 	end
 	return snap
@@ -277,6 +284,10 @@ end
 
 local function onCharacter(player, character)
 	local st = state[player]
+	if st and st.trial then
+		st.trial = nil
+		Effect:FireClient(player, "trialstop")
+	end
 	local slot, profile = DataService.ActiveSlot(player)
 	local humanoid = character:WaitForChild("Humanoid")
 	local root = character:WaitForChild("HumanoidRootPart")
@@ -377,6 +388,25 @@ Collect.OnServerEvent:Connect(function(player, id)
 		return
 	end
 
+	-- silver carrots
+	local silver = info.silvers and info.silvers[id]
+	if silver then
+		slot.silvers = slot.silvers or {}
+		if slot.silvers[id] or (root.Position - silver.pos).Magnitude > 18 then
+			return
+		end
+		slot.silvers[id] = true
+		local set = Config.SilverSets[silver.set]
+		local got = 0
+		for sid, data in pairs(info.silvers) do
+			if data.set == silver.set and slot.silvers[sid] then
+				got += 1
+			end
+		end
+		push(player, { kind = "silver", set = silver.set, got = got, total = #set.spots })
+		return
+	end
+
 	local goldPos = info.goldens[id]
 	local def = goldenDefs[id]
 	if goldPos and def then
@@ -389,6 +419,19 @@ Collect.OnServerEvent:Connect(function(player, id)
 			return
 		elseif def.req == "boss" and not slot.bossDefeated then
 			return
+		elseif def.req == "trial" and not (slot.trials and slot.trials[id]) then
+			return
+		elseif def.req == "silver" then
+			local set = Config.SilverSets[id]
+			local got = 0
+			for sid, data in pairs(info.silvers or {}) do
+				if data.set == id and slot.silvers and slot.silvers[sid] then
+					got += 1
+				end
+			end
+			if not set or got < #set.spots then
+				return
+			end
 		end
 		local before = DataService.Progress(player)
 		slot.goldens[id] = true
@@ -404,7 +447,7 @@ Collect.OnServerEvent:Connect(function(player, id)
 			end
 			if n >= #Config.Goldens then
 				awardStamp(player, "golden20")
-				if DataService.GetPlayTime(player) < 2 * 3600 then
+				if DataService.GetPlayTime(player) < 3 * 3600 then
 					awardStamp(player, "speedy")
 				end
 			end
@@ -596,6 +639,9 @@ for _, w in ipairs(Config.Warps) do
 end
 
 local function teleport(player, cf)
+	if state[player] then
+		state[player].trial = nil -- warping out of a time trial cancels it
+	end
 	local char = player.Character
 	if char then
 		char:PivotTo(cf)
@@ -826,6 +872,38 @@ RunService.Heartbeat:Connect(function(dt)
 			elseif hit and not hit.Instance:GetAttribute("Moving") and hit.Instance.Anchored
 				and hit.Instance:GetAttribute("Bounce") == nil and hit.Instance:GetAttribute("Slide") == nil then
 				st.safe = CFrame.new(hit.Position + Vector3.new(0, 3, 0)) * (root.CFrame - root.CFrame.Position)
+			end
+
+			-- time trials
+			local now = os.clock()
+			if st.trial then
+				local trial = Config.Trials[st.trial.id]
+				local elapsed = now - st.trial.t0
+				local flat = Vector3.new(pos.X - trial.finish.X, 0, pos.Z - trial.finish.Z).Magnitude
+				if elapsed > trial.time then
+					st.trial = nil
+					push(player, { kind = "trialfail" })
+				elseif flat < trial.finishRadius and math.abs(pos.Y - 2.6 - trial.finish.Y) < 10 then
+					local id = st.trial.id
+					st.trial = nil
+					slot.trials = slot.trials or {}
+					local first = not slot.trials[id]
+					slot.trials[id] = true
+					push(player, { kind = "trialwin", id = id, time = elapsed, first = first })
+				end
+			else
+				local onPad = nil
+				for id, trial in pairs(Config.Trials) do
+					local flat = Vector3.new(pos.X - trial.start.X, 0, pos.Z - trial.start.Z).Magnitude
+					if flat < 6 and math.abs(pos.Y - trial.start.Y) < 10 then
+						onPad = id
+					end
+				end
+				if onPad and st.lastPad ~= onPad then
+					st.trial = { id = onPad, t0 = now }
+					push(player, { kind = "trialstart", id = onPad, time = Config.Trials[onPad].time })
+				end
+				st.lastPad = onPad
 			end
 
 			-- regions visited (for the SIGHTSEER stamp)

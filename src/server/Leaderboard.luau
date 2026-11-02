@@ -1,7 +1,7 @@
 --[[
 	Leaderboard - the "FASTEST BUNNIES" board by the meadow spawn.
 
-	When a file finds all 20 golden carrots, its clear time is stored in an
+	When a file finds every golden carrot, its clear time is stored in an
 	OrderedDataStore (keeping each player's best). The board shows the top 10
 	across every server and refreshes every couple of minutes.
 	Without DataStore access (e.g. Studio with API access off) the board just
@@ -75,7 +75,7 @@ local function build()
 		return t
 	end
 	label("FASTEST BUNNIES", 10, 50, 44)
-	label("all 20 golden carrots", 56, 26, 22, Color3.fromRGB(110, 76, 50))
+	label("every golden carrot", 56, 26, 22, Color3.fromRGB(110, 76, 50))
 	for i = 1, 10 do
 		rows[i] = label("", 84 + (i - 1) * 25, 24, 21, nil, Enum.TextXAlignment.Left)
 	end

@@ -1,7 +1,7 @@
 # Bunny 64
 
 A 3D collect-a-thon platformer for **Roblox** starring a plush bunny teddy.
-Explore four regions, find **20 golden carrots** and topple **King Grumble**
+Explore four regions, find **26 golden carrots** and topple **King Grumble**
 in his throne room above the Infernal Castle. Three save files, unlockable
 hats, and a late-90s console look: chunky low-poly shapes, a muted palette,
 distance fog and N64-style menus.
@@ -77,6 +77,22 @@ Good platformers are generous in ways players never notice. Bunny 64 does:
 * **Friendly faces** - six characters with typewriter dialogue that changes as you progress.
 * **One theme, many moods** - the whole soundtrack is built on a single leitmotif.
 
+## Side challenges
+
+* **Silver carrot hunts** - five silver carrots hide in each region (on roofs,
+  ledges, tower tops, even over a lava vent). Find all five and that region's
+  golden carrot appears. Positions live in `Config.SilverSets`.
+* **Time trials** - step on a glowing start pad and race the clock:
+  *Summit Sprint* (Peaks, 90 s to the summit) and *Boulder Dash* (Canyon, 20 s up
+  the boulder ramp). Beat the time and a golden carrot appears at the finish.
+  Tune them in `Config.Trials`.
+
+## Atmosphere
+
+Weather per region (meadow pollen, peaks snowfall, canyon dust, castle embers),
+a boss title card for King Grumble, a scrolling credits roll over the ending
+reprise, and a little SAVED icon whenever your progress is stored.
+
 ## Goals beyond the golden carrots
 
 * **Stamps** (Pause > STAMPS) - 13 achievements, from your first golden carrot to
@@ -84,7 +100,7 @@ Good platformers are generous in ways players never notice. Bunny 64 does:
   Add Roblox badge ids to `Config.Badges` to award real badges too.
 * **Fastest Bunnies** - a board by the meadow spawn showing the 10 fastest 100%
   clears across every server (OrderedDataStore).
-* **Golden fur** - unlocked in Customise once a file finds all 20 golden carrots.
+* **Golden fur** - unlocked in Customise once a file finds every golden carrot.
 
 ## Getting around
 
@@ -123,10 +139,10 @@ command.
 * **World:** reset King Grumble, give yourself every golden carrot on the
   current file (for testing)
 
-## Golden carrots (20)
+## Golden carrots (26)
 
-Meadow 7 (including *Carrot Collector* for 100 carrots and *Bug Buster* for
-20 bopped bugs), Peaks 4, Canyon 3, Castle 6 (including the King's Crown).
+Meadow 8 (including *Carrot Collector* for 100 carrots and *Bug Buster* for
+20 bopped bugs), Peaks 6, Canyon 5, Castle 7 - each region also has a silver hunt golden, and the Peaks and Canyon each have a time-trial golden (including the King's Crown).
 Every 10 carrots restores a heart. Press **M > Carrot Log** for hints.
 
 ## Customisation

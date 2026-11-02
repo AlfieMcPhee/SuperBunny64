@@ -292,6 +292,61 @@ function Hud.Tip(text)
 	end)
 end
 
+--------------------------------------------------------------------------------
+-- Time-trial countdown and the little save icon
+--------------------------------------------------------------------------------
+
+local timerLabel, timerConn
+function Hud.StartTimer(seconds, title)
+	Hud.StopTimer()
+	if not timerLabel then
+		timerLabel = UI.label(gui, {
+			Text = "", Font = UI.TITLE, TextSize = 48, AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.new(0.5, 0, 0, 92), Size = UDim2.new(0, 300, 0, 54), Stroke = 4,
+		})
+	end
+	local endAt = os.clock() + seconds
+	timerLabel.Visible = true
+	timerConn = RunService.RenderStepped:Connect(function()
+		local left = math.max(0, endAt - os.clock())
+		timerLabel.Text = string.format("%s  %d.%d", title or "", math.floor(left), math.floor((left % 1) * 10))
+		timerLabel.TextColor3 = left < 5 and Color3.fromRGB(240, 110, 100) or UI.Cream
+	end)
+end
+
+function Hud.StopTimer()
+	if timerConn then
+		timerConn:Disconnect()
+		timerConn = nil
+	end
+	if timerLabel then
+		timerLabel.Visible = false
+	end
+end
+
+local savedIcon
+function Hud.ShowSaved()
+	if not savedIcon then
+		savedIcon = Instance.new("Frame")
+		savedIcon.BackgroundTransparency = 1
+		savedIcon.AnchorPoint = Vector2.new(1, 1)
+		savedIcon.Position = UDim2.new(1, -20, 1, -16)
+		savedIcon.Size = UDim2.fromOffset(130, 34)
+		savedIcon.Parent = gui
+		UI.carrot(savedIcon, Config.Palette.Carrot, 1, UDim2.fromOffset(0, 2))
+		UI.label(savedIcon, { Text = "SAVED", Font = UI.TITLE, TextSize = 22, Size = UDim2.fromOffset(100, 30), Position = UDim2.fromOffset(28, 2), TextXAlignment = Enum.TextXAlignment.Left, Stroke = 3 })
+	end
+	savedIcon.Visible = true
+	local carrot = savedIcon:FindFirstChildOfClass("Frame")
+	if carrot then
+		carrot.Rotation = 0
+		TweenService:Create(carrot, TweenInfo.new(0.6, Enum.EasingStyle.Back), { Rotation = 360 }):Play()
+	end
+	task.delay(1.8, function()
+		savedIcon.Visible = false
+	end)
+end
+
 function Hud.SetVisible(on)
 	gui.Enabled = on
 end

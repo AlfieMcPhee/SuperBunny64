@@ -99,6 +99,72 @@ Config.Goldens = {
 	{ id = "rampart", region = "castle", name = "Rampart Watch", hint = "Walk the castle walls to the north-east tower." },
 	{ id = "keep", region = "castle", name = "Keep Climb", hint = "Climb the ledges inside the keep. Don't touch the lava." },
 	{ id = "boss", region = "castle", name = "King Grumble's Crown", hint = "Defeat King Grumble in the throne room above the castle.", req = "boss" },
+	-- Silver carrot hunts: find all five silver carrots in a region
+	{ id = "silver_meadow", region = "meadow", name = "Meadow Silver Hunt", hint = "Five silver carrots hide around the meadow: high, low and far.", req = "silver" },
+	{ id = "silver_peaks", region = "peaks", name = "Peaks Silver Hunt", hint = "Five silver carrots glint in the snow, up the mountain and by the pond.", req = "silver" },
+	{ id = "silver_canyon", region = "canyon", name = "Canyon Silver Hunt", hint = "Five silver carrots in the canyon. Look on top of things.", req = "silver" },
+	{ id = "silver_castle", region = "castle", name = "Castle Silver Hunt", hint = "Five silver carrots in and around the castle. One is very warm.", req = "silver" },
+	-- Time trials: step on the glowing start pad and race the clock
+	{ id = "trial_summit", region = "peaks", name = "Summit Sprint", hint = "Race from the pad by Pip to the summit before time runs out.", req = "trial" },
+	{ id = "trial_boulder", region = "canyon", name = "Boulder Dash", hint = "Race up Boulder Run to the temple. Boulders don't wait.", req = "trial" },
+}
+
+-- Silver carrot hunts (5 per region); the golden reward appears at `reward`
+Config.SilverSets = {
+	silver_meadow = {
+		reward = Vector3.new(0, 7, 24),
+		spots = {
+			Vector3.new(-54, 25.5, -42), -- on the cottage chimney
+			Vector3.new(-95, 17.5, -120), -- tower terrace, far side
+			Vector3.new(92.0, 55.5, 131.1), -- halfway up the old oak
+			Vector3.new(-330, 17.5, 40), -- on the islet shrine roof
+			Vector3.new(24, 104.5, 0), -- edge of the spinning sky disc
+		},
+	},
+	silver_peaks = {
+		reward = Vector3.new(20, 7, -562),
+		spots = {
+			Vector3.new(152.5, 3.5, -720), -- the frozen pond's icy rim
+			Vector3.new(-40, 99.5, -714), -- the ice chute's start platform
+			Vector3.new(104.75, 59, -568.5), -- on the snowman's hat brim
+			Vector3.new(-60.1, 45.5, -789.6), -- third mountain tier, back side
+			Vector3.new(-10, 117.5, -726), -- behind the summit pine
+		},
+	},
+	silver_canyon = {
+		reward = Vector3.new(580, 8, 50),
+		spots = {
+			Vector3.new(790, 26.5, 60), -- on the rock arch
+			Vector3.new(595, 43.5, -75), -- on the Canyon Leap start mesa
+			Vector3.new(718, 3.5, -60), -- canyon floor under the leap pillars
+			Vector3.new(838, 81.5, 160), -- the temple roof ridge
+			Vector3.new(674.8, 52.5, 93.6), -- a ledge on Eagle's Mesa
+		},
+	},
+	silver_castle = {
+		reward = Vector3.new(0, 8, 760),
+		spots = {
+			Vector3.new(65, 31.5, 750), -- on the Crusher Hall roof
+			Vector3.new(-110, 63.5, 910), -- south-west tower top
+			Vector3.new(135, 13.5, 870), -- back corner of the dungeon goal
+			Vector3.new(52, 67.5, 888), -- keep roof, far corner
+			Vector3.new(100, 6, 615), -- over a lava vent outside
+		},
+	},
+}
+
+-- Time trials: start pad -> finish within `time` seconds unlocks a golden at `reward`
+Config.Trials = {
+	trial_summit = {
+		name = "SUMMIT SPRINT", time = 90,
+		start = Vector3.new(-26, 0, -560), finish = Vector3.new(0, 114, -720), finishRadius = 18,
+		reward = Vector3.new(8, 119, -716),
+	},
+	trial_boulder = {
+		name = "BOULDER DASH", time = 20,
+		start = Vector3.new(586, 0, 160), finish = Vector3.new(838, 60, 160), finishRadius = 14,
+		reward = Vector3.new(830, 66, 170),
+	},
 }
 
 -- Respawn points (also act as checkpoints once touched)
@@ -126,7 +192,7 @@ Config.Warps = {
 Config.Stamps = {
 	{ id = "golden1", name = "SHINY!", desc = "Find your first golden carrot." },
 	{ id = "golden10", name = "HALFWAY HOP", desc = "Find 10 golden carrots." },
-	{ id = "golden20", name = "CARROT CHAMPION", desc = "Find all 20 golden carrots." },
+	{ id = "golden20", name = "CARROT CHAMPION", desc = "Find every golden carrot." },
 	{ id = "carrots", name = "CRUNCH TIME", desc = "Collect every single carrot." },
 	{ id = "regions", name = "SIGHTSEER", desc = "Visit all four regions." },
 	{ id = "friends", name = "SOCIAL BUNNY", desc = "Chat with all six friends." },
@@ -136,7 +202,7 @@ Config.Stamps = {
 	{ id = "walljump", name = "BOING BOING BOING", desc = "Wall jump 3 times in a row." },
 	{ id = "boss", name = "CROWN JEWEL", desc = "Defeat King Grumble." },
 	{ id = "bossnohit", name = "UNTOUCHABLE", desc = "Defeat King Grumble without getting hurt." },
-	{ id = "speedy", name = "SPEEDY BUNNY", desc = "Find all 20 golden carrots in under 2 hours." },
+	{ id = "speedy", name = "SPEEDY BUNNY", desc = "Find every golden carrot in under 3 hours." },
 }
 Config.Badges = {
 	-- golden20 = 1234567890,
@@ -290,7 +356,7 @@ Config.FurColors = {
 	{ name = "ROSE", fur = rgb(190, 140, 140), cream = rgb(236, 214, 204) },
 	{ name = "MOSS", fur = rgb(120, 128, 92), cream = rgb(214, 210, 180) },
 	-- post-game reward
-	{ name = "GOLDEN", fur = rgb(214, 172, 72), cream = rgb(244, 226, 170), need = 20 },
+	{ name = "GOLDEN", fur = rgb(214, 172, 72), cream = rgb(244, 226, 170), need = 26 },
 }
 Config.AccentColors = {
 	{ name = "CRIMSON", color = rgb(140, 50, 48) },

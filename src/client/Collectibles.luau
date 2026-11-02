@@ -25,11 +25,27 @@ for _, g in ipairs(Config.Goldens) do
 	reqOf[g.id] = g.req
 end
 
+local function silverCount(setId)
+	local got = 0
+	for sid in pairs(slot and slot.silvers or {}) do
+		if string.sub(sid, 1, #setId + 3) == "s_" .. setId .. "_" then
+			got += 1
+		end
+	end
+	return got
+end
+
 local function isLocked(id)
 	if not slot then
 		return true
 	end
 	local req = reqOf[id]
+	if req == "silver" then
+		local set = Config.SilverSets[id]
+		return not set or silverCount(id) < #set.spots
+	elseif req == "trial" then
+		return not (slot.trials and slot.trials[id])
+	end
 	if req == "carrots" then
 		return slot.carrotCount < Config.CollectorGoal
 	elseif req == "bugs" then
@@ -46,6 +62,10 @@ local function shouldShow(item)
 	end
 	if item.kind == "golden" then
 		if slot.goldens[item.id] or isLocked(item.id) then
+			return false
+		end
+	elseif item.kind == "silver" then
+		if slot.silvers and slot.silvers[item.id] then
 			return false
 		end
 	elseif slot.carrots[item.id] then
@@ -133,7 +153,10 @@ function Collectibles.Init(effects, remotes)
 						item.pendingAt = t
 						model.Parent = nil
 						Remotes.Collect:FireServer(item.id)
-						if golden then
+						if item.kind == "silver" then
+							Effects.Play("Golden", 1.5)
+							Effects.Burst(item.pivot.Position, Color3.fromRGB(220, 230, 245), 14, 8, 0.7, 6, Enum.Material.Neon)
+						elseif golden then
 							Effects.Burst(item.pivot.Position, Config.Palette.Gold, 24, 12, 0.9, 10)
 						else
 							combo = (t - lastPickup < 1.5) and math.min(combo + 1, 10) or 0

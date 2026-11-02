@@ -22,6 +22,7 @@ local AdminPanel = require(script:WaitForChild("AdminPanel"))
 local Shadows = require(script:WaitForChild("Shadows"))
 local Dialogue = require(script:WaitForChild("Dialogue"))
 local PhotoMode = require(script:WaitForChild("PhotoMode"))
+local Weather = require(script:WaitForChild("Weather"))
 
 local player = Players.LocalPlayer
 
@@ -127,6 +128,30 @@ local function handleEvent(s, event)
 	elseif kind == "warpfound" then
 		Effects.Play("MenuSelect", 1.4)
 		Hud.Toast("BURROW WARP FOUND:\n" .. (warpNames[event.id] or ""), 2.5, GOLD)
+	elseif kind == "silver" then
+		if event.got >= event.total then
+			Effects.Jingle()
+			Hud.Toast(string.format("SILVER CARROT %d/%d\nALL FIVE! A GOLDEN CARROT HAS APPEARED...", event.got, event.total), 4, GOLD)
+		else
+			Hud.Toast(string.format("SILVER CARROT %d/%d", event.got, event.total), 2, Color3.fromRGB(210, 224, 245))
+		end
+	elseif kind == "trialstart" then
+		local trial = Config.Trials[event.id]
+		Effects.Play("MenuSelect", 1.5)
+		Hud.Toast(trial and (trial.name .. "!\nGO GO GO!") or "GO!", 1.5, Color3.fromRGB(150, 210, 255))
+		Hud.StartTimer(event.time, trial and trial.name or "")
+	elseif kind == "trialfail" then
+		Hud.StopTimer()
+		Effects.Play("Hurt", 0.7)
+		Hud.Toast("TIME'S UP!\nSTEP ON THE PAD TO TRY AGAIN", 3, Color3.fromRGB(240, 140, 120))
+	elseif kind == "trialwin" then
+		Hud.StopTimer()
+		Effects.Jingle()
+		local msg = string.format("TRIAL CLEAR!  %.1f s", event.time or 0)
+		if event.first then
+			msg ..= "\nA GOLDEN CARROT HAS APPEARED AT THE FINISH!"
+		end
+		Hud.Toast(msg, 4, GOLD)
 	elseif kind == "stamp" then
 		local name = event.id
 		for _, st in ipairs(Config.Stamps) do
@@ -184,6 +209,15 @@ remotes.Effect.OnClientEvent:Connect(function(kind, pos, extra)
 	elseif kind == "bossroar" then
 		Effects.Play("Boss", 0.6)
 		Effects.Shake(1.5, 1.5)
+		-- the boss's title card, the way old games introduced them
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if root and (root.Position - pos).Magnitude < 120 then
+			Hud.RegionBanner("KING GRUMBLE")
+			task.delay(0.6, function()
+				Hud.Toast("TYRANT OF THE INFERNAL CASTLE", 2.2, Color3.fromRGB(240, 150, 110))
+			end)
+		end
 	elseif kind == "bosscharge" then
 		Effects.Play("Roll", 0.5)
 	elseif kind == "bossbonk" then
@@ -202,6 +236,10 @@ remotes.Effect.OnClientEvent:Connect(function(kind, pos, extra)
 		Hud.IrisBlink(0.2, 0.15, 0.5)
 		Effects.Play("Boing", 1.2)
 		Effects.Burst(pos, Config.Palette.Dirt, 14, 6, 0.7, 6)
+	elseif kind == "saved" then
+		Hud.ShowSaved()
+	elseif kind == "trialstop" then
+		Hud.StopTimer()
 	elseif kind == "crate" then
 		Effects.Play("Crate", 1.3)
 		Effects.Burst(pos, Config.Palette.WoodLight, 14, 7, 0.8, 7)
@@ -341,6 +379,8 @@ Dialogue.Init({
 	end,
 })
 task.spawn(Shadows.Init)
+Weather.Init()
+WorldFX.OnRegion = Weather.SetRegion
 Effects.SetMusic("title")
 
 task.spawn(function()
