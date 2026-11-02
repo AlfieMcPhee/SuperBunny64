@@ -178,6 +178,11 @@ local function handleEvent(s, event)
 			Effects.Jingle()
 			Hud.Toast("STAMP GET!\n" .. name, 3, Color3.fromRGB(150, 210, 255))
 		end)
+	elseif kind == "secretfound" then
+		Effects.Jingle()
+		task.delay(0.4, function()
+			Hud.Toast("CRASH! DOWN, DOWN, DOWN...\nYOU'VE FOUND THE UNDERBURROW", 4.5, Color3.fromRGB(200, 170, 255))
+		end)
 	elseif kind == "bossdown" then
 		Effects.Jingle()
 		task.delay(0.5, Effects.Jingle)
@@ -286,6 +291,8 @@ remotes.Effect.OnClientEvent:Connect(function(kind, pos, extra)
 	elseif kind == "heart" then
 		Effects.Play("Heart", 1.6)
 		Hud.Toast("+1 HEART", 1.2, Color3.fromRGB(240, 140, 140))
+	elseif kind == "hint" then
+		Hud.Toast(tostring(extra or ""), 4.5, Color3.fromRGB(220, 210, 240))
 	elseif kind == "locked" then
 		local why = extra == "beanstalk" and "TO CLIMB THE BEANSTALK" or "TO FACE THE KING"
 		Hud.Toast(string.format("YOU NEED %d GOLDEN CARROTS\n%s", pos, why), 3, Color3.fromRGB(240, 150, 110))

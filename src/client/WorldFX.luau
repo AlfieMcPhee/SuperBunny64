@@ -81,6 +81,11 @@ local LOOKS = {
 		fog = Color3.fromRGB(128, 146, 126), fogStart = 60, fogEnd = 520, ambient = Color3.fromRGB(112, 124, 104),
 		indoor = Color3.fromRGB(110, 118, 100), tint = Color3.fromRGB(236, 246, 226), sat = -0.2, clock = 17.6, brightness = 1.9,
 	},
+	-- the Underburrow: deep violet dark, crystals and torches doing the lighting
+	secret = {
+		fog = Color3.fromRGB(34, 26, 52), fogStart = 30, fogEnd = 420, ambient = Color3.fromRGB(96, 86, 124),
+		indoor = Color3.fromRGB(96, 86, 124), tint = Color3.fromRGB(226, 214, 255), sat = -0.15, clock = 0.4, brightness = 1.2,
+	},
 	-- bright and clear above the clouds; the fog is the cloud sea far below
 	sky = {
 		fog = Color3.fromRGB(214, 222, 236), fogStart = 260, fogEnd = 1200, ambient = Color3.fromRGB(156, 160, 176),
@@ -89,7 +94,10 @@ local LOOKS = {
 }
 
 local function regionAt(pos)
-	if pos.Y > Config.SkyFloor - 60 then
+	local S = Config.Secret
+	if Vector3.new(pos.X - S.center.X, 0, pos.Z - S.center.Z).Magnitude < S.radius then
+		return "secret"
+	elseif pos.Y > Config.SkyFloor - 60 then
 		return "sky"
 	elseif pos.Z > 470 and math.abs(pos.X) < 320 then
 		return "castle"
@@ -162,6 +170,70 @@ local function updateHazards()
 	end
 end
 
+-- Traps (each player's own screen, so they react instantly) ------------------------------
+-- Blink blocks swap in and out on the shared server clock; crumbling tiles shake
+-- for a moment after you land on them, drop away, then come back.
+local blinks = {}
+local crumbles = {}
+local crumbling = {} -- [Part] = { t0, base }
+local trapParams = RaycastParams.new()
+trapParams.FilterType = Enum.RaycastFilterType.Include
+
+local function updateTraps(now)
+	if #blinks > 0 then
+		local t = workspace:GetServerTimeNow()
+		for _, b in ipairs(blinks) do
+			local period = b.period
+			local on = math.floor(t / period) % 2 == b.group
+			local into = (t % period) / period
+			if on ~= b.on then
+				b.on = on
+				b.part.CanCollide = on
+			end
+			local ltm
+			if not on then
+				ltm = 0.85
+			elseif into > 0.68 then
+				ltm = (math.floor(t * 14) % 2 == 0) and 0.55 or 0.05 -- about to vanish!
+			else
+				ltm = 0
+			end
+			b.part.LocalTransparencyModifier = ltm
+		end
+	end
+	if #crumbles == 0 then
+		return
+	end
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if root then
+		local hit = workspace:Raycast(root.Position, Vector3.new(0, -4.5, 0), trapParams)
+		if hit and hit.Instance:GetAttribute("Crumble") and not crumbling[hit.Instance] then
+			crumbling[hit.Instance] = { t0 = now, base = hit.Instance.CFrame }
+			Effects.Play("Crate", 0.6)
+		end
+	end
+	for part, c in pairs(crumbling) do
+		local age = now - c.t0
+		if age < 0.55 then
+			part.CFrame = c.base * CFrame.new((math.random() - 0.5) * 0.3, 0, (math.random() - 0.5) * 0.3)
+		elseif age < 3.6 then
+			if part.CanCollide then
+				part.CanCollide = false
+				Effects.Burst(c.base.Position, part.Color, 8, 4, 0.6, -2)
+			end
+			local fall = age - 0.55
+			part.CFrame = c.base - Vector3.new(0, fall * fall * 30, 0)
+			part.LocalTransparencyModifier = math.clamp(fall * 1.5, 0, 1)
+		else
+			part.CFrame = c.base
+			part.CanCollide = true
+			part.LocalTransparencyModifier = 0
+			crumbling[part] = nil
+		end
+	end
+end
+
 -- Gates -----------------------------------------------------------------------------------
 local function refreshGates()
 	for _, g in ipairs(gates) do
@@ -211,14 +283,20 @@ function WorldFX.Init(effects, hud)
 			table.insert(gates, d)
 		elseif d:IsA("BasePart") and d:GetAttribute("Checkpoint") then
 			table.insert(flags, d)
+		elseif d:IsA("BasePart") and d:GetAttribute("Blink") ~= nil then
+			table.insert(blinks, { part = d, group = d:GetAttribute("Blink"), period = d:GetAttribute("BlinkPeriod") or 1.6 })
+		elseif d:IsA("BasePart") and d:GetAttribute("Crumble") then
+			table.insert(crumbles, d)
 		end
 	end
 	refreshGates()
 	refreshFlags()
 
 	local nextZoneCheck = 0
+	trapParams.FilterDescendantsInstances = { world:WaitForChild("Solid") }
 	RunService.RenderStepped:Connect(function()
 		updateHazards()
+		updateTraps(os.clock())
 
 		local now = os.clock()
 		if now < nextZoneCheck then

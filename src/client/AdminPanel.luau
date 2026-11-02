@@ -290,6 +290,7 @@ local function build()
 	local places = {
 		{ "MEADOW", "meadow" }, { "PEAKS", "peaks" }, { "CANYON", "canyon" }, { "CASTLE GATE", "castle" },
 		{ "COURTYARD", "courtyard" }, { "THE KEEP", "keep" }, { "DUNGEON", "dungeon" }, { "BOSS!", "boss" },
+		{ "WHISPERWOOD", "forest" }, { "CLOUDTOP", "sky" }, { "UNDERBURROW", "underburrow" }, { "DEPTHS", "underburrow2" },
 	}
 	for i, p in ipairs(places) do
 		button(tp, p[1], i, function()

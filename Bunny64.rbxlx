@@ -303,6 +303,30 @@ local function hatSpec(id)
 			add("cyl", CF(sx * 0.5, 1.2, -1.32) * ROT(0, math.pi / 2, 0), V(0.06, 0.55, 0.55), Color3.fromRGB(150, 190, 200), Enum.Material.Glass)
 		end
 		add("block", CF(0, 1.25, -1.1), V(1.0, 0.18, 0.2), Color3.fromRGB(60, 46, 36), SMOOTH)
+	elseif id == "rootcrown" then
+		-- twisting roots with little leaves
+		for i = 0, 6 do
+			local a = i / 7 * math.pi * 2
+			add("block", CF(math.cos(a) * 0.95, 1.25, math.sin(a) * 0.95) * ROT(0, -a, 0.35) * ROT(0.25, 0, 0), V(0.25, 1.1, 0.25), Color3.fromRGB(96, 72, 52), SMOOTH)
+			if i % 2 == 0 then
+				add("ball", CF(math.cos(a) * 1.15, 1.85, math.sin(a) * 1.15), V(0.5, 0.2, 0.32), Color3.fromRGB(110, 150, 76), SMOOTH)
+			end
+		end
+		add("cyl", vcyl(CF(0, 0.85, 0)), V(0.28, 2.2, 2.2), Color3.fromRGB(82, 62, 44), SMOOTH)
+	elseif id == "stormcap" then
+		-- a tiny grumpy storm cloud that follows you around
+		local grey = Color3.fromRGB(150, 154, 170)
+		add("ball", CF(0, 2.2, 0), V(1.8, 0.9, 1.4), grey, SMOOTH)
+		add("ball", CF(-0.7, 2.1, 0.1), V(1.1, 0.8, 1.0), Color3.fromRGB(170, 174, 190), SMOOTH)
+		add("ball", CF(0.75, 2.15, -0.05), V(1.2, 0.85, 1.0), Color3.fromRGB(130, 134, 150), SMOOTH)
+		add("block", CF(0.15, 1.55, 0) * ROT(0, 0, 0.4), V(0.12, 0.6, 0.12), Color3.fromRGB(250, 230, 130), Enum.Material.Neon)
+		add("block", CF(0.05, 1.25, 0) * ROT(0, 0, -0.4), V(0.12, 0.5, 0.12), Color3.fromRGB(250, 230, 130), Enum.Material.Neon)
+	elseif id == "halo" then
+		-- a ring of dark violet lights floating over your ears
+		for i = 0, 9 do
+			local a = i / 10 * math.pi * 2
+			add("ball", CF(math.cos(a) * 1.1, 2.6, math.sin(a) * 1.1), V(0.32, 0.32, 0.32), Color3.fromRGB(170, 120, 240), Enum.Material.Neon)
+		end
 	elseif id == "crown" then
 		add("cyl", vcyl(CF(0, 1.0, 0)), V(0.42, 2.1, 2.1), P.Gold, Enum.Material.Metal)
 		for i = 0, 7 do
@@ -392,17 +416,57 @@ function BunnyModel.Apply(model, custom)
 	return custom
 end
 
--- Is a cosmetic unlocked? progress = { goldens = best golden count, boss = bool }
+-- Is a cosmetic unlocked? progress = {
+--   goldens = best golden count, boss = beat King Grumble, bosses = { [id] = true },
+--   owned = { [id] = true } (bought with carrot coins), passes = { [key] = true } (Robux) }
+-- An entry can ask for: need (golden carrots), boss = true (the King) or a boss id,
+-- price (carrot coins in the shop) or pass (a game pass key from Config.GamePasses).
+function BunnyModel.EntryUnlocked(e, progress)
+	if not e then
+		return false
+	end
+	progress = progress or {}
+	if e.boss == true and not progress.boss then
+		return false
+	elseif type(e.boss) == "string" and not (progress.bosses and progress.bosses[e.boss]) then
+		return false
+	end
+	if e.pass and not (progress.passes and progress.passes[e.pass]) then
+		return false
+	end
+	if e.price and not (progress.owned and progress.owned[e.id or e.name]) then
+		return false
+	end
+	return (progress.goldens or 0) >= (e.need or 0)
+end
+
 function BunnyModel.IsUnlocked(list, id, progress)
 	for _, e in ipairs(list) do
 		if e.id == id then
-			if e.boss then
-				return progress.boss == true
-			end
-			return (progress.goldens or 0) >= (e.need or 0)
+			return BunnyModel.EntryUnlocked(e, progress)
 		end
 	end
 	return false
+end
+
+-- Why is it locked? (shown in the Customise menu)
+function BunnyModel.LockReason(e)
+	if e.pass then
+		local pass = Config.GamePasses and Config.GamePasses[e.pass]
+		return pass and pass.name or "SUPPORTER PACK"
+	elseif e.price then
+		return string.format("%d COINS IN THE SHOP", e.price)
+	elseif type(e.boss) == "string" then
+		for _, b in ipairs(Config.Bosses or {}) do
+			if b.id == e.boss then
+				return "BEAT " .. b.name
+			end
+		end
+		return "BEAT A SECRET BOSS"
+	elseif e.boss then
+		return "BEAT THE KING"
+	end
+	return string.format("%d GOLDEN", e.need or 0)
 end
 
 return BunnyModel
@@ -505,6 +569,9 @@ Config.CastleGate = 10         -- golden carrots needed to open the castle gate
 Config.ThroneGate = 15         -- golden carrots needed to face King Grumble
 Config.SkyGate = 18            -- golden carrots needed to climb the beanstalk to Cloudtop Heights
 Config.SkyFloor = 360          -- below this height, a bunny who was in the sky is caught and put back
+Config.SecretGate = 20         -- golden carrots needed to break the old well's lid
+-- The Underburrow: a hidden dungeon far from everything (reached through the old well)
+Config.Secret = { center = Vector3.new(-1400, 150, -1620), radius = 450, voidY = 138 }
 
 -- Every boss (ids match the server's boss modules)
 Config.Bosses = {
@@ -521,6 +588,7 @@ Config.Regions = {
 	{ id = "castle", name = "INFERNAL CASTLE" },
 	{ id = "forest", name = "WHISPERWOOD" },
 	{ id = "sky", name = "CLOUDTOP HEIGHTS" },
+	{ id = "secret", name = "THE UNDERBURROW", hidden = true }, -- not counted until you find it
 }
 
 Config.Goldens = {
@@ -560,6 +628,9 @@ Config.Goldens = {
 	{ id = "crowsnest", region = "sky", name = "Crow's Nest", hint = "Climb the mast of Captain Gust's airship." },
 	{ id = "updraft", region = "sky", name = "Updraft Spire", hint = "Ride the rising winds up the tall spire." },
 	{ id = "thunderhead", region = "sky", name = "Eye of the Storm", hint = "Cross the clouds south of the hub to the Stormcrown and calm the Thunderhead.", req = "boss", boss = "thunderhead" },
+	-- The Underburrow (secret)
+	{ id = "underburrow", region = "secret", name = "Heart of the Underburrow", hint = "Somewhere beneath the meadow, past crumbling floors and vanishing bridges.", secret = true },
+	{ id = "shade", region = "secret", name = "The Shade's Carrot", hint = "Something that looks just like you waits at the bottom of the dark.", req = "boss", boss = "shade", secret = true },
 	-- Granny Clover's lost grandkits
 	{ id = "kits", region = "meadow", name = "Granny's Lost Kits", hint = "Granny Clover's five grandkits wandered off - one in every land. Bring them home!", req = "silver" },
 	-- Silver carrot hunts: find all five silver carrots in a region
@@ -676,6 +747,8 @@ Config.Checkpoints = {
 	forest = { name = "Whisperwood", pos = Vector3.new(-580, 5, 40) },
 	beanstalk = { name = "The Beanstalk", pos = Vector3.new(-140, 5, 140) },
 	sky = { name = "Cloudtop Heights", pos = Vector3.new(60, 425, -60) },
+	underburrow = { name = "The Underburrow", pos = Vector3.new(-1400, 155, -1395) },
+	underburrow2 = { name = "Underburrow Depths", pos = Vector3.new(-1400, 162, -1578) },
 	throne = { name = "Throne Room", pos = Vector3.new(0, 206, 752) },
 }
 
@@ -765,6 +838,11 @@ Config.NPCs = {
 			{ goldens = 10, lines = {
 				"Ten! The castle gate should open for you now.",
 				"Be careful in there, little one. Lava is hot. I learned that the slow way.",
+			} },
+			{ goldens = 20, lines = {
+				"Twenty golden carrots... that reminds me of a story. The old well, south of the big hill.",
+				"They say it goes deeper than any well should. They say the lid breaks if you land on it hard enough.",
+				"They say a lot of things. Mostly to me. I'm a very good listener. And a very slow walker.",
 			} },
 			{ boss = true, lines = {
 				"You beat the King? Then the meadow is safe again. I'm going to celebrate.",
@@ -923,6 +1001,20 @@ Config.NPCs = {
 			} },
 		},
 	},
+	whiskers = {
+		name = "OLD WHISKERS", kind = "hermit", voice = 0.5,
+		dialogue = {
+			{ lines = {
+				"...Well, well. A visitor. Nobody's fallen down that well in a long, long time.",
+				"This is the Underburrow. The floors crumble, the bridges blink in and out, and the walls go up forever.",
+				"At the very bottom there's a bunny who looks a lot like you. It isn't you. Don't let it catch you.",
+				"Out of breath? Stand still a moment. Your legs remember how to jump.",
+			} },
+			{ has = "shade", lines = {
+				"You beat your own shadow. Few can say that. I certainly can't - mine still owes me money.",
+			} },
+		},
+	},
 	ember = {
 		name = "SIR EMBER", kind = "knightbug", voice = 0.6,
 		dialogue = {
@@ -951,8 +1043,9 @@ Config.FurColors = {
 	{ name = "HONEY", fur = rgb(196, 152, 84), cream = rgb(236, 218, 176) },
 	{ name = "ROSE", fur = rgb(190, 140, 140), cream = rgb(236, 214, 204) },
 	{ name = "MOSS", fur = rgb(120, 128, 92), cream = rgb(214, 210, 180) },
-	-- post-game reward
+	-- post-game rewards
 	{ name = "GOLDEN", fur = rgb(214, 172, 72), cream = rgb(244, 226, 170), need = #Config.Goldens },
+	{ name = "SHADE", fur = rgb(52, 44, 70), cream = rgb(150, 130, 186), boss = "shade" },
 }
 Config.AccentColors = {
 	{ name = "CRIMSON", color = rgb(140, 50, 48) },
@@ -978,6 +1071,9 @@ Config.Hats = {
 	{ id = "leafcap", name = "LEAF CAP", need = 20 },
 	{ id = "pilot", name = "SKY PILOT CAP", need = 26 },
 	{ id = "crown", name = "KING'S CROWN", need = 0, boss = true },
+	{ id = "rootcrown", name = "ROOT CROWN", need = 0, boss = "rootjaw" },
+	{ id = "stormcap", name = "STORM CLOUD", need = 0, boss = "thunderhead" },
+	{ id = "halo", name = "SHADE HALO", need = 0, boss = "shade" },
 }
 Config.Necks = {
 	{ id = "bow", name = "BOW TIE", need = 0 },
@@ -1027,7 +1123,7 @@ Config.Music = {
 	boss = "",
 	rival = "",
 	shade = "",
-	underburrow = "",
+	secret = "",
 }
 Config.MusicVolume = 0.35
 
@@ -1159,7 +1255,7 @@ function HazardMath.SegmentDistance(p, a, b)
 end
 
 return HazardMath
-]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX0000001F"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX0000001E"><Properties><string name="Name">Bunny64Server</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX00000021"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX00000020"><Properties><string name="Name">Bunny64Server</string><ProtectedString name="Source"><![CDATA[--[[
 	Bunny 64 - server entry point.
 	Builds the world, runs save files, pickups, hearts, hazards, checkpoints,
 	warps, enemies, the boss and customisation.
@@ -1308,6 +1404,7 @@ local function snapshot(player, event)
 			warps = slot.warps,
 			bossDefeated = slot.bossDefeated,
 			bosses = slot.bosses or {},
+			regions = slot.regions or {},
 			tips = slot.tips or {},
 			stamps = slot.stamps or {},
 			silvers = slot.silvers or {},
@@ -1642,7 +1739,7 @@ Collect.OnServerEvent:Connect(function(player, id)
 		-- tell the player about newly unlocked hats
 		for _, list in ipairs({ Config.Hats, Config.Necks }) do
 			for _, item in ipairs(list) do
-				if not item.boss and (item.need or 0) > before.goldens and (item.need or 0) <= after.goldens then
+				if not item.boss and not item.price and not item.pass and (item.need or 0) > before.goldens and (item.need or 0) <= after.goldens then
 					event.unlocked = item.name
 				end
 			end
@@ -1708,8 +1805,12 @@ Customise.OnServerInvoke = function(player, custom)
 		clean.neck = profile.data.custom.neck
 	end
 	local fur = Config.FurColors[clean.fur]
-	if fur and fur.need and progress.goldens < fur.need then
+	if fur and not BunnyModel.EntryUnlocked(fur, progress) then
 		clean.fur = profile.data.custom.fur
+	end
+	local accent = Config.AccentColors[clean.accent]
+	if accent and not BunnyModel.EntryUnlocked(accent, progress) then
+		clean.accent = profile.data.custom.accent
 	end
 	profile.data.custom = clean
 	if player.Character then
@@ -1861,6 +1962,10 @@ for _, d in ipairs(info.solidFolder:GetDescendants()) do
 				else
 					Effect:FireClient(player, "locked", Config.ThroneGate, "king")
 				end
+			elseif part:GetAttribute("WellPeek") then
+				Effect:FireClient(player, "hint", nil, count(slot.goldens) >= Config.SecretGate
+					and "It's very, very dark down there. The old lid looks rotten... one good thump would break it."
+					or "It's very dark down there. You hear... humming? The lid is nailed down tight.")
 			elseif part:GetAttribute("Beanstalk") then
 				if count(slot.goldens) >= Config.SkyGate then
 					slot.checkpoint = "sky"
@@ -1872,6 +1977,28 @@ for _, d in ipairs(info.solidFolder:GetDescendants()) do
 			end
 		end)
 	end
+end
+
+-- The old well: ground-pound through its lid to drop into the Underburrow
+if info.well then
+	Pound.OnServerEvent:Connect(function(player, action, pos)
+		if action ~= "land" or typeof(pos) ~= "Vector3" then
+			return
+		end
+		local slot = DataService.ActiveSlot(player)
+		local w = info.well
+		if not slot or Vector3.new(pos.X - w.X, 0, pos.Z - w.Z).Magnitude > 4.5 or math.abs(pos.Y - w.Y) > 3 then
+			return
+		end
+		if count(slot.goldens) >= Config.SecretGate then
+			Effect:FireAllClients("crate", w)
+			slot.checkpoint = "underburrow"
+			teleport(player, checkpointCF("underburrow"))
+			push(player, { kind = "secretfound" })
+		else
+			Effect:FireClient(player, "hint", nil, string.format("CREAK... The lid holds. It'll take a bunny with %d golden carrots to break it.", Config.SecretGate))
+		end
+	end)
 end
 
 Warp.OnServerEvent:Connect(function(player, id)
@@ -2100,6 +2227,12 @@ RunService.Heartbeat:Connect(function(dt)
 					inWater = true
 				end
 			end
+			-- the Underburrow floats over a bottomless dark
+			local S = Config.Secret
+			if pos.Y < S.voidY and Vector3.new(pos.X - S.center.X, 0, pos.Z - S.center.Z).Magnitude < S.radius
+				and player.Character:GetAttribute("Move") ~= "fly" then
+				inWater = true
+			end
 			if inWater then
 				if pos.Y > Config.WaterLevel + 20 then
 					Effect:FireAllClients("poof", pos) -- caught by the clouds, not the sea
@@ -2114,7 +2247,8 @@ RunService.Heartbeat:Connect(function(dt)
 			elseif hit and hit.Instance:GetAttribute("Lava") then
 				HazardService.Burn(player)
 			elseif hit and not hit.Instance:GetAttribute("Moving") and hit.Instance.Anchored
-				and hit.Instance:GetAttribute("Bounce") == nil and hit.Instance:GetAttribute("Slide") == nil then
+				and hit.Instance:GetAttribute("Bounce") == nil and hit.Instance:GetAttribute("Slide") == nil
+				and hit.Instance:GetAttribute("Unsafe") == nil then
 				st.safe = CFrame.new(hit.Position + Vector3.new(0, 3, 0)) * (root.CFrame - root.CFrame.Position)
 			end
 
@@ -2152,7 +2286,10 @@ RunService.Heartbeat:Connect(function(dt)
 
 			-- regions visited (for the SIGHTSEER stamp)
 			local region = "meadow"
-			if pos.Y > Config.SkyFloor - 60 then
+			local S = Config.Secret
+			if Vector3.new(pos.X - S.center.X, 0, pos.Z - S.center.Z).Magnitude < S.radius then
+				region = "secret"
+			elseif pos.Y > Config.SkyFloor - 60 then
 				region = "sky"
 			elseif pos.Z > 470 and math.abs(pos.X) < 320 then
 				region = "castle"
@@ -2169,7 +2306,16 @@ RunService.Heartbeat:Connect(function(dt)
 				if region == "sky" then
 					awardStamp(player, "sky")
 				end
-				if count(slot.regions) >= #Config.Regions then
+				local seen, needed = 0, 0
+				for _, r in ipairs(Config.Regions) do
+					if not r.hidden then
+						needed += 1
+						if slot.regions[r.id] then
+							seen += 1
+						end
+					end
+				end
+				if seen >= needed then
 					awardStamp(player, "regions")
 				end
 			end
@@ -3665,7 +3811,361 @@ function BossService.Start(worldInfo, callbacks)
 end
 
 return BossService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000C"><Properties><string name="Name">BossThunderhead</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000C"><Properties><string name="Name">BossShade</string><ProtectedString name="Source"><![CDATA[--[[
+	BossShade - the secret boss at the bottom of the Underburrow: a giant dark
+	bunny that looks just like you, and moves like you too.
+
+	  sleep -> roar -> stalk -> windup -> leap -> dazed -> (hurt | blink) -> stalk ...
+
+	It follows the path you ran a moment ago, so standing still is a bad idea.
+	It leaps at where you're standing (a violet circle shows where it'll land)
+	and lands with a shockwave - then it's dazed for a moment. Jump on its head!
+	Five hits. From phase 2 it throws homing shadow orbs, from phase 3 half the
+	arena erupts after each hit, and from phase 4 its bats join in.
+]]
+
+local RunService = game:GetService("RunService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+local BunnyModel = require(Shared:WaitForChild("BunnyModel"))
+local BossKit = require(script.Parent:WaitForChild("BossKit"))
+
+local BossShade = {}
+
+local MAX_HP = 5
+local SCALE = 2.2
+local VIOLET = Color3.fromRGB(170, 120, 240)
+local arena, cb, folder
+local boss = { minions = {} }
+local trail = {} -- { t, pos } of the target's recent positions
+
+local function setState(name)
+	boss.state = name
+	boss.t0 = os.clock()
+	boss.model:SetAttribute("State", name)
+end
+
+local function exposed()
+	return boss.state == "dazed"
+end
+
+local function build()
+	if boss.model then
+		boss.model:Destroy()
+	end
+	local model = BunnyModel.BuildPreview({ fur = 5, accent = 3, hat = "none", neck = "none" })
+	model.Name = "TheShade"
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("BasePart") then
+			d.CanCollide = false
+			d.CanQuery = false
+			d.CanTouch = false
+			d.Anchored = true
+			if d.Name == "Eye" then
+				d.Color = VIOLET
+				d.Material = Enum.Material.Neon
+			elseif d.Name == "EyeShine" then
+				d.Transparency = 1
+			elseif d.Transparency < 1 then
+				d.Color = d.Color:Lerp(Color3.fromRGB(30, 24, 42), 0.85)
+				d.Material = Enum.Material.SmoothPlastic
+			end
+		end
+	end
+	model:ScaleTo(SCALE)
+	local cf, size = model:GetBoundingBox()
+	boss.footOffset = model:GetPivot().Position.Y - (cf.Position.Y - size.Y / 2)
+	boss.height = size.Y
+	-- a solid spot on its head to land on while it's dazed
+	local top = Instance.new("Part")
+	top.Name = "HeadTop"
+	top.Anchored = true
+	top.CanCollide = false
+	top.CanQuery = false
+	top.Transparency = 1
+	top.Size = Vector3.new(6, 1, 6)
+	top.Parent = model
+	boss.top = top
+	local glow = Instance.new("PointLight")
+	glow.Color = VIOLET
+	glow.Range = 22
+	glow.Brightness = 1.2
+	glow.Parent = model.PrimaryPart
+	boss.model = model
+	BossKit.Tag(model, "shade", "THE SHADE", MAX_HP, arena, "IT'S DAZED! JUMP ON ITS HEAD!")
+	model:SetAttribute("Music", "shade")
+	model.Parent = folder
+end
+
+local function headPoint()
+	return boss.pos + Vector3.new(0, 4.25 * SCALE + 1.2 * SCALE * 0.9, 0)
+end
+
+local function place(lift, tilt)
+	local pivot = CFrame.new(boss.pos + Vector3.new(0, boss.footOffset + (lift or 0), 0)) * CFrame.Angles(0, boss.yaw, 0) * CFrame.Angles(tilt or 0, 0, 0)
+	boss.model:PivotTo(pivot)
+	boss.top.CFrame = CFrame.new(headPoint() - Vector3.new(0, 0.6, 0))
+end
+
+local function refresh()
+	boss.top.CanCollide = exposed()
+	boss.model:SetAttribute("Exposed", exposed())
+end
+
+local function reset()
+	BossKit.Clear(boss)
+	build()
+	boss.hp = MAX_HP
+	boss.pos = arena.center + Vector3.new(0, 0, -10)
+	boss.yaw = math.pi
+	boss.lastOrb = 0
+	table.clear(trail)
+	setState("sleep")
+	refresh()
+	place()
+end
+
+local function faceTo(p, rate, dt)
+	local d = p - boss.pos
+	if Vector3.new(d.X, 0, d.Z).Magnitude > 0.1 then
+		local want = math.atan2(-d.X, -d.Z)
+		local diff = (want - boss.yaw + math.pi) % (math.pi * 2) - math.pi
+		boss.yaw += math.clamp(diff, -rate * dt, rate * dt)
+	end
+end
+
+-- Where was the target `delay` seconds ago?
+local function trailPoint(delay)
+	local want = os.clock() - delay
+	for i = #trail, 1, -1 do
+		if trail[i].t <= want then
+			return trail[i].pos
+		end
+	end
+	return trail[1] and trail[1].pos or nil
+end
+
+local function eruption(phase)
+	-- half of the arena erupts: get to the other side!
+	local c = arena.center
+	local a = math.random() * math.pi * 2
+	local dir = Vector3.new(math.cos(a), 0, math.sin(a))
+	for x = -arena.radius, arena.radius, 8 do
+		for z = -arena.radius, arena.radius, 8 do
+			local off = Vector3.new(x, 0, z)
+			if off.Magnitude < arena.radius - 2 and off:Dot(dir) > -3 then
+				BossKit.strike(boss, arena, c + off, { kind = "shadow", radius = 4.6, delay = 1.6 - phase * 0.08, height = 14 })
+			end
+		end
+	end
+end
+
+function BossShade.Start(worldInfo, callbacks)
+	local def = worldInfo.bossArenas and worldInfo.bossArenas.shade
+	if not def then
+		return
+	end
+	cb = callbacks
+	arena = BossKit.Arena(def.center, def.radius, 60)
+	folder = BossKit.Init(worldInfo, callbacks)
+	reset()
+
+	local emptySince = os.clock()
+	RunService.Heartbeat:Connect(function(dt)
+		local now = os.clock()
+		local list = arena:players()
+		if #list == 0 then
+			if now - emptySince > 8 and (boss.state ~= "sleep" or boss.hp < MAX_HP) and boss.state ~= "dead" then
+				reset()
+			end
+			if boss.state == "sleep" or boss.state == "dead" then
+				return
+			end
+		else
+			emptySince = now
+		end
+		local st = boss.state
+		local age = now - boss.t0
+		local phase = MAX_HP - boss.hp + 1
+		local target = arena:nearest(list, boss.pos)
+		local c = arena.center
+		local lift, tilt = 0, 0
+
+		-- remember where the target has been
+		if target then
+			table.insert(trail, { t = now, pos = Vector3.new(target.root.Position.X, c.Y, target.root.Position.Z) })
+			while #trail > 0 and now - trail[1].t > 2 do
+				table.remove(trail, 1)
+			end
+		end
+
+		if st == "sleep" then
+			lift = math.sin(now * 1.2) * 0.2
+			if #list > 0 then
+				setState("roar")
+				cb.effect("bossroar", c, { name = "THE SHADE", title = "IT LOOKS JUST LIKE YOU" })
+			end
+		elseif st == "roar" then
+			if target then
+				faceTo(target.root.Position, 3, dt)
+			end
+			lift = math.abs(math.sin(age * 6)) * 1.5
+			if age > 2.2 then
+				setState("stalk")
+			end
+		elseif st == "stalk" then
+			-- run along your trail from a moment ago
+			local delay = 0.95 - phase * 0.08
+			local goal = trailPoint(delay)
+			if goal then
+				local to = Vector3.new(goal.X - boss.pos.X, 0, goal.Z - boss.pos.Z)
+				local speed = math.min(to.Magnitude / math.max(dt, 0.001), 26 + phase * 3)
+				if to.Magnitude > 0.1 then
+					boss.pos = arena:clamp(boss.pos + to.Unit * speed * dt, 4)
+					faceTo(goal, 10, dt)
+				end
+			end
+			lift = math.abs(math.sin(now * 11)) * 1.4
+			if phase >= 2 and target and now - boss.lastOrb > 2.0 - phase * 0.2 then
+				boss.lastOrb = now
+				local from = boss.pos + Vector3.new(0, 7, 0)
+				local dir = (target.root.Position - from)
+				if dir.Magnitude > 0.1 then
+					BossKit.projectile(boss, arena, from, dir.Unit * 24, {
+						homing = 1.3, target = target.root, size = 2.6, color = VIOLET, life = 4,
+					})
+				end
+			end
+			if age > 4.2 - phase * 0.35 and target then
+				setState("windup")
+			end
+		elseif st == "windup" then
+			if target then
+				faceTo(target.root.Position, 8, dt)
+			end
+			lift = -1.2
+			tilt = 0.25
+			if age > 0.55 and target then
+				boss.from = boss.pos
+				boss.to = arena:clamp(Vector3.new(target.root.Position.X, c.Y, target.root.Position.Z), 5)
+				boss.leapTime = 1.05 - phase * 0.06
+				BossKit.strike(boss, arena, boss.to, { kind = "shadow", radius = 7, delay = boss.leapTime, height = 12 })
+				setState("leap")
+				cb.effect("bosscharge", boss.pos)
+			end
+		elseif st == "leap" then
+			local u = math.clamp(age / boss.leapTime, 0, 1)
+			boss.pos = boss.from:Lerp(boss.to, u)
+			lift = math.sin(u * math.pi) * 26
+			tilt = -0.4 + u * 0.6
+			if u >= 1 then
+				BossKit.shockwave(boss, arena, boss.pos, 46, 36, c.Y)
+				if phase >= 3 then
+					for i = 0, 5 do
+						local a = i / 6 * math.pi * 2 + math.random()
+						BossKit.strike(boss, arena, boss.pos + Vector3.new(math.cos(a) * 14, 0, math.sin(a) * 14), { kind = "shadow", radius = 4.5, delay = 0.9, height = 12 })
+					end
+				end
+				setState("dazed")
+				refresh()
+				cb.effect("bossbonk", headPoint())
+			end
+		elseif st == "dazed" then
+			tilt = 0.18 + math.sin(now * 3) * 0.05
+			lift = -0.8
+			boss.yaw += math.sin(now * 4) * dt * 0.8
+			if age > 2.6 - phase * 0.25 then
+				setState("blink")
+				refresh()
+			end
+		elseif st == "blink" then
+			-- vanish in a puff and reappear somewhere else
+			if age < 0.05 then
+				cb.effect("poof", boss.pos + Vector3.new(0, 5, 0))
+				boss.pos = arena:randomPoint(8)
+				cb.effect("poof", boss.pos + Vector3.new(0, 5, 0))
+			end
+			if age > 0.6 then
+				setState("stalk")
+			end
+		elseif st == "hurt" then
+			tilt = math.sin(age * 30) * 0.12
+			if age > 1.3 then
+				if boss.hp <= 0 then
+					setState("dying")
+					BossKit.Clear(boss)
+					cb.effect("bossdie", headPoint())
+				else
+					if phase >= 3 then
+						eruption(phase)
+					end
+					if phase >= 4 and BossKit.minionCount(boss) < 2 then
+						for i = 1, 2 do
+							local a = math.random() * math.pi * 2
+							BossKit.minion(boss, "bat", c + Vector3.new(math.cos(a) * 16, 9, math.sin(a) * 16), "castle")
+						end
+					end
+					setState("blink")
+				end
+			end
+		elseif st == "dying" then
+			boss.yaw += dt * (3 + age * 5)
+			lift = -age * 2
+			if age > 2.6 then
+				cb.effect("poof", boss.pos + Vector3.new(0, 6, 0))
+				boss.model.Parent = nil
+				setState("dead")
+				local winners = {}
+				for _, e in ipairs(list) do
+					table.insert(winners, e.player)
+				end
+				cb.defeated(winners)
+			end
+		elseif st == "dead" then
+			if age > 45 and #list == 0 then
+				reset()
+			end
+			return
+		end
+
+		if boss.model.Parent then
+			place(lift, tilt)
+		end
+
+		-- contact with bunnies
+		if st ~= "sleep" and st ~= "dying" and st ~= "dead" and st ~= "blink" then
+			local head = headPoint()
+			for _, e in ipairs(list) do
+				local h = e.root.Position
+				if exposed() and BossKit.stomped(e, head, 4.4) then
+					boss.hp -= 1
+					boss.model:SetAttribute("HP", boss.hp)
+					cb.bounce(e.player, Vector3.new(0, 85, 0))
+					cb.effect("bosshit", head)
+					setState("hurt")
+					refresh()
+					break
+				elseif not exposed() and st ~= "hurt" then
+					local flat = Vector3.new(h.X - boss.pos.X, 0, h.Z - boss.pos.Z).Magnitude
+					local bottom = boss.pos.Y + lift
+					if flat < 3.8 and h.Y - 2.6 < bottom + boss.height * 0.8 and h.Y > bottom - 1 then
+						cb.hurt(e.player, boss.pos)
+					end
+				end
+			end
+		end
+	end)
+end
+
+function BossShade.Reset()
+	if arena then
+		reset()
+	end
+end
+
+return BossShade
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000D"><Properties><string name="Name">BossThunderhead</string><ProtectedString name="Source"><![CDATA[--[[
 	BossThunderhead - a furious storm cloud that squats over the Stormcrown, a
 	floating arena south of Cloudtop's hub.
 
@@ -4028,7 +4528,7 @@ function BossThunderhead.Reset()
 end
 
 return BossThunderhead
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000D"><Properties><string name="Name">BugModel</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000E"><Properties><string name="Name">BugModel</string><ProtectedString name="Source"><![CDATA[--[[
 	BugModel - builds a Grumblebug: a round beetle with split wing cases,
 	a shield-shaped thorax, mandibles, glossy eyes under a cross brow,
 	clubbed antennae and six two-part legs.
@@ -4115,7 +4615,7 @@ function BugModel.Build(skinName, scale, origin)
 end
 
 return BugModel
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000E"><Properties><string name="Name">CrateService</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000F"><Properties><string name="Name">CrateService</string><ProtectedString name="Source"><![CDATA[--[[
 	CrateService - breakable heart crates.
 
 	Roll, slide, long jump or ground pound into a crate (or stomp on it) and
@@ -4203,7 +4703,7 @@ function CrateService.Shockwave(player, pos)
 end
 
 return CrateService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000F"><Properties><string name="Name">DataService</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000010"><Properties><string name="Name">DataService</string><ProtectedString name="Source"><![CDATA[--[[
 	DataService - loads and saves each player's progress with DataStoreService.
 
 	Save layout (one DataStore key per player):
@@ -4565,17 +5065,35 @@ end
 -- Best progress across all files (unlocks cosmetics)
 function DataService.Progress(player)
 	local profile = DataService.Get(player)
-	local best, boss = 0, false
+	local best, boss, bosses = 0, false, {}
 	if profile then
 		for i = 1, Config.SaveSlots do
 			local slot = profile.data.slots[tostring(i)]
 			if slot then
 				best = math.max(best, count(slot.goldens))
 				boss = boss or slot.bossDefeated == true
+				for id, v in pairs(slot.bosses or {}) do
+					if v then
+						bosses[id] = true
+					end
+				end
 			end
 		end
 	end
-	return { goldens = best, boss = boss }
+	if boss then
+		bosses.grumble = true
+	end
+	-- Robux passes are checked by ShopService and mirrored as player attributes
+	local passes = {}
+	for key in pairs(Config.GamePasses or {}) do
+		if player:GetAttribute("Pass_" .. key) then
+			passes[key] = true
+		end
+	end
+	return {
+		goldens = best, boss = boss, bosses = bosses, passes = passes,
+		owned = profile and profile.data.owned or {}, coins = profile and profile.data.coins or 0,
+	}
 end
 
 --------------------------------------------------------------------------------
@@ -4612,7 +5130,7 @@ game:BindToClose(function()
 end)
 
 return DataService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000010"><Properties><string name="Name">EnemyModels</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000011"><Properties><string name="Name">EnemyModels</string><ProtectedString name="Source"><![CDATA[--[[
 	EnemyModels - builds the non-beetle baddies. Each builder returns
 	(model, extras) with the model's PrimaryPart at the enemy's centre;
 	front is -Z. Everything is anchored and non-colliding (the server moves
@@ -4897,7 +5415,7 @@ function EnemyModels.puffer(skinName, origin)
 end
 
 return EnemyModels
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000011"><Properties><string name="Name">EnemyService</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000012"><Properties><string name="Name">EnemyService</string><ProtectedString name="Source"><![CDATA[--[[
 	EnemyService - all the baddies.
 
 	  bug         Grumblebug      wanders, charges            stomp / pound / roll / slide
@@ -5586,7 +6104,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 return EnemyService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000012"><Properties><string name="Name">HazardService</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000013"><Properties><string name="Name">HazardService</string><ProtectedString name="Source"><![CDATA[--[[
 	HazardService - decides who gets hurt by firebars, crushers, lava and
 	boulders. Firebars and crushers move on the shared server clock (see
 	shared/HazardMath); clients animate them, the server checks collisions.
@@ -5726,7 +6244,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 return HazardService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000013"><Properties><string name="Name">Leaderboard</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000014"><Properties><string name="Name">Leaderboard</string><ProtectedString name="Source"><![CDATA[--[[
 	Leaderboard - the "FASTEST BUNNIES" board by the meadow spawn.
 
 	When a file finds every golden carrot, its clear time is stored in an
@@ -5879,7 +6397,7 @@ function Leaderboard.RecordClear(player, seconds)
 end
 
 return Leaderboard
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000014"><Properties><string name="Name">NPCService</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000015"><Properties><string name="Name">NPCService</string><ProtectedString name="Source"><![CDATA[--[[
 	NPCService - builds the friendly characters and their "Talk" prompts.
 	What they say lives in Config.NPCs and is shown by client/Dialogue.
 ]]
@@ -6112,9 +6630,13 @@ local function build(def, spec)
 	model.Name = "NPC_" .. def.id
 	local flatFacing = (def.facing * Vector3.new(1, 0, 1)).Unit
 	local base = CFrame.lookAt(def.pos, def.pos + flatFacing) -- front (-Z) faces `facing`
-	if spec.kind == "granny" or spec.kind == "mayor" then
-		local look = spec.kind == "granny" and { fur = 4, accent = 5, hat = "flowers", neck = "scarf" }
-			or { fur = 2, accent = 1, hat = "tophat", neck = "bell" }
+	local LOOKS = {
+		granny = { fur = 4, accent = 5, hat = "flowers", neck = "scarf" },
+		mayor = { fur = 2, accent = 1, hat = "tophat", neck = "bell" },
+		hermit = { fur = 3, accent = 2, hat = "wizard", neck = "scarf" },
+	}
+	if LOOKS[spec.kind] then
+		local look = LOOKS[spec.kind]
 		local bunny = BunnyModel.BuildPreview(look)
 		bunny:PivotTo(base * CFrame.new(0, 2.6, 0))
 		for _, d in ipairs(bunny:GetDescendants()) do
@@ -6164,7 +6686,7 @@ function NPCService.Start(info)
 end
 
 return NPCService
-]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX0000001C"><Properties><string name="Name">World</string></Properties><Item class="ModuleScript" referent="RBX00000015"><Properties><string name="Name">Builder</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX0000001E"><Properties><string name="Name">World</string></Properties><Item class="ModuleScript" referent="RBX00000016"><Properties><string name="Name">Builder</string><ProtectedString name="Source"><![CDATA[--[[
 	Builder - shared helpers for constructing the world out of chunky parts,
 	plus the registry of collectibles, enemies, hazards and checkpoints that
 	the rest of the server reads.
@@ -7177,7 +7699,7 @@ function B.warpBurrow(def)
 end
 
 return B
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000016"><Properties><string name="Name">Canyon</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000017"><Properties><string name="Name">Canyon</string><ProtectedString name="Source"><![CDATA[--[[
 	Dustbowl Canyon - a sun-baked mesa island east of the meadow.
 	  * Canyon Leap: pillars too far apart for a double jump; roll + jump to long jump
 	  * Eagle's Mesa: a tall mesa ringed with ledges
@@ -7362,7 +7884,7 @@ function Canyon.Build(B)
 end
 
 return Canyon
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000017"><Properties><string name="Name">Castle</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000018"><Properties><string name="Name">Castle</string><ProtectedString name="Source"><![CDATA[--[[
 	Infernal Castle - a volcanic island south of the meadow. The hard part.
 
 	  Approach      lava rivers, cinderbugs, a drawbridge over the lava moat
@@ -7722,7 +8244,7 @@ function Castle.Build(B)
 end
 
 return Castle
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000018"><Properties><string name="Name">Forest</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000019"><Properties><string name="Name">Forest</string><ProtectedString name="Source"><![CDATA[--[[
 	Whisperwood - an old, misty forest island west of the Lonely Islet.
 	  * a rope bridge from the islet, with a little rest stop half way
 	  * the Elder Tree: shelf fungus spiralling up a giant trunk to the canopy
@@ -8223,7 +8745,7 @@ function Forest.Build(B)
 end
 
 return Forest
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000019"><Properties><string name="Name">Meadow</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001A"><Properties><string name="Name">Meadow</string><ProtectedString name="Source"><![CDATA[--[[
 	Carrot Meadow - the hub island, plus the routes out to the other regions:
 	a grassy causeway north to Frostbite Peaks, a boardwalk east to Dustbowl
 	Canyon and a long stone bridge south to the Infernal Castle.
@@ -8256,7 +8778,7 @@ function Meadow.Build(B)
 	-- keep gameplay spots and the three exit corridors flat
 	local keepFlat = {
 		{ V(0, 0, 60), 34 }, { V(-60, 0, -40), 30 }, { V(-130, 0, -120), 60 }, { V(110, 0, 140), 32 },
-		{ V(140, 0, -90), 68 }, { V(12, 0, 40), 10 }, { V(-24, 0, 44), 12 }, { V(-145, 0, 125), 28 },
+		{ V(140, 0, -90), 68 }, { V(12, 0, 40), 10 }, { V(-24, 0, 44), 12 }, { V(-145, 0, 125), 28 }, { V(40, 0, -120), 14 },
 	}
 	local function flatOK(p, radius)
 		if p.Magnitude + radius > 200 then
@@ -8639,6 +9161,37 @@ function Meadow.Build(B)
 		B.carrotRing(V(bx, 3, bz), 12, 6)
 	end
 
+	----------------------------------------------------------------- the old well (secret way into the Underburrow)
+	do
+		local wx, wz = 40, -120
+		B.cyl(wx, -0.5, wz, 4.2, 3.4, P.Stone, Enum.Material.Cobblestone)
+		local dark = B.cyl(wx, 2.6, wz, 3.2, 0.3, Color3.fromRGB(14, 12, 18), nil, B.decor)
+		dark.CanCollide = false
+		local lid = B.cyl(wx, 2.8, wz, 3.5, 0.6, P.WoodLight, Enum.Material.WoodPlanks)
+		lid.Name = "WellLid"
+		lid:SetAttribute("WellLid", true)
+		for _, sx in ipairs({ -1, 1 }) do
+			B.block(CFrame.new(wx + sx * 3.6, 5.5, wz), V(0.7, 7, 0.7), P.Wood, Enum.Material.Wood)
+		end
+		B.block(CFrame.new(wx, 9.2, wz), V(8.4, 0.6, 0.7), P.Wood, Enum.Material.Wood)
+		B.plank(V(wx, 9, wz - 3), V(wx, 11, wz), 9, 0.5, P.Roof, Enum.Material.Slate)
+		B.plank(V(wx, 9, wz + 3), V(wx, 11, wz), 9, 0.5, P.Roof, Enum.Material.Slate)
+		B.cyl(wx, 4.8, wz + 0.4, 0.15, 4, Color3.fromRGB(150, 128, 92), Enum.Material.Fabric, B.decor).CanCollide = false
+		local bucket = B.cyl(wx, 4.2, wz + 0.4, 0.8, 1.1, P.Wood, Enum.Material.Wood, B.decor)
+		bucket.CanCollide = false
+		local peek = Instance.new("ProximityPrompt")
+		peek.Name = "WellPrompt"
+		peek.ActionText = "Peer in"
+		peek.ObjectText = "Old Well"
+		peek.KeyboardKeyCode = Enum.KeyCode.F
+		peek.GamepadKeyCode = Enum.KeyCode.ButtonY
+		peek.MaxActivationDistance = 10
+		peek.RequiresLineOfSight = false
+		peek.Parent = lid
+		lid:SetAttribute("WellPeek", true)
+		B.info.well = Vector3.new(wx, 3.1, wz)
+	end
+
 	----------------------------------------------------------------- friends & heart crates
 	B.npc("shellby", 30, 66, V(-1, 0, 0.2))
 	B.npc("burrows", -24, 44, V(1, 0, 0.4))
@@ -8670,7 +9223,7 @@ function Meadow.Build(B)
 	----------------------------------------------------------------- scatter scenery
 	local avoid = {
 		{ V(0, 0, 60), 30 }, { V(-60, 0, -40), 26 }, { V(-130, 0, -120), 56 }, { V(110, 0, 140), 28 },
-		{ V(140, 0, -90), 64 }, { V(12, 0, 40), 8 }, { V(-24, 0, 44), 10 }, { V(-145, 0, 125), 26 },
+		{ V(140, 0, -90), 64 }, { V(12, 0, 40), 8 }, { V(-24, 0, 44), 10 }, { V(-145, 0, 125), 26 }, { V(40, 0, -120), 12 },
 	}
 	local function ok(p, extra)
 		if p.Magnitude > 205 then
@@ -8750,7 +9303,7 @@ function Meadow.Build(B)
 end
 
 return Meadow
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001A"><Properties><string name="Name">Peaks</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001B"><Properties><string name="Name">Peaks</string><ProtectedString name="Source"><![CDATA[--[[
 	Frostbite Peaks - a snowy island north of the meadow.
 	  * A terraced mountain with winding ramps up to the summit
 	  * A long ice slide chute spiralling down the outside of the mountain
@@ -9009,7 +9562,188 @@ function Peaks.Build(B)
 end
 
 return Peaks
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001B"><Properties><string name="Name">Sky</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001C"><Properties><string name="Name">Secret</string><ProtectedString name="Source"><![CDATA[--[[
+	The Underburrow - a secret dungeon floating in the dark, far from every
+	other land. You get here by ground-pounding through the lid of the old well
+	in the meadow (Config.SecretGate golden carrots), and it is meant to be HARD.
+
+	  Entrance        Old Whiskers, a sign, a way back up
+	  Crumbling Path  tiles that fall a moment after you land on them
+	  Firebar Beam    a narrow beam with three spinning firebars
+	  The Depths      the only checkpoint
+	  Blink Bridge    two sets of blocks that swap in and out on a beat
+	  The Chimney     wall-jump straight up between two walls
+	  The Gaps        long jumps between pillars (the Heart of the Underburrow floats here)
+	  Shade's Arena   the Shade waits at the bottom of the dark
+
+	Falling into the dark costs a heart and puts you back where you last stood
+	(see the server's void check). Crumbling and blinking blocks are worked on
+	each player's own screen by client/WorldFX, so they react instantly.
+]]
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+
+local Secret = {}
+
+local STONE = Color3.fromRGB(70, 62, 82)
+local STONE_DARK = Color3.fromRGB(46, 40, 56)
+local TRIM = Color3.fromRGB(110, 96, 130)
+local CRYSTAL = Color3.fromRGB(160, 120, 230)
+
+function Secret.Build(B)
+	local P = B.P
+	local V = Vector3.new
+	local M = Enum.Material
+	local X = -1400
+
+	local function slab(cx, top, cz, sx, sz, thick, color)
+		thick = thick or 4
+		local p = B.block(CFrame.new(cx, top - thick / 2, cz), V(sx, thick, sz), color or STONE, M.Slate)
+		-- a lighter rim so edges read clearly in the dark
+		local rim = B.block(CFrame.new(cx, top - 0.2, cz), V(sx + 0.3, 0.5, sz + 0.3), TRIM, M.Slate, B.decor)
+		rim.CanCollide = false
+		rim.CanQuery = false
+		-- jagged rock hanging underneath
+		local hang = B.blob(V(cx, top - thick - sx * 0.25, cz), V(sx * 0.8, sx * 0.6, sz * 0.8), STONE_DARK, M.Slate)
+		hang.CastShadow = false
+		return p
+	end
+
+	local function crystal(pos, s)
+		s = s or 1
+		local c = B.make("Part", {
+			Size = V(1.2, 3.4, 1.2) * s,
+			CFrame = CFrame.new(pos + V(0, 1.6 * s, 0)) * CFrame.Angles(0.15, math.random() * 6, 0.2),
+			Color = CRYSTAL,
+			Material = M.Neon,
+			CanCollide = false,
+			CanQuery = false,
+			CastShadow = false,
+		}, B.decor)
+		local light = Instance.new("PointLight")
+		light.Color = CRYSTAL
+		light.Range = 18 * s
+		light.Brightness = 1.1
+		light.Parent = c
+	end
+
+	local function markUnsafe(p)
+		p:SetAttribute("Unsafe", true) -- the server never respawns you onto it
+	end
+
+	--------------------------------------------------------------- entrance
+	slab(X, 150, -1400, 34, 34)
+	B.checkpointFlag("underburrow", V(-9, 0, 2))
+	B.npc("whiskers", X + 10, -1392, V(-1, 0, -0.3), 170)
+	B.sign(V(X - 6, 150, -1414), V(0, 0, 1), "THE UNDERBURROW", "Turn back, little bunny.")
+	B.exitPrompt(V(X - 12, 150.5, -1390), "meadow", "Climb back up")
+	for _, c in ipairs({ { -14, -14 }, { 14, -14 }, { -14, 14 }, { 14, 14 } }) do
+		crystal(V(X + c[1], 150, -1400 + c[2]), 1.2)
+	end
+	B.crate(X + 8, -1408, 170)
+
+	--------------------------------------------------------------- Crumbling Path
+	for k = 0, 7 do
+		local z = -1426 - k * 10
+		local x = X + ((k % 2 == 0) and -4 or 4)
+		local top = 150 + k
+		local tile = B.block(CFrame.new(x, top - 0.75, z), V(7, 1.5, 7), Color3.fromRGB(120, 100, 86), M.Cobblestone)
+		tile.Name = "CrumbleTile"
+		tile:SetAttribute("Crumble", true)
+		markUnsafe(tile)
+		if k % 2 == 1 then
+			B.carrot(V(x, top + 3, z))
+		end
+	end
+	B.sign(V(X + 12, 150, -1416), V(0, 0, 1), "CRUMBLING PATH", "Don't stop moving")
+
+	--------------------------------------------------------------- Firebar Beam
+	slab(X, 158, -1515, 20, 20, 5)
+	B.firebar(V(X, 159.6, -1515), 9, 1.4, 0)
+	crystal(V(X - 8, 158, -1507))
+	crystal(V(X + 8, 158, -1523))
+	B.block(CFrame.new(X, 157, -1545), V(3, 2, 40), STONE, M.Slate)
+	local beamRim = B.block(CFrame.new(X, 157.9, -1545), V(3.3, 0.4, 40), TRIM, M.Slate, B.decor)
+	beamRim.CanCollide = false
+	for i, f in ipairs({ { -1534, 2.0 }, { -1547, -2.4 }, { -1559, 2.8 } }) do
+		B.firebar(V(X, 159.6, f[1]), 6, f[2], i * 1.3, true) -- no post: jump over the middle
+	end
+	B.carrotLine(V(X, 161, -1530), V(X, 161, -1562), 4)
+
+	--------------------------------------------------------------- the Depths (checkpoint)
+	slab(X, 158, -1578, 22, 22, 5)
+	B.checkpointFlag("underburrow2", V(-8, 0, -4))
+	B.crate(X + 7, -1572, 175)
+	crystal(V(X - 9, 158, -1586), 1.3)
+	crystal(V(X + 9, 158, -1586), 1.3)
+	B.sign(V(X + 6, 158, -1588), V(0, 0, 1), "BLINK BRIDGE", "Jump on the beat")
+
+	--------------------------------------------------------------- Blink Bridge
+	for k = 0, 5 do
+		local z = -1599 - k * 10
+		local x = X + ((k % 2 == 0) and -3 or 3)
+		local block = B.block(CFrame.new(x, 157.25, z), V(6, 1.5, 6), k % 2 == 0 and Color3.fromRGB(110, 170, 220) or Color3.fromRGB(220, 130, 170), M.Neon)
+		block.Name = "BlinkBlock"
+		block:SetAttribute("Blink", k % 2)
+		block:SetAttribute("BlinkPeriod", 1.6)
+		block.CastShadow = false
+		markUnsafe(block)
+	end
+
+	--------------------------------------------------------------- The Chimney
+	slab(X, 158, -1662, 24, 26, 5)
+	for _, side in ipairs({ -1, 1 }) do
+		B.block(CFrame.new(X + side * 5.5, 190, -1667), V(2, 64, 14), STONE, M.Slate)
+		local stripe = B.block(CFrame.new(X + side * 4.45, 190, -1667), V(0.1, 64, 1), TRIM, M.Slate, B.decor)
+		stripe.CanCollide = false
+	end
+	B.block(CFrame.new(X, 190, -1675), V(13, 64, 2), STONE_DARK, M.Slate) -- back wall
+	B.firebar(V(X, 204, -1667), 3.8, 1.6, 0, true)
+	B.sign(V(X + 9, 158, -1653), V(0, 0, 1), "THE CHIMNEY", "Wall jump, wall jump, wall jump...")
+	for y = 172, 212, 20 do
+		B.carrot(V(X, y, -1665))
+	end
+	slab(X, 222, -1690, 24, 26, 5)
+	crystal(V(X - 9, 222, -1698), 1.2)
+	crystal(V(X + 9, 222, -1698), 1.2)
+
+	--------------------------------------------------------------- The Gaps (long jumps)
+	for i, z in ipairs({ -1737, -1771, -1805 }) do
+		B.cyl(X, 222 - 60, z, 3.5, 60, STONE, M.Slate)
+		B.cyl(X, 221.6, z, 3.8, 0.5, TRIM, M.Slate)
+		if i == 3 then
+			B.golden("underburrow", V(X, 227, z))
+		else
+			B.carrot(V(X, 226, z))
+		end
+	end
+	B.sign(V(X + 8, 222, -1701), V(0, 0, 1), "THE GAPS", "ROLL then JUMP. Breathe first.")
+
+	--------------------------------------------------------------- Shade's Arena
+	do
+		local c = V(X, 222, -1842)
+		local r = 28
+		B.info.bossArenas = B.info.bossArenas or {}
+		B.info.bossArenas.shade = { center = c, radius = r }
+		B.cyl(c.X, c.Y - 6, c.Z, r, 6, STONE, M.Slate)
+		B.cyl(c.X, c.Y - 0.3, c.Z, r + 0.4, 0.5, TRIM, M.Slate)
+		B.cyl(c.X, c.Y - 0.05, c.Z, 6, 0.2, CRYSTAL, M.Neon).CanCollide = false
+		local under = B.blob(c - V(0, 18, 0), V(r * 1.6, 26, r * 1.6), STONE_DARK, M.Slate)
+		under.CastShadow = false
+		for i = 0, 3 do
+			local a = i / 4 * math.pi * 2 + math.pi / 4
+			local p = c + V(math.cos(a) * (r - 3), 0, math.sin(a) * (r - 3))
+			B.cyl(p.X, c.Y, p.Z, 1.2, 14, STONE_DARK, M.Slate)
+			crystal(p + V(0, 14, 0), 1.4)
+		end
+		B.golden("shade", c + V(0, 5, 0))
+		B.exitPrompt(c + V(0, 0.5, r - 5), "meadow", "Climb out")
+	end
+end
+
+return Secret
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001D"><Properties><string name="Name">Sky</string><ProtectedString name="Source"><![CDATA[--[[
 	Cloudtop Heights - floating islands high above the meadow, reached by
 	climbing the beanstalk (Config.SkyGate golden carrots).
 	  * Cloud Hop: drifting clouds heading east
@@ -9323,7 +10057,7 @@ function Sky.Build(B)
 end
 
 return Sky
-]]></ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX0000001D"><Properties><string name="Name">WorldBuilder</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX0000001F"><Properties><string name="Name">WorldBuilder</string><ProtectedString name="Source"><![CDATA[--[[
 	WorldBuilder - builds the whole world at server start.
 
 	  Carrot Meadow (hub)      centre            World/Meadow
@@ -9332,6 +10066,7 @@ return Sky
 	  Infernal Castle          south (z 800)     World/Castle
 	  Whisperwood              west  (x -780)    World/Forest
 	  Cloudtop Heights         sky   (y 420)     World/Sky
+	  The Underburrow          far away, secret  World/Secret
 ]]
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
@@ -9345,6 +10080,7 @@ local Canyon = require(folder:WaitForChild("Canyon"))
 local Castle = require(folder:WaitForChild("Castle"))
 local Forest = require(folder:WaitForChild("Forest"))
 local Sky = require(folder:WaitForChild("Sky"))
+local Secret = require(folder:WaitForChild("Secret"))
 
 local WorldBuilder = {}
 WorldBuilder.Castle = Castle
@@ -9431,7 +10167,7 @@ function WorldBuilder.Build()
 	setupLighting()
 	buildSea()
 	-- each region builds in protected mode: one mistake can't wipe out the world
-	for _, region in ipairs({ { "Meadow", Meadow }, { "Peaks", Peaks }, { "Canyon", Canyon }, { "Castle", Castle }, { "Forest", Forest }, { "Sky", Sky } }) do
+	for _, region in ipairs({ { "Meadow", Meadow }, { "Peaks", Peaks }, { "Canyon", Canyon }, { "Castle", Castle }, { "Forest", Forest }, { "Sky", Sky }, { "Secret", Secret } }) do
 		local ok, err = pcall(region[2].Build, B)
 		if not ok then
 			warn("[Bunny64] Building " .. region[1] .. " failed: " .. tostring(err))
@@ -9464,7 +10200,7 @@ function WorldBuilder.Build()
 end
 
 return WorldBuilder
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000034"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="EnableMouseLockOption">false</bool></Properties><Item class="StarterPlayerScripts" referent="RBX00000030"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX0000002F"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000036"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="EnableMouseLockOption">false</bool></Properties><Item class="StarterPlayerScripts" referent="RBX00000032"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX00000031"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
 	Bunny 64 - client entry point. Wires together menus, HUD, movement,
 	animation, collectibles and world effects, and reacts to server events.
 ]]
@@ -9644,6 +10380,11 @@ local function handleEvent(s, event)
 			Effects.Jingle()
 			Hud.Toast("STAMP GET!\n" .. name, 3, Color3.fromRGB(150, 210, 255))
 		end)
+	elseif kind == "secretfound" then
+		Effects.Jingle()
+		task.delay(0.4, function()
+			Hud.Toast("CRASH! DOWN, DOWN, DOWN...\nYOU'VE FOUND THE UNDERBURROW", 4.5, Color3.fromRGB(200, 170, 255))
+		end)
 	elseif kind == "bossdown" then
 		Effects.Jingle()
 		task.delay(0.5, Effects.Jingle)
@@ -9752,6 +10493,8 @@ remotes.Effect.OnClientEvent:Connect(function(kind, pos, extra)
 	elseif kind == "heart" then
 		Effects.Play("Heart", 1.6)
 		Hud.Toast("+1 HEART", 1.2, Color3.fromRGB(240, 140, 140))
+	elseif kind == "hint" then
+		Hud.Toast(tostring(extra or ""), 4.5, Color3.fromRGB(220, 210, 240))
 	elseif kind == "locked" then
 		local why = extra == "beanstalk" and "TO CLIMB THE BEANSTALK" or "TO FACE THE KING"
 		Hud.Toast(string.format("YOU NEED %d GOLDEN CARROTS\n%s", pos, why), 3, Color3.fromRGB(240, 150, 110))
@@ -9920,7 +10663,7 @@ task.spawn(function()
 		applySnapshot(s)
 	end
 end)
-]]></ProtectedString></Properties><Item class="ModuleScript" referent="RBX00000020"><Properties><string name="Name">AdminPanel</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties><Item class="ModuleScript" referent="RBX00000022"><Properties><string name="Name">AdminPanel</string><ProtectedString name="Source"><![CDATA[--[[
 	AdminPanel - the admin perks menu (press P, or the ADMIN button).
 	Only shows for admins; the server checks every command anyway.
 
@@ -10212,6 +10955,7 @@ local function build()
 	local places = {
 		{ "MEADOW", "meadow" }, { "PEAKS", "peaks" }, { "CANYON", "canyon" }, { "CASTLE GATE", "castle" },
 		{ "COURTYARD", "courtyard" }, { "THE KEEP", "keep" }, { "DUNGEON", "dungeon" }, { "BOSS!", "boss" },
+		{ "WHISPERWOOD", "forest" }, { "CLOUDTOP", "sky" }, { "UNDERBURROW", "underburrow" }, { "DEPTHS", "underburrow2" },
 	}
 	for i, p in ipairs(places) do
 		button(tp, p[1], i, function()
@@ -10315,7 +11059,7 @@ function AdminPanel.Init(dependencies)
 end
 
 return AdminPanel
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000021"><Properties><string name="Name">Animator</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000023"><Properties><string name="Name">Animator</string><ProtectedString name="Source"><![CDATA[--[[
 	Animator - procedural animation for every bunny in the server.
 
 	No animation assets: each frame we compute a pose from the bunny's
@@ -10616,7 +11360,7 @@ function Animator.Init(movement)
 end
 
 return Animator
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000022"><Properties><string name="Name">Baddies</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000024"><Properties><string name="Name">Baddies</string><ProtectedString name="Source"><![CDATA[--[[
 	Baddies - draws every baddie smoothly on this player's screen.
 
 	The server runs their brains and publishes, a few times a second:
@@ -10904,7 +11648,7 @@ function Baddies.Init()
 end
 
 return Baddies
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000023"><Properties><string name="Name">Chiptune</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000025"><Properties><string name="Name">Chiptune</string><ProtectedString name="Source"><![CDATA[--[[
 	Chiptune - Bunny 64's 8-bit music engine and soundtrack.
 
 	Roblox can't synthesise sound, so this little "tracker" plays one short
@@ -11112,6 +11856,42 @@ local SONGS = {
 			G1 . G2 G1 . G2 G1 . | C2 . C3 C2 . C3 C2 . | A#1 . A#2 . A1 . A2 . | D2 . D3 . A1 . A2 . ]],
 		drums = [[ k . h k s . h h | k . h k s . h h | k . h k s . h h | k . h k s s s . |
 			k . h k s . h h | k . h k s . h h | k . h k s . h h | k k s . k s s s ]],
+	},
+
+	-- The Underburrow: "Down the Well" - the theme slowed to a crawl in B minor, echoing in the dark
+	secret = {
+		bpm = 80,
+		echo = true,
+		arpOctave = 3,
+		lead = [[
+			D5 - - - F#5 - - - | E5 - - - C#5 - - - | D5 - - - F#5 - G5 F#5 | D5 - - - - - - - |
+			G5 - - - F#5 - D5 - | C#5 - - - E5 - - - | G5 - F#5 - D5 - C#5 - | B4 - - - - - - - ]],
+		arp = [[
+			Bm - - - - - - - | A - - - - - - - | G - - - - - - - | Bm - - - - - - - |
+			Em - - - - - - - | F# - - - - - - - | G - - - F# - - - | Bm - - - - - - - ]],
+		bass = [[
+			B1 - - - - - - - | A1 - - - - - - - | G1 - - - - - - - | B1 - - - - - - - |
+			E2 - - - - - - - | F#1 - - - - - - - | G1 - - - F#1 - - - | B1 - - - - - - - ]],
+	},
+
+	-- The Shade: "Mirror Match" - the battle theme turned inside out, in B minor, flat out
+	shade = {
+		bpm = 176,
+		arpOctave = 4,
+		lead = [[
+			D5 D5 F#5 D5 G5 - F#5 D5 | C#5 C#5 D5 C#5 B4 - - . | D5 D5 F#5 D5 G5 - B5 A5 | F#5 - F#5 - F#5 - A#4 - |
+			G5 . F#5 . D5 - C#5 B4 | C#5 - D5 - F#5 - - . | G5 F#5 D5 C#5 B4 C#5 D5 E5 | F#5 - - - A#4 - B4 - ]],
+		harmony = [[
+			B4 . . . B4 . . . | A4 . . . F#4 . . . | B4 . . . D5 . . . | A#4 . . . C#5 . . . |
+			B4 . . . B4 . . . | A4 . . . A4 . . . | B4 . . . A#4 . . . | C#5 . . . F#4 . . . ]],
+		arp = [[
+			Bm - - - - - - - | A - - - - - - - | Bm - - - - - - - | F#7 - - - - - - - |
+			Em - - - - - - - | A - - - - - - - | G - - - F#7 - - - | Bm - - - F#7 - - - ]],
+		bass = [[
+			B1 B2 B1 B2 B1 B2 B1 B2 | A1 A2 A1 A2 A1 A2 A1 A2 | B1 B2 B1 B2 B1 B2 B1 B2 | F#1 F#2 F#1 F#2 F#1 F#2 F#1 F#2 |
+			E1 E2 E1 E2 E1 E2 E1 E2 | A1 A2 A1 A2 A1 A2 A1 A2 | G1 G2 G1 G2 F#1 F#2 F#1 F#2 | B1 B2 B1 B2 F#1 F#2 F#1 F#2 ]],
+		drums = [[ k h s h k k s h | k h s h k k s h | k h s h k k s h | k h s h k s s s |
+			k h s h k k s h | k h s h k k s h | k h s h k k s h | k s k s k s s s ]],
 	},
 
 	-- Ending: "Home Again" - the full theme, warm and slow, every voice together
@@ -11394,7 +12174,7 @@ function Chiptune.Has(name)
 end
 
 return Chiptune
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000024"><Properties><string name="Name">Collectibles</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000026"><Properties><string name="Name">Collectibles</string><ProtectedString name="Source"><![CDATA[--[[
 	Collectibles - spins the carrots, hides the ones this file already has,
 	and asks the server to collect carrots the bunny touches.
 	Each player has their own carrots, so pickups are client-side visuals
@@ -11574,7 +12354,7 @@ function Collectibles.Init(effects, remotes)
 end
 
 return Collectibles
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000025"><Properties><string name="Name">Dialogue</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">Dialogue</string><ProtectedString name="Source"><![CDATA[--[[
 	Dialogue - talk to friendly characters.
 
 	A chunky text box types each line out letter by letter, with a little
@@ -11761,7 +12541,7 @@ function Dialogue.Init(dependencies)
 end
 
 return Dialogue
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000026"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000028"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
 	Effects - local sounds, music, chunky block particles and camera shake.
 ]]
 
@@ -12028,7 +12808,7 @@ RunService:BindToRenderStep("Bunny64Shake", Enum.RenderPriority.Camera.Value + 1
 end)
 
 return Effects
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000029"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
 	Hud - in-game overlay: hearts, golden carrot and carrot counters,
 	region title cards, toasts, the boss health bar and the MENU button.
 ]]
@@ -12582,7 +13362,7 @@ function Hud.WatchBoss(arenaBossFn)
 end
 
 return Hud
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000028"><Properties><string name="Name">Menus</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002A"><Properties><string name="Name">Menus</string><ProtectedString name="Source"><![CDATA[--[[
 	Menus - every full-screen menu:
 	  Title (PRESS START) -> File Select (File A/B/C, erase) -> game
 	  Customise (fur, accent colour, hat, neckwear with a live 3D preview)
@@ -12935,14 +13715,14 @@ function showCustomise(back)
 				locked = not BunnyModel.IsUnlocked(d.list, item.id, progress)
 				text = item.name
 				if locked then
-					text = item.boss and (item.name .. " (BEAT THE KING)") or string.format("%s (%d GOLDEN)", item.name, item.need)
+					text = string.format("%s (%s)", item.name, BunnyModel.LockReason(item))
 				end
 			else
 				local item = d.list[custom[d.key]]
 				text = item.name
-				if item.need and (progress.goldens or 0) < item.need then
+				if not BunnyModel.EntryUnlocked(item, progress) then
 					locked = true
-					text = string.format("%s (%d GOLDEN)", item.name, item.need)
+					text = string.format("%s (%s)", item.name, BunnyModel.LockReason(item))
 				end
 			end
 			r.button.Text = "<  " .. text .. "  >"
@@ -13257,12 +14037,14 @@ local function showLog(back)
 				end
 			end
 		end
-		UI.label(scroll, { Text = string.format("%s   %d/%d", region.name, got, total), Font = UI.TITLE, TextSize = 26, TextColor3 = UI.Gold, Size = UDim2.new(1, 0, 0, 34), LayoutOrder = order, Stroke = 3 })
+		-- a hidden land stays a mystery until you've set foot in it
+		local secret = region.hidden and not (slot and slot.regions and slot.regions[region.id])
+		UI.label(scroll, { Text = string.format("%s   %d/%d", secret and "? ? ?" or region.name, got, total), Font = UI.TITLE, TextSize = 26, TextColor3 = UI.Gold, Size = UDim2.new(1, 0, 0, 34), LayoutOrder = order, Stroke = 3 })
 		for _, g in ipairs(Config.Goldens) do
 			if g.region == region.id then
 				order += 1
 				local have = slot and slot.goldens[g.id]
-				local b = UI.item(scroll, have and string.upper(g.name) or ("???  " .. g.hint), {
+				local b = UI.item(scroll, have and string.upper(g.name) or (secret and "???  Somewhere, something is hidden..." or ("???  " .. g.hint)), {
 					LayoutOrder = order, TextSize = have and 22 or 16, TextWrapped = true, Size = UDim2.new(1, -12, 0, 40),
 					TextColor3 = have and Color3.fromRGB(255, 226, 140) or UI.Cream,
 				})
@@ -13795,7 +14577,7 @@ function Menus.Init(dependencies)
 end
 
 return Menus
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000029"><Properties><string name="Name">Movement</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002B"><Properties><string name="Name">Movement</string><ProtectedString name="Source"><![CDATA[--[[
 	Movement - the bunny's moveset on top of Roblox's humanoid.
 
 	  Jump            Space / A / jump button
@@ -14931,7 +15713,7 @@ function Movement.Init(effects, remotes)
 end
 
 return Movement
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002A"><Properties><string name="Name">PhotoMode</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002C"><Properties><string name="Name">PhotoMode</string><ProtectedString name="Source"><![CDATA[--[[
 	PhotoMode - a free camera for screenshots (Pause > PHOTO MODE).
 
 	  WASD / left stick       fly
@@ -15059,7 +15841,7 @@ function PhotoMode.IsActive()
 end
 
 return PhotoMode
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002B"><Properties><string name="Name">Shadows</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002D"><Properties><string name="Name">Shadows</string><ProtectedString name="Source"><![CDATA[--[[
 	Shadows - a round "blob" shadow straight under every bunny.
 
 	In a 3D platformer the sun's shadow is rarely directly beneath you, so
@@ -15136,7 +15918,7 @@ function Shadows.Init()
 end
 
 return Shadows
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002C"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002E"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--[[
 	UI - shared building blocks for Bunny 64's late-90s console look:
 	chunky beveled panels with gold trim, gradient title lettering, a bouncing
 	carrot cursor, and menu navigation that works with keyboard, gamepad,
@@ -15528,7 +16310,7 @@ function UI.list(parent, padding)
 end
 
 return UI
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002D"><Properties><string name="Name">Weather</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002F"><Properties><string name="Name">Weather</string><ProtectedString name="Source"><![CDATA[--[[
 	Weather - a little atmosphere for each region, drawn around the camera:
 	  meadow  drifting pollen motes
 	  peaks   gentle snowfall
@@ -15572,6 +16354,11 @@ local STYLES = {
 		texture = SPARK, rate = 9, lifetime = NumberRange.new(4, 7), speed = NumberRange.new(0.3, 1.2),
 		accel = Vector3.new(0.3, 0.15, -0.2), size = 0.3, color = Color3.fromRGB(214, 236, 130), light = 1,
 		offset = Vector3.new(0, 2, 0), dir = Enum.NormalId.Top, spread = 180,
+	},
+	secret = {
+		texture = SPARK, rate = 10, lifetime = NumberRange.new(4, 7), speed = NumberRange.new(0.4, 1.2),
+		accel = Vector3.new(0, 0.6, 0), size = 0.35, color = Color3.fromRGB(180, 140, 255), light = 1,
+		offset = Vector3.new(0, -4, 0), dir = Enum.NormalId.Top, spread = 180,
 	},
 	sky = {
 		texture = SMOKE, rate = 3, lifetime = NumberRange.new(5, 7), speed = NumberRange.new(6, 9),
@@ -15652,7 +16439,7 @@ function Weather.Init()
 end
 
 return Weather
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002E"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000030"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--[[
 	WorldFX - client-side world behaviour:
 	  * animates firebars and crushers from the shared server clock
 	  * opens golden-carrot gates for players who have enough golden carrots
@@ -15735,6 +16522,11 @@ local LOOKS = {
 		fog = Color3.fromRGB(128, 146, 126), fogStart = 60, fogEnd = 520, ambient = Color3.fromRGB(112, 124, 104),
 		indoor = Color3.fromRGB(110, 118, 100), tint = Color3.fromRGB(236, 246, 226), sat = -0.2, clock = 17.6, brightness = 1.9,
 	},
+	-- the Underburrow: deep violet dark, crystals and torches doing the lighting
+	secret = {
+		fog = Color3.fromRGB(34, 26, 52), fogStart = 30, fogEnd = 420, ambient = Color3.fromRGB(96, 86, 124),
+		indoor = Color3.fromRGB(96, 86, 124), tint = Color3.fromRGB(226, 214, 255), sat = -0.15, clock = 0.4, brightness = 1.2,
+	},
 	-- bright and clear above the clouds; the fog is the cloud sea far below
 	sky = {
 		fog = Color3.fromRGB(214, 222, 236), fogStart = 260, fogEnd = 1200, ambient = Color3.fromRGB(156, 160, 176),
@@ -15743,7 +16535,10 @@ local LOOKS = {
 }
 
 local function regionAt(pos)
-	if pos.Y > Config.SkyFloor - 60 then
+	local S = Config.Secret
+	if Vector3.new(pos.X - S.center.X, 0, pos.Z - S.center.Z).Magnitude < S.radius then
+		return "secret"
+	elseif pos.Y > Config.SkyFloor - 60 then
 		return "sky"
 	elseif pos.Z > 470 and math.abs(pos.X) < 320 then
 		return "castle"
@@ -15816,6 +16611,70 @@ local function updateHazards()
 	end
 end
 
+-- Traps (each player's own screen, so they react instantly) ------------------------------
+-- Blink blocks swap in and out on the shared server clock; crumbling tiles shake
+-- for a moment after you land on them, drop away, then come back.
+local blinks = {}
+local crumbles = {}
+local crumbling = {} -- [Part] = { t0, base }
+local trapParams = RaycastParams.new()
+trapParams.FilterType = Enum.RaycastFilterType.Include
+
+local function updateTraps(now)
+	if #blinks > 0 then
+		local t = workspace:GetServerTimeNow()
+		for _, b in ipairs(blinks) do
+			local period = b.period
+			local on = math.floor(t / period) % 2 == b.group
+			local into = (t % period) / period
+			if on ~= b.on then
+				b.on = on
+				b.part.CanCollide = on
+			end
+			local ltm
+			if not on then
+				ltm = 0.85
+			elseif into > 0.68 then
+				ltm = (math.floor(t * 14) % 2 == 0) and 0.55 or 0.05 -- about to vanish!
+			else
+				ltm = 0
+			end
+			b.part.LocalTransparencyModifier = ltm
+		end
+	end
+	if #crumbles == 0 then
+		return
+	end
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if root then
+		local hit = workspace:Raycast(root.Position, Vector3.new(0, -4.5, 0), trapParams)
+		if hit and hit.Instance:GetAttribute("Crumble") and not crumbling[hit.Instance] then
+			crumbling[hit.Instance] = { t0 = now, base = hit.Instance.CFrame }
+			Effects.Play("Crate", 0.6)
+		end
+	end
+	for part, c in pairs(crumbling) do
+		local age = now - c.t0
+		if age < 0.55 then
+			part.CFrame = c.base * CFrame.new((math.random() - 0.5) * 0.3, 0, (math.random() - 0.5) * 0.3)
+		elseif age < 3.6 then
+			if part.CanCollide then
+				part.CanCollide = false
+				Effects.Burst(c.base.Position, part.Color, 8, 4, 0.6, -2)
+			end
+			local fall = age - 0.55
+			part.CFrame = c.base - Vector3.new(0, fall * fall * 30, 0)
+			part.LocalTransparencyModifier = math.clamp(fall * 1.5, 0, 1)
+		else
+			part.CFrame = c.base
+			part.CanCollide = true
+			part.LocalTransparencyModifier = 0
+			crumbling[part] = nil
+		end
+	end
+end
+
 -- Gates -----------------------------------------------------------------------------------
 local function refreshGates()
 	for _, g in ipairs(gates) do
@@ -15865,14 +16724,20 @@ function WorldFX.Init(effects, hud)
 			table.insert(gates, d)
 		elseif d:IsA("BasePart") and d:GetAttribute("Checkpoint") then
 			table.insert(flags, d)
+		elseif d:IsA("BasePart") and d:GetAttribute("Blink") ~= nil then
+			table.insert(blinks, { part = d, group = d:GetAttribute("Blink"), period = d:GetAttribute("BlinkPeriod") or 1.6 })
+		elseif d:IsA("BasePart") and d:GetAttribute("Crumble") then
+			table.insert(crumbles, d)
 		end
 	end
 	refreshGates()
 	refreshFlags()
 
 	local nextZoneCheck = 0
+	trapParams.FilterDescendantsInstances = { world:WaitForChild("Solid") }
 	RunService.RenderStepped:Connect(function()
 		updateHazards()
+		updateTraps(os.clock())
 
 		local now = os.clock()
 		if now < nextZoneCheck then
@@ -15956,8 +16821,8 @@ function WorldFX.Region()
 end
 
 return WorldFX
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterCharacterScripts" referent="RBX00000033"><Properties><string name="Name">StarterCharacterScripts</string></Properties><Item class="LocalScript" referent="RBX00000031"><Properties><string name="Name">Animate</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default "Animate" script.
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterCharacterScripts" referent="RBX00000035"><Properties><string name="Name">StarterCharacterScripts</string></Properties><Item class="LocalScript" referent="RBX00000033"><Properties><string name="Name">Animate</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default "Animate" script.
 -- The bunny is animated procedurally by StarterPlayerScripts.Bunny64Client.Animator.
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX00000032"><Properties><string name="Name">Health</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default health regeneration.
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX00000034"><Properties><string name="Name">Health</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default health regeneration.
 -- In Bunny 64 hearts only come back from carrots and golden carrots.
 ]]></ProtectedString><token name="RunContext">0</token></Properties></Item></Item></Item></roblox>

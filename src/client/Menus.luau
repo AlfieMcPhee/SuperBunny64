@@ -351,14 +351,14 @@ function showCustomise(back)
 				locked = not BunnyModel.IsUnlocked(d.list, item.id, progress)
 				text = item.name
 				if locked then
-					text = item.boss and (item.name .. " (BEAT THE KING)") or string.format("%s (%d GOLDEN)", item.name, item.need)
+					text = string.format("%s (%s)", item.name, BunnyModel.LockReason(item))
 				end
 			else
 				local item = d.list[custom[d.key]]
 				text = item.name
-				if item.need and (progress.goldens or 0) < item.need then
+				if not BunnyModel.EntryUnlocked(item, progress) then
 					locked = true
-					text = string.format("%s (%d GOLDEN)", item.name, item.need)
+					text = string.format("%s (%s)", item.name, BunnyModel.LockReason(item))
 				end
 			end
 			r.button.Text = "<  " .. text .. "  >"
@@ -673,12 +673,14 @@ local function showLog(back)
 				end
 			end
 		end
-		UI.label(scroll, { Text = string.format("%s   %d/%d", region.name, got, total), Font = UI.TITLE, TextSize = 26, TextColor3 = UI.Gold, Size = UDim2.new(1, 0, 0, 34), LayoutOrder = order, Stroke = 3 })
+		-- a hidden land stays a mystery until you've set foot in it
+		local secret = region.hidden and not (slot and slot.regions and slot.regions[region.id])
+		UI.label(scroll, { Text = string.format("%s   %d/%d", secret and "? ? ?" or region.name, got, total), Font = UI.TITLE, TextSize = 26, TextColor3 = UI.Gold, Size = UDim2.new(1, 0, 0, 34), LayoutOrder = order, Stroke = 3 })
 		for _, g in ipairs(Config.Goldens) do
 			if g.region == region.id then
 				order += 1
 				local have = slot and slot.goldens[g.id]
-				local b = UI.item(scroll, have and string.upper(g.name) or ("???  " .. g.hint), {
+				local b = UI.item(scroll, have and string.upper(g.name) or (secret and "???  Somewhere, something is hidden..." or ("???  " .. g.hint)), {
 					LayoutOrder = order, TextSize = have and 22 or 16, TextWrapped = true, Size = UDim2.new(1, -12, 0, 40),
 					TextColor3 = have and Color3.fromRGB(255, 226, 140) or UI.Cream,
 				})

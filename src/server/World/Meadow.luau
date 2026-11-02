@@ -31,7 +31,7 @@ function Meadow.Build(B)
 	-- keep gameplay spots and the three exit corridors flat
 	local keepFlat = {
 		{ V(0, 0, 60), 34 }, { V(-60, 0, -40), 30 }, { V(-130, 0, -120), 60 }, { V(110, 0, 140), 32 },
-		{ V(140, 0, -90), 68 }, { V(12, 0, 40), 10 }, { V(-24, 0, 44), 12 }, { V(-145, 0, 125), 28 },
+		{ V(140, 0, -90), 68 }, { V(12, 0, 40), 10 }, { V(-24, 0, 44), 12 }, { V(-145, 0, 125), 28 }, { V(40, 0, -120), 14 },
 	}
 	local function flatOK(p, radius)
 		if p.Magnitude + radius > 200 then
@@ -414,6 +414,37 @@ function Meadow.Build(B)
 		B.carrotRing(V(bx, 3, bz), 12, 6)
 	end
 
+	----------------------------------------------------------------- the old well (secret way into the Underburrow)
+	do
+		local wx, wz = 40, -120
+		B.cyl(wx, -0.5, wz, 4.2, 3.4, P.Stone, Enum.Material.Cobblestone)
+		local dark = B.cyl(wx, 2.6, wz, 3.2, 0.3, Color3.fromRGB(14, 12, 18), nil, B.decor)
+		dark.CanCollide = false
+		local lid = B.cyl(wx, 2.8, wz, 3.5, 0.6, P.WoodLight, Enum.Material.WoodPlanks)
+		lid.Name = "WellLid"
+		lid:SetAttribute("WellLid", true)
+		for _, sx in ipairs({ -1, 1 }) do
+			B.block(CFrame.new(wx + sx * 3.6, 5.5, wz), V(0.7, 7, 0.7), P.Wood, Enum.Material.Wood)
+		end
+		B.block(CFrame.new(wx, 9.2, wz), V(8.4, 0.6, 0.7), P.Wood, Enum.Material.Wood)
+		B.plank(V(wx, 9, wz - 3), V(wx, 11, wz), 9, 0.5, P.Roof, Enum.Material.Slate)
+		B.plank(V(wx, 9, wz + 3), V(wx, 11, wz), 9, 0.5, P.Roof, Enum.Material.Slate)
+		B.cyl(wx, 4.8, wz + 0.4, 0.15, 4, Color3.fromRGB(150, 128, 92), Enum.Material.Fabric, B.decor).CanCollide = false
+		local bucket = B.cyl(wx, 4.2, wz + 0.4, 0.8, 1.1, P.Wood, Enum.Material.Wood, B.decor)
+		bucket.CanCollide = false
+		local peek = Instance.new("ProximityPrompt")
+		peek.Name = "WellPrompt"
+		peek.ActionText = "Peer in"
+		peek.ObjectText = "Old Well"
+		peek.KeyboardKeyCode = Enum.KeyCode.F
+		peek.GamepadKeyCode = Enum.KeyCode.ButtonY
+		peek.MaxActivationDistance = 10
+		peek.RequiresLineOfSight = false
+		peek.Parent = lid
+		lid:SetAttribute("WellPeek", true)
+		B.info.well = Vector3.new(wx, 3.1, wz)
+	end
+
 	----------------------------------------------------------------- friends & heart crates
 	B.npc("shellby", 30, 66, V(-1, 0, 0.2))
 	B.npc("burrows", -24, 44, V(1, 0, 0.4))
@@ -445,7 +476,7 @@ function Meadow.Build(B)
 	----------------------------------------------------------------- scatter scenery
 	local avoid = {
 		{ V(0, 0, 60), 30 }, { V(-60, 0, -40), 26 }, { V(-130, 0, -120), 56 }, { V(110, 0, 140), 28 },
-		{ V(140, 0, -90), 64 }, { V(12, 0, 40), 8 }, { V(-24, 0, 44), 10 }, { V(-145, 0, 125), 26 },
+		{ V(140, 0, -90), 64 }, { V(12, 0, 40), 8 }, { V(-24, 0, 44), 10 }, { V(-145, 0, 125), 26 }, { V(40, 0, -120), 12 },
 	}
 	local function ok(p, extra)
 		if p.Magnitude > 205 then

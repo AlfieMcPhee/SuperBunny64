@@ -231,9 +231,13 @@ local function build(def, spec)
 	model.Name = "NPC_" .. def.id
 	local flatFacing = (def.facing * Vector3.new(1, 0, 1)).Unit
 	local base = CFrame.lookAt(def.pos, def.pos + flatFacing) -- front (-Z) faces `facing`
-	if spec.kind == "granny" or spec.kind == "mayor" then
-		local look = spec.kind == "granny" and { fur = 4, accent = 5, hat = "flowers", neck = "scarf" }
-			or { fur = 2, accent = 1, hat = "tophat", neck = "bell" }
+	local LOOKS = {
+		granny = { fur = 4, accent = 5, hat = "flowers", neck = "scarf" },
+		mayor = { fur = 2, accent = 1, hat = "tophat", neck = "bell" },
+		hermit = { fur = 3, accent = 2, hat = "wizard", neck = "scarf" },
+	}
+	if LOOKS[spec.kind] then
+		local look = LOOKS[spec.kind]
 		local bunny = BunnyModel.BuildPreview(look)
 		bunny:PivotTo(base * CFrame.new(0, 2.6, 0))
 		for _, d in ipairs(bunny:GetDescendants()) do

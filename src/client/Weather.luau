@@ -43,6 +43,11 @@ local STYLES = {
 		accel = Vector3.new(0.3, 0.15, -0.2), size = 0.3, color = Color3.fromRGB(214, 236, 130), light = 1,
 		offset = Vector3.new(0, 2, 0), dir = Enum.NormalId.Top, spread = 180,
 	},
+	secret = {
+		texture = SPARK, rate = 10, lifetime = NumberRange.new(4, 7), speed = NumberRange.new(0.4, 1.2),
+		accel = Vector3.new(0, 0.6, 0), size = 0.35, color = Color3.fromRGB(180, 140, 255), light = 1,
+		offset = Vector3.new(0, -4, 0), dir = Enum.NormalId.Top, spread = 180,
+	},
 	sky = {
 		texture = SMOKE, rate = 3, lifetime = NumberRange.new(5, 7), speed = NumberRange.new(6, 9),
 		accel = Vector3.new(1.5, 0, 0.5), size = 6, color = Color3.fromRGB(240, 244, 252), light = 0.1,

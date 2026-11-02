@@ -97,6 +97,9 @@ Config.CastleGate = 10         -- golden carrots needed to open the castle gate
 Config.ThroneGate = 15         -- golden carrots needed to face King Grumble
 Config.SkyGate = 18            -- golden carrots needed to climb the beanstalk to Cloudtop Heights
 Config.SkyFloor = 360          -- below this height, a bunny who was in the sky is caught and put back
+Config.SecretGate = 20         -- golden carrots needed to break the old well's lid
+-- The Underburrow: a hidden dungeon far from everything (reached through the old well)
+Config.Secret = { center = Vector3.new(-1400, 150, -1620), radius = 450, voidY = 138 }
 
 -- Every boss (ids match the server's boss modules)
 Config.Bosses = {
@@ -113,6 +116,7 @@ Config.Regions = {
 	{ id = "castle", name = "INFERNAL CASTLE" },
 	{ id = "forest", name = "WHISPERWOOD" },
 	{ id = "sky", name = "CLOUDTOP HEIGHTS" },
+	{ id = "secret", name = "THE UNDERBURROW", hidden = true }, -- not counted until you find it
 }
 
 Config.Goldens = {
@@ -152,6 +156,9 @@ Config.Goldens = {
 	{ id = "crowsnest", region = "sky", name = "Crow's Nest", hint = "Climb the mast of Captain Gust's airship." },
 	{ id = "updraft", region = "sky", name = "Updraft Spire", hint = "Ride the rising winds up the tall spire." },
 	{ id = "thunderhead", region = "sky", name = "Eye of the Storm", hint = "Cross the clouds south of the hub to the Stormcrown and calm the Thunderhead.", req = "boss", boss = "thunderhead" },
+	-- The Underburrow (secret)
+	{ id = "underburrow", region = "secret", name = "Heart of the Underburrow", hint = "Somewhere beneath the meadow, past crumbling floors and vanishing bridges.", secret = true },
+	{ id = "shade", region = "secret", name = "The Shade's Carrot", hint = "Something that looks just like you waits at the bottom of the dark.", req = "boss", boss = "shade", secret = true },
 	-- Granny Clover's lost grandkits
 	{ id = "kits", region = "meadow", name = "Granny's Lost Kits", hint = "Granny Clover's five grandkits wandered off - one in every land. Bring them home!", req = "silver" },
 	-- Silver carrot hunts: find all five silver carrots in a region
@@ -268,6 +275,8 @@ Config.Checkpoints = {
 	forest = { name = "Whisperwood", pos = Vector3.new(-580, 5, 40) },
 	beanstalk = { name = "The Beanstalk", pos = Vector3.new(-140, 5, 140) },
 	sky = { name = "Cloudtop Heights", pos = Vector3.new(60, 425, -60) },
+	underburrow = { name = "The Underburrow", pos = Vector3.new(-1400, 155, -1395) },
+	underburrow2 = { name = "Underburrow Depths", pos = Vector3.new(-1400, 162, -1578) },
 	throne = { name = "Throne Room", pos = Vector3.new(0, 206, 752) },
 }
 
@@ -357,6 +366,11 @@ Config.NPCs = {
 			{ goldens = 10, lines = {
 				"Ten! The castle gate should open for you now.",
 				"Be careful in there, little one. Lava is hot. I learned that the slow way.",
+			} },
+			{ goldens = 20, lines = {
+				"Twenty golden carrots... that reminds me of a story. The old well, south of the big hill.",
+				"They say it goes deeper than any well should. They say the lid breaks if you land on it hard enough.",
+				"They say a lot of things. Mostly to me. I'm a very good listener. And a very slow walker.",
 			} },
 			{ boss = true, lines = {
 				"You beat the King? Then the meadow is safe again. I'm going to celebrate.",
@@ -515,6 +529,20 @@ Config.NPCs = {
 			} },
 		},
 	},
+	whiskers = {
+		name = "OLD WHISKERS", kind = "hermit", voice = 0.5,
+		dialogue = {
+			{ lines = {
+				"...Well, well. A visitor. Nobody's fallen down that well in a long, long time.",
+				"This is the Underburrow. The floors crumble, the bridges blink in and out, and the walls go up forever.",
+				"At the very bottom there's a bunny who looks a lot like you. It isn't you. Don't let it catch you.",
+				"Out of breath? Stand still a moment. Your legs remember how to jump.",
+			} },
+			{ has = "shade", lines = {
+				"You beat your own shadow. Few can say that. I certainly can't - mine still owes me money.",
+			} },
+		},
+	},
 	ember = {
 		name = "SIR EMBER", kind = "knightbug", voice = 0.6,
 		dialogue = {
@@ -543,8 +571,9 @@ Config.FurColors = {
 	{ name = "HONEY", fur = rgb(196, 152, 84), cream = rgb(236, 218, 176) },
 	{ name = "ROSE", fur = rgb(190, 140, 140), cream = rgb(236, 214, 204) },
 	{ name = "MOSS", fur = rgb(120, 128, 92), cream = rgb(214, 210, 180) },
-	-- post-game reward
+	-- post-game rewards
 	{ name = "GOLDEN", fur = rgb(214, 172, 72), cream = rgb(244, 226, 170), need = #Config.Goldens },
+	{ name = "SHADE", fur = rgb(52, 44, 70), cream = rgb(150, 130, 186), boss = "shade" },
 }
 Config.AccentColors = {
 	{ name = "CRIMSON", color = rgb(140, 50, 48) },
@@ -570,6 +599,9 @@ Config.Hats = {
 	{ id = "leafcap", name = "LEAF CAP", need = 20 },
 	{ id = "pilot", name = "SKY PILOT CAP", need = 26 },
 	{ id = "crown", name = "KING'S CROWN", need = 0, boss = true },
+	{ id = "rootcrown", name = "ROOT CROWN", need = 0, boss = "rootjaw" },
+	{ id = "stormcap", name = "STORM CLOUD", need = 0, boss = "thunderhead" },
+	{ id = "halo", name = "SHADE HALO", need = 0, boss = "shade" },
 }
 Config.Necks = {
 	{ id = "bow", name = "BOW TIE", need = 0 },
@@ -619,7 +651,7 @@ Config.Music = {
 	boss = "",
 	rival = "",
 	shade = "",
-	underburrow = "",
+	secret = "",
 }
 Config.MusicVolume = 0.35
 

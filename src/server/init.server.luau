@@ -147,6 +147,7 @@ local function snapshot(player, event)
 			warps = slot.warps,
 			bossDefeated = slot.bossDefeated,
 			bosses = slot.bosses or {},
+			regions = slot.regions or {},
 			tips = slot.tips or {},
 			stamps = slot.stamps or {},
 			silvers = slot.silvers or {},
@@ -481,7 +482,7 @@ Collect.OnServerEvent:Connect(function(player, id)
 		-- tell the player about newly unlocked hats
 		for _, list in ipairs({ Config.Hats, Config.Necks }) do
 			for _, item in ipairs(list) do
-				if not item.boss and (item.need or 0) > before.goldens and (item.need or 0) <= after.goldens then
+				if not item.boss and not item.price and not item.pass and (item.need or 0) > before.goldens and (item.need or 0) <= after.goldens then
 					event.unlocked = item.name
 				end
 			end
@@ -547,8 +548,12 @@ Customise.OnServerInvoke = function(player, custom)
 		clean.neck = profile.data.custom.neck
 	end
 	local fur = Config.FurColors[clean.fur]
-	if fur and fur.need and progress.goldens < fur.need then
+	if fur and not BunnyModel.EntryUnlocked(fur, progress) then
 		clean.fur = profile.data.custom.fur
+	end
+	local accent = Config.AccentColors[clean.accent]
+	if accent and not BunnyModel.EntryUnlocked(accent, progress) then
+		clean.accent = profile.data.custom.accent
 	end
 	profile.data.custom = clean
 	if player.Character then
@@ -700,6 +705,10 @@ for _, d in ipairs(info.solidFolder:GetDescendants()) do
 				else
 					Effect:FireClient(player, "locked", Config.ThroneGate, "king")
 				end
+			elseif part:GetAttribute("WellPeek") then
+				Effect:FireClient(player, "hint", nil, count(slot.goldens) >= Config.SecretGate
+					and "It's very, very dark down there. The old lid looks rotten... one good thump would break it."
+					or "It's very dark down there. You hear... humming? The lid is nailed down tight.")
 			elseif part:GetAttribute("Beanstalk") then
 				if count(slot.goldens) >= Config.SkyGate then
 					slot.checkpoint = "sky"
@@ -711,6 +720,28 @@ for _, d in ipairs(info.solidFolder:GetDescendants()) do
 			end
 		end)
 	end
+end
+
+-- The old well: ground-pound through its lid to drop into the Underburrow
+if info.well then
+	Pound.OnServerEvent:Connect(function(player, action, pos)
+		if action ~= "land" or typeof(pos) ~= "Vector3" then
+			return
+		end
+		local slot = DataService.ActiveSlot(player)
+		local w = info.well
+		if not slot or Vector3.new(pos.X - w.X, 0, pos.Z - w.Z).Magnitude > 4.5 or math.abs(pos.Y - w.Y) > 3 then
+			return
+		end
+		if count(slot.goldens) >= Config.SecretGate then
+			Effect:FireAllClients("crate", w)
+			slot.checkpoint = "underburrow"
+			teleport(player, checkpointCF("underburrow"))
+			push(player, { kind = "secretfound" })
+		else
+			Effect:FireClient(player, "hint", nil, string.format("CREAK... The lid holds. It'll take a bunny with %d golden carrots to break it.", Config.SecretGate))
+		end
+	end)
 end
 
 Warp.OnServerEvent:Connect(function(player, id)
@@ -939,6 +970,12 @@ RunService.Heartbeat:Connect(function(dt)
 					inWater = true
 				end
 			end
+			-- the Underburrow floats over a bottomless dark
+			local S = Config.Secret
+			if pos.Y < S.voidY and Vector3.new(pos.X - S.center.X, 0, pos.Z - S.center.Z).Magnitude < S.radius
+				and player.Character:GetAttribute("Move") ~= "fly" then
+				inWater = true
+			end
 			if inWater then
 				if pos.Y > Config.WaterLevel + 20 then
 					Effect:FireAllClients("poof", pos) -- caught by the clouds, not the sea
@@ -953,7 +990,8 @@ RunService.Heartbeat:Connect(function(dt)
 			elseif hit and hit.Instance:GetAttribute("Lava") then
 				HazardService.Burn(player)
 			elseif hit and not hit.Instance:GetAttribute("Moving") and hit.Instance.Anchored
-				and hit.Instance:GetAttribute("Bounce") == nil and hit.Instance:GetAttribute("Slide") == nil then
+				and hit.Instance:GetAttribute("Bounce") == nil and hit.Instance:GetAttribute("Slide") == nil
+				and hit.Instance:GetAttribute("Unsafe") == nil then
 				st.safe = CFrame.new(hit.Position + Vector3.new(0, 3, 0)) * (root.CFrame - root.CFrame.Position)
 			end
 
@@ -991,7 +1029,10 @@ RunService.Heartbeat:Connect(function(dt)
 
 			-- regions visited (for the SIGHTSEER stamp)
 			local region = "meadow"
-			if pos.Y > Config.SkyFloor - 60 then
+			local S = Config.Secret
+			if Vector3.new(pos.X - S.center.X, 0, pos.Z - S.center.Z).Magnitude < S.radius then
+				region = "secret"
+			elseif pos.Y > Config.SkyFloor - 60 then
 				region = "sky"
 			elseif pos.Z > 470 and math.abs(pos.X) < 320 then
 				region = "castle"
@@ -1008,7 +1049,16 @@ RunService.Heartbeat:Connect(function(dt)
 				if region == "sky" then
 					awardStamp(player, "sky")
 				end
-				if count(slot.regions) >= #Config.Regions then
+				local seen, needed = 0, 0
+				for _, r in ipairs(Config.Regions) do
+					if not r.hidden then
+						needed += 1
+						if slot.regions[r.id] then
+							seen += 1
+						end
+					end
+				end
+				if seen >= needed then
 					awardStamp(player, "regions")
 				end
 			end

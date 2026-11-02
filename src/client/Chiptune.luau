@@ -208,6 +208,42 @@ local SONGS = {
 			k . h k s . h h | k . h k s . h h | k . h k s . h h | k k s . k s s s ]],
 	},
 
+	-- The Underburrow: "Down the Well" - the theme slowed to a crawl in B minor, echoing in the dark
+	secret = {
+		bpm = 80,
+		echo = true,
+		arpOctave = 3,
+		lead = [[
+			D5 - - - F#5 - - - | E5 - - - C#5 - - - | D5 - - - F#5 - G5 F#5 | D5 - - - - - - - |
+			G5 - - - F#5 - D5 - | C#5 - - - E5 - - - | G5 - F#5 - D5 - C#5 - | B4 - - - - - - - ]],
+		arp = [[
+			Bm - - - - - - - | A - - - - - - - | G - - - - - - - | Bm - - - - - - - |
+			Em - - - - - - - | F# - - - - - - - | G - - - F# - - - | Bm - - - - - - - ]],
+		bass = [[
+			B1 - - - - - - - | A1 - - - - - - - | G1 - - - - - - - | B1 - - - - - - - |
+			E2 - - - - - - - | F#1 - - - - - - - | G1 - - - F#1 - - - | B1 - - - - - - - ]],
+	},
+
+	-- The Shade: "Mirror Match" - the battle theme turned inside out, in B minor, flat out
+	shade = {
+		bpm = 176,
+		arpOctave = 4,
+		lead = [[
+			D5 D5 F#5 D5 G5 - F#5 D5 | C#5 C#5 D5 C#5 B4 - - . | D5 D5 F#5 D5 G5 - B5 A5 | F#5 - F#5 - F#5 - A#4 - |
+			G5 . F#5 . D5 - C#5 B4 | C#5 - D5 - F#5 - - . | G5 F#5 D5 C#5 B4 C#5 D5 E5 | F#5 - - - A#4 - B4 - ]],
+		harmony = [[
+			B4 . . . B4 . . . | A4 . . . F#4 . . . | B4 . . . D5 . . . | A#4 . . . C#5 . . . |
+			B4 . . . B4 . . . | A4 . . . A4 . . . | B4 . . . A#4 . . . | C#5 . . . F#4 . . . ]],
+		arp = [[
+			Bm - - - - - - - | A - - - - - - - | Bm - - - - - - - | F#7 - - - - - - - |
+			Em - - - - - - - | A - - - - - - - | G - - - F#7 - - - | Bm - - - F#7 - - - ]],
+		bass = [[
+			B1 B2 B1 B2 B1 B2 B1 B2 | A1 A2 A1 A2 A1 A2 A1 A2 | B1 B2 B1 B2 B1 B2 B1 B2 | F#1 F#2 F#1 F#2 F#1 F#2 F#1 F#2 |
+			E1 E2 E1 E2 E1 E2 E1 E2 | A1 A2 A1 A2 A1 A2 A1 A2 | G1 G2 G1 G2 F#1 F#2 F#1 F#2 | B1 B2 B1 B2 F#1 F#2 F#1 F#2 ]],
+		drums = [[ k h s h k k s h | k h s h k k s h | k h s h k k s h | k h s h k s s s |
+			k h s h k k s h | k h s h k k s h | k h s h k k s h | k s k s k s s s ]],
+	},
+
 	-- Ending: "Home Again" - the full theme, warm and slow, every voice together
 	ending = {
 		bpm = 104,

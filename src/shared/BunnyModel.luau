@@ -303,6 +303,30 @@ local function hatSpec(id)
 			add("cyl", CF(sx * 0.5, 1.2, -1.32) * ROT(0, math.pi / 2, 0), V(0.06, 0.55, 0.55), Color3.fromRGB(150, 190, 200), Enum.Material.Glass)
 		end
 		add("block", CF(0, 1.25, -1.1), V(1.0, 0.18, 0.2), Color3.fromRGB(60, 46, 36), SMOOTH)
+	elseif id == "rootcrown" then
+		-- twisting roots with little leaves
+		for i = 0, 6 do
+			local a = i / 7 * math.pi * 2
+			add("block", CF(math.cos(a) * 0.95, 1.25, math.sin(a) * 0.95) * ROT(0, -a, 0.35) * ROT(0.25, 0, 0), V(0.25, 1.1, 0.25), Color3.fromRGB(96, 72, 52), SMOOTH)
+			if i % 2 == 0 then
+				add("ball", CF(math.cos(a) * 1.15, 1.85, math.sin(a) * 1.15), V(0.5, 0.2, 0.32), Color3.fromRGB(110, 150, 76), SMOOTH)
+			end
+		end
+		add("cyl", vcyl(CF(0, 0.85, 0)), V(0.28, 2.2, 2.2), Color3.fromRGB(82, 62, 44), SMOOTH)
+	elseif id == "stormcap" then
+		-- a tiny grumpy storm cloud that follows you around
+		local grey = Color3.fromRGB(150, 154, 170)
+		add("ball", CF(0, 2.2, 0), V(1.8, 0.9, 1.4), grey, SMOOTH)
+		add("ball", CF(-0.7, 2.1, 0.1), V(1.1, 0.8, 1.0), Color3.fromRGB(170, 174, 190), SMOOTH)
+		add("ball", CF(0.75, 2.15, -0.05), V(1.2, 0.85, 1.0), Color3.fromRGB(130, 134, 150), SMOOTH)
+		add("block", CF(0.15, 1.55, 0) * ROT(0, 0, 0.4), V(0.12, 0.6, 0.12), Color3.fromRGB(250, 230, 130), Enum.Material.Neon)
+		add("block", CF(0.05, 1.25, 0) * ROT(0, 0, -0.4), V(0.12, 0.5, 0.12), Color3.fromRGB(250, 230, 130), Enum.Material.Neon)
+	elseif id == "halo" then
+		-- a ring of dark violet lights floating over your ears
+		for i = 0, 9 do
+			local a = i / 10 * math.pi * 2
+			add("ball", CF(math.cos(a) * 1.1, 2.6, math.sin(a) * 1.1), V(0.32, 0.32, 0.32), Color3.fromRGB(170, 120, 240), Enum.Material.Neon)
+		end
 	elseif id == "crown" then
 		add("cyl", vcyl(CF(0, 1.0, 0)), V(0.42, 2.1, 2.1), P.Gold, Enum.Material.Metal)
 		for i = 0, 7 do
@@ -392,17 +416,57 @@ function BunnyModel.Apply(model, custom)
 	return custom
 end
 
--- Is a cosmetic unlocked? progress = { goldens = best golden count, boss = bool }
+-- Is a cosmetic unlocked? progress = {
+--   goldens = best golden count, boss = beat King Grumble, bosses = { [id] = true },
+--   owned = { [id] = true } (bought with carrot coins), passes = { [key] = true } (Robux) }
+-- An entry can ask for: need (golden carrots), boss = true (the King) or a boss id,
+-- price (carrot coins in the shop) or pass (a game pass key from Config.GamePasses).
+function BunnyModel.EntryUnlocked(e, progress)
+	if not e then
+		return false
+	end
+	progress = progress or {}
+	if e.boss == true and not progress.boss then
+		return false
+	elseif type(e.boss) == "string" and not (progress.bosses and progress.bosses[e.boss]) then
+		return false
+	end
+	if e.pass and not (progress.passes and progress.passes[e.pass]) then
+		return false
+	end
+	if e.price and not (progress.owned and progress.owned[e.id or e.name]) then
+		return false
+	end
+	return (progress.goldens or 0) >= (e.need or 0)
+end
+
 function BunnyModel.IsUnlocked(list, id, progress)
 	for _, e in ipairs(list) do
 		if e.id == id then
-			if e.boss then
-				return progress.boss == true
-			end
-			return (progress.goldens or 0) >= (e.need or 0)
+			return BunnyModel.EntryUnlocked(e, progress)
 		end
 	end
 	return false
+end
+
+-- Why is it locked? (shown in the Customise menu)
+function BunnyModel.LockReason(e)
+	if e.pass then
+		local pass = Config.GamePasses and Config.GamePasses[e.pass]
+		return pass and pass.name or "SUPPORTER PACK"
+	elseif e.price then
+		return string.format("%d COINS IN THE SHOP", e.price)
+	elseif type(e.boss) == "string" then
+		for _, b in ipairs(Config.Bosses or {}) do
+			if b.id == e.boss then
+				return "BEAT " .. b.name
+			end
+		end
+		return "BEAT A SECRET BOSS"
+	elseif e.boss then
+		return "BEAT THE KING"
+	end
+	return string.format("%d GOLDEN", e.need or 0)
 end
 
 return BunnyModel

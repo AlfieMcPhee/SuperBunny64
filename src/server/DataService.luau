@@ -360,17 +360,35 @@ end
 -- Best progress across all files (unlocks cosmetics)
 function DataService.Progress(player)
 	local profile = DataService.Get(player)
-	local best, boss = 0, false
+	local best, boss, bosses = 0, false, {}
 	if profile then
 		for i = 1, Config.SaveSlots do
 			local slot = profile.data.slots[tostring(i)]
 			if slot then
 				best = math.max(best, count(slot.goldens))
 				boss = boss or slot.bossDefeated == true
+				for id, v in pairs(slot.bosses or {}) do
+					if v then
+						bosses[id] = true
+					end
+				end
 			end
 		end
 	end
-	return { goldens = best, boss = boss }
+	if boss then
+		bosses.grumble = true
+	end
+	-- Robux passes are checked by ShopService and mirrored as player attributes
+	local passes = {}
+	for key in pairs(Config.GamePasses or {}) do
+		if player:GetAttribute("Pass_" .. key) then
+			passes[key] = true
+		end
+	end
+	return {
+		goldens = best, boss = boss, bosses = bosses, passes = passes,
+		owned = profile and profile.data.owned or {}, coins = profile and profile.data.coins or 0,
+	}
 end
 
 --------------------------------------------------------------------------------
