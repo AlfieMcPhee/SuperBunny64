@@ -435,11 +435,25 @@ local function castle(B)
 	end
 end
 
+-- Ore-carrot rocks to smash for coins, tucked into every land
+local ORES = {
+	{ -150, 60 }, { 125, -20 }, { -190, -100 }, { 60, 190 }, -- meadow
+	{ -60, -580 }, { 120, -600 }, { -150, -650 }, { 90, -860 }, { -110, -860 }, -- peaks
+	{ 560, -110 }, { 700, -60 }, { 760, 120 }, { 900, -60 }, { 620, 60 }, { 880, 150 }, -- canyon
+	{ -200, 690 }, { 200, 640 }, { -150, 900 }, -- castle
+	{ -620, -40 }, { -840, 120 }, { -960, -40 }, { -700, 230 }, -- forest
+	{ 72, -78, 440 }, { 190, -168, 450 }, { -86, -25, 440 }, -- sky
+	{ -1394, -1402, 170 }, { -1394, -1690, 240 }, -- the Underburrow
+}
+
 function Revamp.Build(B)
 	meadow(B)
 	peaks(B)
 	canyon(B)
 	castle(B)
+	for _, o in ipairs(ORES) do
+		B.oreRock(o[1], o[2], o[3])
+	end
 end
 
 return Revamp

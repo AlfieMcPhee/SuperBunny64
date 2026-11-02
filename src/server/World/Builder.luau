@@ -681,6 +681,45 @@ function B.crate(x, z, fromY)
 	return crate
 end
 
+-- An ore-carrot rock: smash it (like a crate) for carrot coins. Comes back later.
+function B.oreRock(x, z, fromY)
+	local y = B.groundY(x, z, fromY or 60)
+	local rock = B.make("Part", {
+		Name = "OreRock",
+		Size = Vector3.new(4.6, 3.6, 4.2),
+		CFrame = CFrame.new(x, y + 1.6, z) * CFrame.Angles(0, B.rng:NextNumber(0, math.pi), 0),
+		Color = Color3.fromRGB(110, 104, 100),
+		Material = Enum.Material.Slate,
+	})
+	rock:SetAttribute("Crate", true)
+	rock:SetAttribute("Ore", true)
+	-- carrot-shaped crystals poking out of it
+	for i = 1, 4 do
+		local a = i * 1.6
+		local c = B.make("Part", {
+			Size = Vector3.new(0.6, 1.6, 0.6),
+			CFrame = rock.CFrame * CFrame.new(math.cos(a) * 1.4, 1.5, math.sin(a) * 1.3) * CFrame.Angles(math.cos(a) * 0.6, 0, math.sin(a) * 0.6),
+			Color = Color3.fromRGB(236, 140, 60),
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			CanQuery = false,
+			Anchored = false,
+			Massless = true,
+		}, rock)
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = rock
+		weld.Part1 = c
+		weld.Parent = c
+	end
+	local glow = Instance.new("PointLight")
+	glow.Color = Color3.fromRGB(255, 170, 90)
+	glow.Range = 9
+	glow.Brightness = 0.7
+	glow.Parent = rock
+	table.insert(B.info.crates, rock)
+	return rock
+end
+
 -- A friendly character to talk to (see client/Dialogue and Config.NPCs)
 function B.npc(id, x, z, facing, fromY)
 	table.insert(B.info.npcs, { id = id, pos = Vector3.new(x, B.groundY(x, z, fromY or 60), z), facing = facing or Vector3.new(0, 0, 1) })

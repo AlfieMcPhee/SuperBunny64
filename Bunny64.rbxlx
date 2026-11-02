@@ -224,6 +224,12 @@ local function sanitize(custom)
 			out.neck = n.id
 		end
 	end
+	out.trail = "none"
+	for _, t in ipairs(Config.Trails or {}) do
+		if t.id == custom.trail then
+			out.trail = t.id
+		end
+	end
 	return out
 end
 BunnyModel.Sanitize = sanitize
@@ -327,6 +333,47 @@ local function hatSpec(id)
 			local a = i / 10 * math.pi * 2
 			add("ball", CF(math.cos(a) * 1.1, 2.6, math.sin(a) * 1.1), V(0.32, 0.32, 0.32), Color3.fromRGB(170, 120, 240), Enum.Material.Neon)
 		end
+	elseif id == "party" then
+		local tilt = ROT(0, 0, 0.15)
+		local cols = { "accent", Color3.fromRGB(236, 220, 160), "accent", Color3.fromRGB(236, 220, 160) }
+		for i = 0, 3 do
+			local r = 1.5 - i * 0.34
+			add("cyl", tilt * vcyl(CF(0, 1.15 + i * 0.42, 0)), V(0.44, r, r), cols[i + 1])
+		end
+		add("ball", tilt * CF(0, 2.95, 0), V(0.55, 0.55, 0.55), Color3.fromRGB(240, 236, 228))
+	elseif id == "cowboy" then
+		local brown = Color3.fromRGB(140, 100, 64)
+		local tilt = ROT(-0.1, 0, 0)
+		add("cyl", tilt * vcyl(CF(0, 1.05, 0)), V(0.14, 3.9, 3.6), brown)
+		add("cyl", tilt * vcyl(CF(0, 1.55, 0)), V(1.0, 1.9, 1.8), brown)
+		add("cyl", tilt * vcyl(CF(0, 1.2, 0)), V(0.22, 1.95, 1.85), "accent")
+		add("block", tilt * CF(0, 2.05, 0), V(0.3, 0.12, 1.7), Color3.fromRGB(110, 78, 50))
+	elseif id == "chef" then
+		local white = Color3.fromRGB(240, 238, 232)
+		add("cyl", vcyl(CF(0, 1.1, 0)), V(0.55, 2.2, 2.2), white)
+		add("ball", CF(0, 1.95, 0), V(2.5, 1.7, 2.5), white)
+		add("ball", CF(0.5, 2.1, 0.3), V(1.4, 1.2, 1.4), white)
+	elseif id == "headphones" then
+		local dark = Color3.fromRGB(46, 44, 52)
+		for i = -2, 2 do
+			add("block", CF(i * 0.5, 1.35 - math.abs(i) * math.abs(i) * 0.12, 0) * ROT(0, 0, -i * 0.35), V(0.55, 0.25, 0.4), dark)
+		end
+		for _, sx in ipairs({ -1, 1 }) do
+			add("cyl", CF(sx * 1.38, 0.15, 0), V(0.45, 1.15, 1.15), dark)
+			add("cyl", CF(sx * 1.55, 0.15, 0), V(0.12, 0.8, 0.8), "accent", Enum.Material.Neon)
+		end
+	elseif id == "pirate" then
+		local black = Color3.fromRGB(34, 30, 32)
+		add("ball", CF(0, 1.2, 0), V(2.8, 1.1, 2.6), black)
+		for _, a in ipairs({ 0, 2.1, 4.2 }) do
+			add("block", CF(math.sin(a) * 1.25, 1.35, -math.cos(a) * 1.25) * ROT(0, -a, 0) * ROT(0.5, 0, 0), V(2.2, 0.15, 0.9), black)
+		end
+		add("ball", CF(0, 1.4, -1.25), V(0.45, 0.45, 0.2), Color3.fromRGB(236, 232, 220))
+		add("block", CF(0, 1.4, -1.32), V(0.7, 0.12, 0.1), Color3.fromRGB(236, 232, 220))
+	elseif id == "astronaut" then
+		add("ball", CF(0, -0.05, -0.05), V(3.7, 3.5, 3.5), Color3.fromRGB(190, 220, 240), Enum.Material.ForceField)
+		add("cyl", vcyl(CF(0, -1.55, 0)), V(0.45, 3.1, 3.1), Color3.fromRGB(236, 236, 240), Enum.Material.Metal)
+		add("ball", CF(1.3, -1.2, -0.9), V(0.35, 0.35, 0.35), "accent", Enum.Material.Neon)
 	elseif id == "crown" then
 		add("cyl", vcyl(CF(0, 1.0, 0)), V(0.42, 2.1, 2.1), P.Gold, Enum.Material.Metal)
 		for i = 0, 7 do
@@ -354,6 +401,16 @@ local function neckSpec(id)
 		add("cyl", vcyl(CF(0, 0.98, 0)), V(0.5, 2.35, 2.25), "accent")
 		add("block", CF(0.5, 0.35, -1.0) * ROT(-0.1, 0, 0.12), V(0.55, 1.15, 0.18), "accent")
 		add("block", CF(0.55, -0.15, -1.04) * ROT(-0.1, 0, 0.12), V(0.55, 0.08, 0.2), Color3.fromRGB(226, 214, 190))
+	elseif id == "bandana" then
+		add("cyl", vcyl(CF(0, 0.98, 0)), V(0.4, 2.3, 2.2), "accent")
+		add("block", CF(0, 0.55, -1.0) * ROT(-0.2, 0, math.pi / 4), V(0.95, 0.95, 0.12), "accent")
+	elseif id == "medal" then
+		add("block", CF(-0.35, 0.6, -1.0) * ROT(-0.15, 0, -0.35), V(0.28, 1.1, 0.08), "accent")
+		add("block", CF(0.35, 0.6, -1.0) * ROT(-0.15, 0, 0.35), V(0.28, 1.1, 0.08), "accent")
+		add("cyl", CF(0, 0.05, -1.12) * ROT(0, math.pi / 2, 0), V(0.12, 0.75, 0.75), P.Gold, Enum.Material.Metal)
+	elseif id == "cape" then
+		add("block", CF(0, 0.95, 0.75), V(2.3, 0.3, 0.6), "accent")
+		add("block", CF(0, -0.15, 1.18) * ROT(0.18, 0, 0), V(2.4, 2.3, 0.12), "accent", Enum.Material.Fabric)
 	elseif id == "bell" then
 		add("cyl", vcyl(CF(0, 0.98, 0)), V(0.26, 2.3, 2.2), "accent")
 		add("ball", CF(0, 0.65, -1.12), V(0.55, 0.55, 0.55), P.Gold, Enum.Material.Metal)
@@ -413,6 +470,55 @@ function BunnyModel.Apply(model, custom)
 		buildSpec(folder, torso, neckSpec(custom.neck), custom)
 	end
 	model:SetAttribute("Hat", custom.hat)
+	-- the trail
+	local old = model:FindFirstChild("Bunny64Trail", true)
+	if old then
+		old:Destroy()
+	end
+	for _, name in ipairs({ "TrailTop", "TrailBottom" }) do
+		local a = model:FindFirstChild(name, true)
+		if a then
+			a:Destroy()
+		end
+	end
+	local def
+	for _, t in ipairs(Config.Trails or {}) do
+		if t.id == custom.trail then
+			def = t
+		end
+	end
+	if torso and def and def.id ~= "none" then
+		local a0 = Instance.new("Attachment")
+		a0.Name = "TrailTop"
+		a0.Position = Vector3.new(0, 0.6, 0.9)
+		a0.Parent = torso
+		local a1 = Instance.new("Attachment")
+		a1.Name = "TrailBottom"
+		a1.Position = Vector3.new(0, -0.7, 0.9)
+		a1.Parent = torso
+		local trail = Instance.new("Trail")
+		trail.Name = "Bunny64Trail"
+		trail.Attachment0 = a0
+		trail.Attachment1 = a1
+		trail.Lifetime = 0.45
+		trail.MinLength = 0.2
+		trail.FaceCamera = true
+		trail.LightEmission = def.light or 0
+		if def.rainbow then
+			trail.Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(214, 110, 104)),
+				ColorSequenceKeypoint.new(0.25, Color3.fromRGB(222, 190, 110)),
+				ColorSequenceKeypoint.new(0.5, Color3.fromRGB(130, 186, 110)),
+				ColorSequenceKeypoint.new(0.75, Color3.fromRGB(100, 140, 200)),
+				ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 116, 190)),
+			})
+		else
+			trail.Color = ColorSequence.new(def.color or Color3.new(1, 1, 1))
+		end
+		trail.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
+		trail.WidthScale = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, 0.1) })
+		trail.Parent = torso
+	end
 	return custom
 end
 
@@ -789,6 +895,7 @@ Config.Stamps = {
 	{ id = "kits", name = "GRANNY'S HERO", desc = "Bring all five lost grandkits home." },
 	{ id = "silvers", name = "SILVER LINING", desc = "Finish every silver carrot hunt." },
 	{ id = "allbosses", name = "GIANT SLAYER", desc = "Defeat every boss - even the hidden one." },
+	{ id = "prospector", name = "PROSPECTOR", desc = "Smash 15 ore-carrot rocks." },
 }
 Config.Badges = {
 	-- golden20 = 1234567890,
@@ -1055,6 +1162,11 @@ Config.FurColors = {
 	-- post-game rewards
 	{ name = "GOLDEN", fur = rgb(214, 172, 72), cream = rgb(244, 226, 170), need = #Config.Goldens },
 	{ name = "SHADE", fur = rgb(52, 44, 70), cream = rgb(150, 130, 186), boss = "shade" },
+	-- from the shop
+	{ name = "MINT", fur = rgb(150, 190, 166), cream = rgb(226, 240, 228), price = 120 },
+	{ name = "LAVENDER", fur = rgb(160, 146, 190), cream = rgb(232, 224, 240), price = 120 },
+	{ name = "SUNSET", fur = rgb(214, 130, 92), cream = rgb(246, 210, 170), price = 180 },
+	{ name = "STARDUST", fur = rgb(70, 76, 120), cream = rgb(214, 210, 250), pass = "supporter" },
 }
 Config.AccentColors = {
 	{ name = "CRIMSON", color = rgb(140, 50, 48) },
@@ -1083,14 +1195,58 @@ Config.Hats = {
 	{ id = "rootcrown", name = "ROOT CROWN", need = 0, boss = "rootjaw" },
 	{ id = "stormcap", name = "STORM CLOUD", need = 0, boss = "thunderhead" },
 	{ id = "halo", name = "SHADE HALO", need = 0, boss = "shade" },
+	-- from the shop
+	{ id = "party", name = "PARTY HAT", price = 100 },
+	{ id = "cowboy", name = "COWBOY HAT", price = 150 },
+	{ id = "chef", name = "CHEF'S HAT", price = 200 },
+	{ id = "headphones", name = "HEADPHONES", price = 250 },
+	{ id = "pirate", name = "PIRATE HAT", price = 300 },
+	{ id = "astronaut", name = "SPACE HELMET", pass = "supporter" },
 }
 Config.Necks = {
 	{ id = "bow", name = "BOW TIE", need = 0 },
 	{ id = "scarf", name = "WOOLLY SCARF", need = 0 },
 	{ id = "bell", name = "BELL COLLAR", need = 3 },
 	{ id = "none", name = "NOTHING", need = 0 },
+	{ id = "bandana", name = "BANDANA", price = 80 },
+	{ id = "medal", name = "HERO MEDAL", price = 250 },
+	{ id = "cape", name = "HERO CAPE", pass = "supporter" },
 }
-Config.DefaultCustom = { fur = 1, accent = 1, hat = "none", neck = "bow" }
+-- Trails stream behind you as you run
+Config.Trails = {
+	{ id = "none", name = "NO TRAIL", need = 0 },
+	{ id = "dust", name = "DUST CLOUD", need = 5, color = rgb(206, 196, 176) },
+	{ id = "leaves", name = "FALLING LEAVES", boss = "rootjaw", color = rgb(110, 150, 80) },
+	{ id = "storm", name = "STORM STREAK", boss = "thunderhead", color = rgb(170, 210, 255), light = 1 },
+	{ id = "shadow", name = "SHADOW", boss = "shade", color = rgb(120, 80, 180), light = 0.5 },
+	{ id = "sparkle", name = "SPARKLES", price = 200, color = rgb(255, 236, 170), light = 1 },
+	{ id = "carrots", name = "CARROT STREAK", price = 300, color = rgb(214, 120, 60) },
+	{ id = "stars", name = "STARLIGHT", price = 500, color = rgb(200, 190, 255), light = 1 },
+	{ id = "rainbow", name = "RAINBOW", pass = "supporter", rainbow = true, light = 0.6 },
+}
+Config.DefaultCustom = { fur = 1, accent = 1, hat = "none", neck = "bow", trail = "none" }
+
+-- Carrot coins: earned by playing, spent in the shop (Pause > SHOP) on looks only.
+-- Shared by all three files.
+Config.Coins = {
+	carrot = 1, silver = 5, golden = 25, boss = 60, ore = 10,
+	premiumBonus = 1.5, -- Roblox Premium members earn a bit more (Premium Payouts)
+	supporterBonus = 1.5,
+}
+
+-- Robux purchases. Create these on the Roblox Creator Dashboard (see
+-- PUBLISHING.md) and paste their ids here. While an id is 0 the shop shows
+-- the item as "COMING SOON" and nothing can be bought.
+Config.GamePasses = {
+	supporter = {
+		id = 0,
+		name = "SUPPORTER PACK",
+		desc = "Stardust fur, Space Helmet, Hero Cape, Rainbow trail and 1.5x carrot coins. Thank you!",
+	},
+}
+Config.Products = {
+	coins = { id = 0, name = "BAG OF CARROT COINS", desc = "+1000 carrot coins for the shop.", coins = 1000 },
+}
 
 -- Sounds --------------------------------------------------------------------------------
 -- These use sounds bundled with the Roblox client. Swap in your own uploaded
@@ -1264,7 +1420,7 @@ function HazardMath.SegmentDistance(p, a, b)
 end
 
 return HazardMath
-]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX00000022"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX00000021"><Properties><string name="Name">Bunny64Server</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX00000023"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX00000022"><Properties><string name="Name">Bunny64Server</string><ProtectedString name="Source"><![CDATA[--[[
 	Bunny 64 - server entry point.
 	Builds the world, runs save files, pickups, hearts, hazards, checkpoints,
 	warps, enemies, the boss and customisation.
@@ -1309,6 +1465,7 @@ local BossShade = optional("BossShade", { Start = noop, Reset = noop })
 local CrateService = optional("CrateService", { Start = noop, Shockwave = noop })
 local NPCService = optional("NPCService", { Start = noop })
 local Leaderboard = optional("Leaderboard", { Start = noop, RecordClear = noop })
+local ShopService = optional("ShopService", { Start = noop })
 local AdminService = optional("AdminService", { Start = noop, IsAdmin = function()
 	return false
 end })
@@ -1342,6 +1499,7 @@ local GetProfile = remote("RemoteFunction", "GetProfile")
 local SelectSlot = remote("RemoteFunction", "SelectSlot")
 local EraseSlot = remote("RemoteFunction", "EraseSlot")
 local Customise = remote("RemoteFunction", "Customise")
+local ShopBuy = remote("RemoteFunction", "ShopBuy")
 local QuitToTitle = remote("RemoteEvent", "QuitToTitle")
 local SetOptions = remote("RemoteEvent", "SetOptions")
 local Collect = remote("RemoteEvent", "Collect")
@@ -1394,6 +1552,7 @@ local function snapshot(player, event)
 			progress = DataService.Progress(player),
 		},
 		active = profile.active and tonumber(profile.active) or nil,
+		coins = profile.data.coins or 0,
 		canSave = profile.canSave,
 		isAdmin = AdminService.IsAdmin(player),
 		totalCarrots = TOTAL_CARROTS,
@@ -1645,6 +1804,7 @@ Collect.OnServerEvent:Connect(function(player, id)
 		end
 		slot.carrots[id] = true
 		slot.carrotCount += 1
+		DataService.AddCoins(player, Config.Coins.carrot)
 		local event = { kind = "carrot", id = id }
 		if slot.carrotCount % Config.HealEveryCarrots == 0 then
 			heal(player, 1)
@@ -1668,6 +1828,7 @@ Collect.OnServerEvent:Connect(function(player, id)
 			return
 		end
 		slot.silvers[id] = true
+		DataService.AddCoins(player, Config.Coins.silver)
 		local set = Config.SilverSets[silver.set]
 		local got = 0
 		for sid, data in pairs(info.silvers) do
@@ -1743,6 +1904,7 @@ Collect.OnServerEvent:Connect(function(player, id)
 		if done then
 			Leaderboard.RecordClear(player, slot.completedTime)
 		end
+		DataService.AddCoins(player, Config.Coins.golden)
 		local after = DataService.Progress(player)
 		local event = { kind = done and "complete" or "golden", id = id }
 		-- tell the player about newly unlocked hats
@@ -1812,6 +1974,9 @@ Customise.OnServerInvoke = function(player, custom)
 	end
 	if not BunnyModel.IsUnlocked(Config.Necks, clean.neck, progress) then
 		clean.neck = profile.data.custom.neck
+	end
+	if not BunnyModel.IsUnlocked(Config.Trails, clean.trail, progress) then
+		clean.trail = profile.data.custom.trail or "none"
 	end
 	local fur = Config.FurColors[clean.fur]
 	if fur and not BunnyModel.EntryUnlocked(fur, progress) then
@@ -2073,6 +2238,7 @@ local function bossCallbacks(id)
 				if slot then
 					slot.bosses = slot.bosses or {}
 					slot.bosses[id] = true
+					DataService.AddCoins(player, Config.Coins.boss)
 					if id == "grumble" then
 						slot.bossDefeated = true
 						awardStamp(player, "boss")
@@ -2122,8 +2288,21 @@ safeStart("CrateService", CrateService.Start, info, {
 	bounce = function(player, vel)
 		Bounce:FireClient(player, vel, true, "stomp")
 	end,
+	ore = function(player, pos)
+		local gained = DataService.AddCoins(player, Config.Coins.ore)
+		local slot = DataService.ActiveSlot(player)
+		if slot then
+			slot.stats = slot.stats or { crates = 0, longjumps = 0 }
+			slot.stats.ores = (slot.stats.ores or 0) + 1
+			if slot.stats.ores >= 15 then
+				awardStamp(player, "prospector")
+			end
+		end
+		push(player, { kind = "coins", amount = gained, pos = pos })
+	end,
 })
 safeStart("NPCService", NPCService.Start, info)
+safeStart("ShopService", ShopService.Start, info, { DataService = DataService, push = push, BuyRemote = ShopBuy })
 safeStart("Leaderboard", Leaderboard.Start, info)
 
 -- Tips: remember which one-off hints this file has already shown
@@ -4640,6 +4819,8 @@ return BugModel
 	Roll, slide, long jump or ground pound into a crate (or stomp on it) and
 	it bursts, giving the bunny who broke it a heart. Crates come back after a
 	while, so they're placed before the hard parts as a little mercy.
+	Ore-carrot rocks (attribute Ore) break the same way but give carrot coins
+	and take longer to grow back.
 ]]
 
 local Players = game:GetService("Players")
@@ -4648,6 +4829,7 @@ local RunService = game:GetService("RunService")
 local CrateService = {}
 
 local RESPAWN = 45
+local ORE_RESPAWN = 240
 local BREAK_MOVES = { roll = true, slide = true, longjump = true, pound = true, walljump = true, dive = true }
 local crates = {}
 local cb
@@ -4657,18 +4839,24 @@ local function breakCrate(c, player)
 		return
 	end
 	c.alive = false
-	c.respawnAt = os.clock() + RESPAWN
-	cb.effect("crate", c.part.Position)
+	c.respawnAt = os.clock() + (c.ore and ORE_RESPAWN or RESPAWN)
+	cb.effect(c.ore and "ore" or "crate", c.part.Position)
 	c.part.Parent = nil
 	if player then
-		cb.heal(player)
+		if c.ore then
+			if cb.ore then
+				cb.ore(player, c.part.Position)
+			end
+		else
+			cb.heal(player)
+		end
 	end
 end
 
 function CrateService.Start(info, callbacks)
 	cb = callbacks
 	for _, part in ipairs(info.crates) do
-		table.insert(crates, { part = part, parent = part.Parent, alive = true, respawnAt = 0 })
+		table.insert(crates, { part = part, parent = part.Parent, alive = true, respawnAt = 0, ore = part:GetAttribute("Ore") == true })
 	end
 	local acc = 0
 	RunService.Heartbeat:Connect(function(dt)
@@ -4793,6 +4981,9 @@ local function defaultData()
 		slots = {},
 		custom = table.clone(Config.DefaultCustom),
 		options = { sfx = 8, music = 6, shake = true, tips = true, assist = false },
+		coins = 0, -- carrot coins, shared by every file
+		owned = {}, -- shop items bought with coins
+		receipts = {}, -- Robux purchases already granted (so none is given twice)
 	}
 end
 
@@ -5079,6 +5270,33 @@ function DataService.Summaries(player)
 		end
 	end
 	return out
+end
+
+-- Carrot coins: shared across files. Premium members and supporters earn a bit more.
+function DataService.AddCoins(player, amount)
+	local profile = DataService.Get(player)
+	if not profile or type(amount) ~= "number" or amount <= 0 then
+		return 0
+	end
+	local mult = 1
+	if player.MembershipType == Enum.MembershipType.Premium then
+		mult *= Config.Coins.premiumBonus
+	end
+	if player:GetAttribute("Pass_supporter") then
+		mult *= Config.Coins.supporterBonus
+	end
+	local gained = math.floor(amount * mult + 0.5)
+	profile.data.coins = (profile.data.coins or 0) + gained
+	return gained
+end
+
+function DataService.SpendCoins(player, amount)
+	local profile = DataService.Get(player)
+	if not profile or (profile.data.coins or 0) < amount then
+		return false
+	end
+	profile.data.coins -= amount
+	return true
 end
 
 -- Best progress across all files (unlocks cosmetics)
@@ -6705,7 +6923,159 @@ function NPCService.Start(info)
 end
 
 return NPCService
-]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX0000001F"><Properties><string name="Name">World</string></Properties><Item class="ModuleScript" referent="RBX00000016"><Properties><string name="Name">Builder</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000016"><Properties><string name="Name">ShopService</string><ProtectedString name="Source"><![CDATA[--[[
+	ShopService - the carrot-coin shop and the (optional) Robux purchases.
+
+	  Carrot coins   earned by playing (carrots, silvers, golden carrots, bosses,
+	                 ore carrots) and spent on looks in Pause > SHOP. Coins never
+	                 buy power: everything in the shop is cosmetic.
+	  Game passes    Config.GamePasses (e.g. the Supporter Pack). Ownership is
+	                 checked on join and after a purchase, and mirrored as the
+	                 player attribute "Pass_<key>" so DataService.Progress sees it.
+	  Products       Config.Products (a bag of coins). Receipts are recorded in
+	                 the save so a purchase is never granted twice.
+
+	With ids left at 0 (see PUBLISHING.md) the Robux items just show as
+	"COMING SOON" and nothing can be bought with Robux.
+]]
+
+local MarketplaceService = game:GetService("MarketplaceService")
+local Players = game:GetService("Players")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+
+local ShopService = {}
+
+local ctx
+local LISTS = { Hats = true, Necks = true, FurColors = true, AccentColors = true, Trails = true }
+
+local function passKeyFor(id)
+	for key, pass in pairs(Config.GamePasses) do
+		if pass.id == id then
+			return key, pass
+		end
+	end
+	return nil
+end
+
+local function checkPasses(player)
+	local changed = false
+	for key, pass in pairs(Config.GamePasses) do
+		if type(pass.id) == "number" and pass.id > 0 and not player:GetAttribute("Pass_" .. key) then
+			local ok, owns = pcall(function()
+				return MarketplaceService:UserOwnsGamePassAsync(player.UserId, pass.id)
+			end)
+			if ok and owns then
+				player:SetAttribute("Pass_" .. key, true)
+				changed = true
+			end
+		end
+	end
+	if changed then
+		ctx.push(player, nil)
+	end
+end
+
+local function findItem(listName, id)
+	local list = LISTS[listName] and Config[listName]
+	if not list then
+		return nil
+	end
+	for _, e in ipairs(list) do
+		if (e.id or e.name) == id then
+			return e
+		end
+	end
+	return nil
+end
+
+function ShopService.Start(_info, context)
+	ctx = context
+	local DataService = ctx.DataService
+
+	-- buy something with carrot coins
+	ctx.BuyRemote.OnServerInvoke = function(player, listName, id)
+		if type(listName) ~= "string" or type(id) ~= "string" then
+			return false, "?"
+		end
+		local item = findItem(listName, id)
+		local profile = DataService.Get(player)
+		if not item or not item.price or not profile then
+			return false, "NOT FOR SALE"
+		end
+		profile.data.owned = profile.data.owned or {}
+		local key = item.id or item.name
+		if profile.data.owned[key] then
+			return true, "ALREADY YOURS"
+		end
+		if not DataService.SpendCoins(player, item.price) then
+			return false, "NOT ENOUGH COINS"
+		end
+		profile.data.owned[key] = true
+		ctx.push(player, { kind = "purchase", what = item.name })
+		task.spawn(DataService.Save, player, false)
+		return true, "BOUGHT!"
+	end
+
+	-- game passes
+	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passId, purchased)
+		if purchased then
+			local key, pass = passKeyFor(passId)
+			if key then
+				player:SetAttribute("Pass_" .. key, true)
+				ctx.push(player, { kind = "purchase", what = pass.name })
+			end
+		end
+	end)
+	Players.PlayerAdded:Connect(function(player)
+		task.spawn(checkPasses, player)
+	end)
+	for _, player in ipairs(Players:GetPlayers()) do
+		task.spawn(checkPasses, player)
+	end
+
+	-- developer products (coins): grant once per receipt, after the save has it
+	MarketplaceService.ProcessReceipt = function(receipt)
+		local product
+		for _, p in pairs(Config.Products) do
+			if p.id == receipt.ProductId then
+				product = p
+			end
+		end
+		local player = Players:GetPlayerByUserId(receipt.PlayerId)
+		local profile = player and DataService.Get(player)
+		if not product or not player or not profile or not profile.loaded then
+			return Enum.ProductPurchaseDecision.NotProcessedYet
+		end
+		profile.data.receipts = profile.data.receipts or {}
+		if profile.data.receipts[receipt.PurchaseId] then
+			return Enum.ProductPurchaseDecision.PurchaseGranted
+		end
+		profile.data.coins = (profile.data.coins or 0) + (product.coins or 0)
+		profile.data.receipts[receipt.PurchaseId] = os.time()
+		-- keep the receipt list from growing forever
+		local n = 0
+		for _ in pairs(profile.data.receipts) do
+			n += 1
+		end
+		if n > 60 then
+			local oldestKey, oldest = nil, math.huge
+			for k, t in pairs(profile.data.receipts) do
+				if t < oldest then
+					oldestKey, oldest = k, t
+				end
+			end
+			profile.data.receipts[oldestKey] = nil
+		end
+		DataService.Save(player, false)
+		ctx.push(player, { kind = "purchase", what = product.name })
+		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end
+end
+
+return ShopService
+]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX00000020"><Properties><string name="Name">World</string></Properties><Item class="ModuleScript" referent="RBX00000017"><Properties><string name="Name">Builder</string><ProtectedString name="Source"><![CDATA[--[[
 	Builder - shared helpers for constructing the world out of chunky parts,
 	plus the registry of collectibles, enemies, hazards and checkpoints that
 	the rest of the server reads.
@@ -7388,6 +7758,45 @@ function B.crate(x, z, fromY)
 	return crate
 end
 
+-- An ore-carrot rock: smash it (like a crate) for carrot coins. Comes back later.
+function B.oreRock(x, z, fromY)
+	local y = B.groundY(x, z, fromY or 60)
+	local rock = B.make("Part", {
+		Name = "OreRock",
+		Size = Vector3.new(4.6, 3.6, 4.2),
+		CFrame = CFrame.new(x, y + 1.6, z) * CFrame.Angles(0, B.rng:NextNumber(0, math.pi), 0),
+		Color = Color3.fromRGB(110, 104, 100),
+		Material = Enum.Material.Slate,
+	})
+	rock:SetAttribute("Crate", true)
+	rock:SetAttribute("Ore", true)
+	-- carrot-shaped crystals poking out of it
+	for i = 1, 4 do
+		local a = i * 1.6
+		local c = B.make("Part", {
+			Size = Vector3.new(0.6, 1.6, 0.6),
+			CFrame = rock.CFrame * CFrame.new(math.cos(a) * 1.4, 1.5, math.sin(a) * 1.3) * CFrame.Angles(math.cos(a) * 0.6, 0, math.sin(a) * 0.6),
+			Color = Color3.fromRGB(236, 140, 60),
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			CanQuery = false,
+			Anchored = false,
+			Massless = true,
+		}, rock)
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = rock
+		weld.Part1 = c
+		weld.Parent = c
+	end
+	local glow = Instance.new("PointLight")
+	glow.Color = Color3.fromRGB(255, 170, 90)
+	glow.Range = 9
+	glow.Brightness = 0.7
+	glow.Parent = rock
+	table.insert(B.info.crates, rock)
+	return rock
+end
+
 -- A friendly character to talk to (see client/Dialogue and Config.NPCs)
 function B.npc(id, x, z, facing, fromY)
 	table.insert(B.info.npcs, { id = id, pos = Vector3.new(x, B.groundY(x, z, fromY or 60), z), facing = facing or Vector3.new(0, 0, 1) })
@@ -7807,7 +8216,7 @@ function B.warpBurrow(def)
 end
 
 return B
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000017"><Properties><string name="Name">Canyon</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000018"><Properties><string name="Name">Canyon</string><ProtectedString name="Source"><![CDATA[--[[
 	Dustbowl Canyon - a sun-baked mesa island east of the meadow.
 	  * Canyon Leap: pillars too far apart for a double jump; roll + jump to long jump
 	  * Eagle's Mesa: a tall mesa ringed with ledges
@@ -7995,7 +8404,7 @@ function Canyon.Build(B)
 end
 
 return Canyon
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000018"><Properties><string name="Name">Castle</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000019"><Properties><string name="Name">Castle</string><ProtectedString name="Source"><![CDATA[--[[
 	Infernal Castle - a volcanic island south of the meadow. The hard part.
 
 	  Approach      lava rivers, cinderbugs, a drawbridge over the lava moat
@@ -8356,7 +8765,7 @@ function Castle.Build(B)
 end
 
 return Castle
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000019"><Properties><string name="Name">Forest</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001A"><Properties><string name="Name">Forest</string><ProtectedString name="Source"><![CDATA[--[[
 	Whisperwood - an old, misty forest island west of the Lonely Islet.
 	  * a rope bridge from the islet, with a little rest stop half way
 	  * the Elder Tree: shelf fungus spiralling up a giant trunk to the canopy
@@ -8857,7 +9266,7 @@ function Forest.Build(B)
 end
 
 return Forest
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001A"><Properties><string name="Name">Meadow</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001B"><Properties><string name="Name">Meadow</string><ProtectedString name="Source"><![CDATA[--[[
 	Carrot Meadow - the hub island, plus the routes out to the other regions:
 	a grassy causeway north to Frostbite Peaks, a boardwalk east to Dustbowl
 	Canyon and a long stone bridge south to the Infernal Castle.
@@ -8913,15 +9322,21 @@ function Meadow.Build(B)
 	-- rolling hills
 	local hills = 0
 	for _ = 1, 300 do
-		if hills >= 16 then
+		if hills >= 22 then
 			break
 		end
 		local a = rng:NextNumber(0, math.pi * 2)
 		local r = rng:NextNumber(30, 190)
 		local p = V(math.cos(a) * r, 0, math.sin(a) * r)
-		local radius = rng:NextNumber(16, 32)
+		local radius = rng:NextNumber(18, 38)
 		if flatOK(p, radius * 0.6) then
-			B.hill(p.X, p.Z, radius, rng:NextNumber(3, 7), rng:NextNumber() < 0.4 and M.LeafyGrass or M.Grass)
+			-- rolling downs: some gentle, some tall enough to run up and leap off
+			local height = rng:NextNumber() < 0.35 and rng:NextNumber(8, 12) or rng:NextNumber(3, 7)
+			B.hill(p.X, p.Z, radius, height, rng:NextNumber() < 0.4 and M.LeafyGrass or M.Grass)
+			if height > 8 then
+				-- a rocky crest on the tall ones, with a ledge to hop up
+				B.outcrop(V(p.X + radius * 0.2, height - 1, p.Z), 3.5, M.Rock)
+			end
 			table.insert(keepFlat, { p, radius * 0.7 })
 			hills += 1
 		end
@@ -9417,7 +9832,7 @@ function Meadow.Build(B)
 end
 
 return Meadow
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001B"><Properties><string name="Name">Peaks</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001C"><Properties><string name="Name">Peaks</string><ProtectedString name="Source"><![CDATA[--[[
 	Frostbite Peaks - a snowy island north of the meadow.
 	  * A terraced mountain with winding ramps up to the summit
 	  * A long ice slide chute spiralling down the outside of the mountain
@@ -9680,7 +10095,7 @@ function Peaks.Build(B)
 end
 
 return Peaks
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001C"><Properties><string name="Name">Revamp</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001D"><Properties><string name="Name">Revamp</string><ProtectedString name="Source"><![CDATA[--[[
 	Revamp - new landscape and traversal circuits layered onto the four
 	original lands, so getting around is half the fun.
 
@@ -10117,15 +10532,29 @@ local function castle(B)
 	end
 end
 
+-- Ore-carrot rocks to smash for coins, tucked into every land
+local ORES = {
+	{ -150, 60 }, { 125, -20 }, { -190, -100 }, { 60, 190 }, -- meadow
+	{ -60, -580 }, { 120, -600 }, { -150, -650 }, { 90, -860 }, { -110, -860 }, -- peaks
+	{ 560, -110 }, { 700, -60 }, { 760, 120 }, { 900, -60 }, { 620, 60 }, { 880, 150 }, -- canyon
+	{ -200, 690 }, { 200, 640 }, { -150, 900 }, -- castle
+	{ -620, -40 }, { -840, 120 }, { -960, -40 }, { -700, 230 }, -- forest
+	{ 72, -78, 440 }, { 190, -168, 450 }, { -86, -25, 440 }, -- sky
+	{ -1394, -1402, 170 }, { -1394, -1690, 240 }, -- the Underburrow
+}
+
 function Revamp.Build(B)
 	meadow(B)
 	peaks(B)
 	canyon(B)
 	castle(B)
+	for _, o in ipairs(ORES) do
+		B.oreRock(o[1], o[2], o[3])
+	end
 end
 
 return Revamp
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001D"><Properties><string name="Name">Secret</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001E"><Properties><string name="Name">Secret</string><ProtectedString name="Source"><![CDATA[--[[
 	The Underburrow - a secret dungeon floating in the dark, far from every
 	other land. You get here by ground-pounding through the lid of the old well
 	in the meadow (Config.SecretGate golden carrots), and it is meant to be HARD.
@@ -10306,7 +10735,7 @@ function Secret.Build(B)
 end
 
 return Secret
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001E"><Properties><string name="Name">Sky</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001F"><Properties><string name="Name">Sky</string><ProtectedString name="Source"><![CDATA[--[[
 	Cloudtop Heights - floating islands high above the meadow, reached by
 	climbing the beanstalk (Config.SkyGate golden carrots).
 	  * Cloud Hop: drifting clouds heading east
@@ -10620,7 +11049,7 @@ function Sky.Build(B)
 end
 
 return Sky
-]]></ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX00000020"><Properties><string name="Name">WorldBuilder</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX00000021"><Properties><string name="Name">WorldBuilder</string><ProtectedString name="Source"><![CDATA[--[[
 	WorldBuilder - builds the whole world at server start.
 
 	  Carrot Meadow (hub)      centre            World/Meadow
@@ -10764,7 +11193,7 @@ function WorldBuilder.Build()
 end
 
 return WorldBuilder
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000037"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="EnableMouseLockOption">false</bool></Properties><Item class="StarterPlayerScripts" referent="RBX00000033"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX00000032"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000038"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="EnableMouseLockOption">false</bool></Properties><Item class="StarterPlayerScripts" referent="RBX00000034"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX00000033"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
 	Bunny 64 - client entry point. Wires together menus, HUD, movement,
 	animation, collectibles and world effects, and reacts to server events.
 ]]
@@ -10817,7 +11246,7 @@ for _, name in ipairs({
 	remotes[name] = Remotes:WaitForChild(name)
 end
 -- optional extras: if a server system is switched off, the game still runs without them
-for _, name in ipairs({ "AdminCommand", "AdminNotice" }) do
+for _, name in ipairs({ "AdminCommand", "AdminNotice", "ShopBuy" }) do
 	remotes[name] = Remotes:WaitForChild(name, 10)
 end
 
@@ -10843,6 +11272,7 @@ local function applySnapshot(s)
 	Collectibles.Sync(s.slot)
 	if s.slot then
 		Hud.SetProgress(s.slot, s.canSave)
+		Hud.SetCoins(s.coins)
 		WorldFX.SetGoldenCount(s.slot.goldenCount)
 		Movement.SetStaminaMax(Config.StaminaFor(s.slot.goldenCount))
 		WorldFX.SetCheckpoint(s.slot.checkpoint)
@@ -10894,6 +11324,12 @@ local function handleEvent(s, event)
 		task.delay(2.5, function()
 			Menus.ShowEnding(snap)
 		end)
+	elseif kind == "coins" then
+		Effects.Play("Coin", 1.4)
+		Hud.Toast(string.format("+%d CARROT COINS", event.amount or 0), 1.4, Color3.fromRGB(236, 190, 90))
+	elseif kind == "purchase" then
+		Effects.Jingle()
+		Hud.Toast("THANK YOU!\n" .. tostring(event.what or ""), 3, GOLD)
 	elseif kind == "bop" then
 		Hud.Toast("BOP!", 0.7)
 	elseif kind == "checkpoint" then
@@ -11051,6 +11487,10 @@ remotes.Effect.OnClientEvent:Connect(function(kind, pos, extra)
 		Hud.ShowSaved()
 	elseif kind == "trialstop" then
 		Hud.StopTimer()
+	elseif kind == "ore" then
+		Effects.Play("Rock", 1.2)
+		Effects.Burst(pos, Color3.fromRGB(110, 104, 100), 12, 7, 0.8, 6)
+		Effects.Burst(pos + Vector3.new(0, 1, 0), Color3.fromRGB(236, 140, 60), 10, 8, 0.6, 9, Enum.Material.Neon)
 	elseif kind == "crate" then
 		Effects.Play("Crate", 1.3)
 		Effects.Burst(pos, Config.Palette.WoodLight, 14, 7, 0.8, 7)
@@ -11227,7 +11667,7 @@ task.spawn(function()
 		applySnapshot(s)
 	end
 end)
-]]></ProtectedString></Properties><Item class="ModuleScript" referent="RBX00000023"><Properties><string name="Name">AdminPanel</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties><Item class="ModuleScript" referent="RBX00000024"><Properties><string name="Name">AdminPanel</string><ProtectedString name="Source"><![CDATA[--[[
 	AdminPanel - the admin perks menu (press P, or the ADMIN button).
 	Only shows for admins; the server checks every command anyway.
 
@@ -11623,7 +12063,7 @@ function AdminPanel.Init(dependencies)
 end
 
 return AdminPanel
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000024"><Properties><string name="Name">Animator</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000025"><Properties><string name="Name">Animator</string><ProtectedString name="Source"><![CDATA[--[[
 	Animator - procedural animation for every bunny in the server.
 
 	No animation assets: each frame we compute a pose from the bunny's
@@ -11932,7 +12372,7 @@ function Animator.Init(movement)
 end
 
 return Animator
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000025"><Properties><string name="Name">Baddies</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000026"><Properties><string name="Name">Baddies</string><ProtectedString name="Source"><![CDATA[--[[
 	Baddies - draws every baddie smoothly on this player's screen.
 
 	The server runs their brains and publishes, a few times a second:
@@ -12220,7 +12660,7 @@ function Baddies.Init()
 end
 
 return Baddies
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000026"><Properties><string name="Name">Chiptune</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">Chiptune</string><ProtectedString name="Source"><![CDATA[--[[
 	Chiptune - Bunny 64's 8-bit music engine and soundtrack.
 
 	Roblox can't synthesise sound, so this little "tracker" plays one short
@@ -12746,7 +13186,7 @@ function Chiptune.Has(name)
 end
 
 return Chiptune
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">Collectibles</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000028"><Properties><string name="Name">Collectibles</string><ProtectedString name="Source"><![CDATA[--[[
 	Collectibles - spins the carrots, hides the ones this file already has,
 	and asks the server to collect carrots the bunny touches.
 	Each player has their own carrots, so pickups are client-side visuals
@@ -12926,7 +13366,7 @@ function Collectibles.Init(effects, remotes)
 end
 
 return Collectibles
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000028"><Properties><string name="Name">Dialogue</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000029"><Properties><string name="Name">Dialogue</string><ProtectedString name="Source"><![CDATA[--[[
 	Dialogue - talk to friendly characters.
 
 	A chunky text box types each line out letter by letter, with a little
@@ -13113,7 +13553,7 @@ function Dialogue.Init(dependencies)
 end
 
 return Dialogue
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000029"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002A"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
 	Effects - local sounds, music, chunky block particles and camera shake.
 ]]
 
@@ -13380,7 +13820,7 @@ RunService:BindToRenderStep("Bunny64Shake", Enum.RenderPriority.Camera.Value + 1
 end)
 
 return Effects
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002A"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002B"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
 	Hud - in-game overlay: hearts, golden carrot and carrot counters,
 	region title cards, toasts, the boss health bar and the MENU button.
 ]]
@@ -13402,6 +13842,7 @@ local hearts = {}
 local staminaRow
 local staminaPips = {}
 local goldenLabel, carrotLabel, saveLabel, toastLabel, bannerHolder, bannerFace
+local coinLabel
 local bossFrame, bossPips, bossName
 local toastToken, bannerToken = 0, 0
 local onMenu
@@ -13531,6 +13972,8 @@ function Hud.Init(menuCallback)
 
 	goldenLabel = counter(root, P.Gold, 36)
 	carrotLabel = counter(root, P.Carrot, 84)
+	coinLabel = counter(root, Color3.fromRGB(236, 190, 90), 132)
+	coinLabel.TextSize = 28
 
 	saveLabel = UI.label(root, {
 		Text = "", TextSize = 14, AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 0, 1, 0),
@@ -13845,6 +14288,16 @@ function Hud.StaminaEmpty()
 	Hud.Pulse(staminaRow)
 end
 
+function Hud.SetCoins(n)
+	if coinLabel then
+		local text = tostring(n or 0)
+		if coinLabel.Text ~= text then
+			coinLabel.Text = text
+			Hud.Pulse(coinLabel)
+		end
+	end
+end
+
 function Hud.SetProgress(slot, canSave)
 	if not slot then
 		return
@@ -13934,7 +14387,7 @@ function Hud.WatchBoss(arenaBossFn)
 end
 
 return Hud
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002B"><Properties><string name="Name">Menus</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002C"><Properties><string name="Name">Menus</string><ProtectedString name="Source"><![CDATA[--[[
 	Menus - every full-screen menu:
 	  Title (PRESS START) -> File Select (File A/B/C, erase) -> game
 	  Customise (fur, accent colour, hat, neckwear with a live 3D preview)
@@ -14231,10 +14684,10 @@ function showCustomise(back)
 	local custom = table.clone(snap.menu.custom)
 	local progress = snap.menu.progress
 
-	local left = UI.panel(layer, UDim2.fromOffset(330, 400), UDim2.new(0.5, -215, 0.53, 0))
+	local left = UI.panel(layer, UDim2.fromOffset(330, 470), UDim2.new(0.5, -215, 0.55, 0))
 	local vp, model = bunnyViewport(left, UDim2.new(1, -20, 1, -20), UDim2.fromScale(0.5, 0.5), custom)
 	vp.ZIndex = 3
-	local right = UI.panel(layer, UDim2.fromOffset(440, 400), UDim2.new(0.5, 200, 0.53, 0))
+	local right = UI.panel(layer, UDim2.fromOffset(440, 470), UDim2.new(0.5, 200, 0.55, 0))
 	local list = Instance.new("Frame")
 	list.BackgroundTransparency = 1
 	list.Size = UDim2.new(1, -30, 1, -30)
@@ -14276,6 +14729,7 @@ function showCustomise(back)
 		{ title = "ACCENT COLOUR", list = Config.AccentColors, key = "accent", ids = false },
 		{ title = "HAT", list = Config.Hats, key = "hat", ids = true },
 		{ title = "NECK", list = Config.Necks, key = "neck", ids = true },
+		{ title = "TRAIL", list = Config.Trails, key = "trail", ids = true },
 	}
 	local entries = {}
 	local function refreshTexts()
@@ -14647,6 +15101,201 @@ local function showLog(back)
 end
 
 --------------------------------------------------------------------------------
+-- Shop: spend carrot coins on looks (and the optional Robux supporter items)
+--------------------------------------------------------------------------------
+
+local SHOP_SECTIONS = {
+	{ title = "HATS", list = "Hats", key = "hat" },
+	{ title = "FUR", list = "FurColors", key = "fur", byIndex = true },
+	{ title = "NECK", list = "Necks", key = "neck" },
+	{ title = "TRAILS", list = "Trails", key = "trail" },
+}
+
+function Menus.ShowShop(back)
+	screen = "shop"
+	clear()
+	UI.backdrop(layer, 0.3)
+	UI.title(layer, "SHOP", 60, UDim2.new(0.5, 0, 0, 18), Vector2.new(0.5, 0))
+	local progress = snap.menu.progress
+	local preview = table.clone(snap.menu.custom)
+	local coinText = UI.label(layer, {
+		Text = "", Font = UI.TITLE, TextSize = 26, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 86),
+		Size = UDim2.fromOffset(500, 30), TextColor3 = Color3.fromRGB(236, 190, 90), Stroke = 3,
+	})
+	local function showCoins()
+		coinText.Text = string.format("CARROT COINS: %d", snap.coins or 0)
+	end
+	showCoins()
+
+	local left = UI.panel(layer, UDim2.fromOffset(300, 430), UDim2.new(0.5, -250, 0.58, 0))
+	local _, model = bunnyViewport(left, UDim2.new(1, -20, 1, -20), UDim2.fromScale(0.5, 0.5), preview)
+	local function refreshModel()
+		BunnyModel.Apply(model, preview)
+		for _, d in ipairs(model:GetDescendants()) do
+			if d:IsA("BasePart") then
+				d.Anchored = true
+			end
+		end
+	end
+	local right = UI.panel(layer, UDim2.fromOffset(470, 430), UDim2.new(0.5, 150, 0.58, 0))
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.BackgroundTransparency = 1
+	scroll.BorderSizePixel = 0
+	scroll.Size = UDim2.new(1, -24, 1, -70)
+	scroll.Position = UDim2.fromOffset(12, 12)
+	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	scroll.CanvasSize = UDim2.new()
+	scroll.ScrollBarThickness = 8
+	scroll.ScrollBarImageColor3 = UI.Gold
+	scroll.Parent = right
+	UI.list(scroll, 3)
+	local status = UI.label(right, {
+		Text = "Coins come from carrots, silver and golden carrots, bosses and ore-carrot rocks.", TextSize = 14, TextWrapped = true,
+		AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -8), Size = UDim2.new(1, -24, 0, 40), Stroke = 2,
+	})
+
+	local entries = {}
+	local order = 0
+	local function focusScroll(b)
+		local y = b.AbsolutePosition.Y - scroll.AbsolutePosition.Y + scroll.CanvasPosition.Y
+		scroll.CanvasPosition = Vector2.new(0, math.max(0, y - scroll.AbsoluteSize.Y / 2))
+	end
+	local function label(item)
+		local unlocked = BunnyModel.EntryUnlocked(item, progress)
+		if unlocked then
+			return item.name .. "   -   OWNED", true
+		elseif item.pass then
+			return item.name .. "   -   SUPPORTER PACK", false
+		end
+		return string.format("%s   -   %d COINS", item.name, item.price), false
+	end
+
+	for _, sec in ipairs(SHOP_SECTIONS) do
+		order += 1
+		UI.label(scroll, { Text = sec.title, Font = UI.TITLE, TextSize = 22, TextColor3 = UI.Gold, Size = UDim2.new(1, 0, 0, 28), LayoutOrder = order, Stroke = 3 })
+		for index, item in ipairs(Config[sec.list]) do
+			if item.price or item.pass then
+				order += 1
+				local text = label(item)
+				local b = UI.item(scroll, text, { LayoutOrder = order, TextSize = 18, Size = UDim2.new(1, -12, 0, 34) })
+				local value = sec.byIndex and index or item.id
+				table.insert(entries, {
+					button = b,
+					focus = function(on)
+						if on then
+							focusScroll(b)
+							preview = table.clone(snap.menu.custom)
+							preview[sec.key] = value
+							refreshModel()
+						end
+					end,
+					select = function()
+						local _, owned = label(item)
+						if owned then
+							status.Text = "ALREADY YOURS! WEAR IT FROM CUSTOMISE."
+							return
+						end
+						if item.pass then
+							local pass = Config.GamePasses[item.pass]
+							if pass and pass.id > 0 then
+								pcall(function()
+									game:GetService("MarketplaceService"):PromptGamePassPurchase(player, pass.id)
+								end)
+							else
+								status.Text = "THE SUPPORTER PACK IS COMING SOON!"
+							end
+							return
+						end
+						if (snap.coins or 0) < item.price then
+							status.Text = string.format("YOU NEED %d MORE COINS. SMASH SOME ORE ROCKS!", item.price - (snap.coins or 0))
+							return
+						end
+						if not deps.Remotes.ShopBuy then
+							status.Text = "THE SHOP IS CLOSED RIGHT NOW."
+							return
+						end
+						status.Text = "..."
+						local ok, msg = deps.Remotes.ShopBuy:InvokeServer(sec.list, item.id or item.name)
+						status.Text = tostring(msg or "")
+						if ok then
+							deps.Effects.Play("Coin", 1.2)
+							task.wait(0.2) -- the server's update brings the new coin total
+							showCoins()
+							progress = snap.menu.progress
+							b.Text = (label(item))
+							status.Text = string.format("%s IS YOURS! WEAR IT FROM CUSTOMISE.", item.name)
+						end
+					end,
+				})
+			end
+		end
+	end
+
+	-- Robux extras (only active once their ids are set in Config)
+	order += 1
+	UI.label(scroll, { Text = "SUPPORT BUNNY 64", Font = UI.TITLE, TextSize = 22, TextColor3 = UI.Gold, Size = UDim2.new(1, 0, 0, 28), LayoutOrder = order, Stroke = 3 })
+	for key, pass in pairs(Config.GamePasses) do
+		order += 1
+		local owned = progress.passes and progress.passes[key]
+		local b = UI.item(scroll, pass.name .. (owned and "   -   OWNED" or (pass.id > 0 and "   -   R$" or "   -   SOON")), {
+			LayoutOrder = order, TextSize = 18, Size = UDim2.new(1, -12, 0, 34),
+		})
+		table.insert(entries, {
+			button = b,
+			focus = function(on)
+				if on then
+					focusScroll(b)
+					status.Text = pass.desc
+				end
+			end,
+			select = function()
+				if owned then
+					status.Text = "YOU HAVE IT - THANK YOU SO MUCH!"
+				elseif pass.id > 0 then
+					pcall(function()
+						game:GetService("MarketplaceService"):PromptGamePassPurchase(player, pass.id)
+					end)
+				else
+					status.Text = "COMING SOON!"
+				end
+			end,
+		})
+	end
+	for _, product in pairs(Config.Products) do
+		order += 1
+		local b = UI.item(scroll, product.name .. (product.id > 0 and "   -   R$" or "   -   SOON"), {
+			LayoutOrder = order, TextSize = 18, Size = UDim2.new(1, -12, 0, 34),
+		})
+		table.insert(entries, {
+			button = b,
+			focus = function(on)
+				if on then
+					focusScroll(b)
+					status.Text = product.desc
+				end
+			end,
+			select = function()
+				if product.id > 0 then
+					pcall(function()
+						game:GetService("MarketplaceService"):PromptProductPurchase(player, product.id)
+					end)
+				else
+					status.Text = "COMING SOON!"
+				end
+			end,
+		})
+	end
+	if player.MembershipType == Enum.MembershipType.Premium then
+		order += 1
+		UI.label(scroll, { Text = "PREMIUM BONUS: YOU EARN 1.5x CARROT COINS!", TextSize = 16, TextColor3 = Color3.fromRGB(150, 210, 255), Size = UDim2.new(1, 0, 0, 24), LayoutOrder = order, Stroke = 2 })
+	end
+
+	local backButton = UI.item(layer, "BACK", { Size = UDim2.fromOffset(200, 38), AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -16) })
+	table.insert(entries, { button = backButton, select = back })
+	UI.SetNav(entries, back)
+end
+
+--------------------------------------------------------------------------------
 -- Map
 --------------------------------------------------------------------------------
 
@@ -14882,7 +15531,7 @@ local function showPause()
 			TextSize = 20, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 120), Size = UDim2.new(1, 0, 0, 24), Stroke = 2,
 		})
 	end
-	local panel = UI.panel(layer, UDim2.fromOffset(460, 470), UDim2.fromScale(0.5, 0.6))
+	local panel = UI.panel(layer, UDim2.fromOffset(460, 520), UDim2.fromScale(0.5, 0.6))
 	local list = Instance.new("Frame")
 	list.BackgroundTransparency = 1
 	list.Size = UDim2.new(1, -30, 1, -30)
@@ -14894,9 +15543,10 @@ local function showPause()
 	local log = UI.item(list, "CARROT LOG", { LayoutOrder = 3 })
 	local stamps = UI.item(list, "STAMPS", { LayoutOrder = 4 })
 	local custom = UI.item(list, "CUSTOMISE", { LayoutOrder = 5 })
-	local photo = UI.item(list, "PHOTO MODE", { LayoutOrder = 6 })
-	local options = UI.item(list, "OPTIONS", { LayoutOrder = 7 })
-	local quit = UI.item(list, "SAVE & QUIT", { LayoutOrder = 8 })
+	local shop = UI.item(list, "SHOP", { LayoutOrder = 6 })
+	local photo = UI.item(list, "PHOTO MODE", { LayoutOrder = 7 })
+	local options = UI.item(list, "OPTIONS", { LayoutOrder = 8 })
+	local quit = UI.item(list, "SAVE & QUIT", { LayoutOrder = 9 })
 	local backToPause = function()
 		showPause()
 	end
@@ -14906,6 +15556,7 @@ local function showPause()
 		{ button = log, select = function() showLog(backToPause) end },
 		{ button = stamps, select = function() Menus.ShowStamps(backToPause) end },
 		{ button = custom, select = function() showCustomise(backToPause) end },
+		{ button = shop, select = function() Menus.ShowShop(backToPause) end },
 		{ button = photo, select = function() Menus.StartPhoto(backToPause) end },
 		{ button = options, select = function() showOptions(backToPause) end },
 		{ button = quit, select = function()
@@ -15149,7 +15800,7 @@ function Menus.Init(dependencies)
 end
 
 return Menus
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002C"><Properties><string name="Name">Movement</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002D"><Properties><string name="Name">Movement</string><ProtectedString name="Source"><![CDATA[--[[
 	Movement - the bunny's moveset on top of Roblox's humanoid.
 
 	  Jump            Space / A / jump button
@@ -16389,7 +17040,7 @@ function Movement.Init(effects, remotes)
 end
 
 return Movement
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002D"><Properties><string name="Name">PhotoMode</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002E"><Properties><string name="Name">PhotoMode</string><ProtectedString name="Source"><![CDATA[--[[
 	PhotoMode - a free camera for screenshots (Pause > PHOTO MODE).
 
 	  WASD / left stick       fly
@@ -16517,7 +17168,7 @@ function PhotoMode.IsActive()
 end
 
 return PhotoMode
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002E"><Properties><string name="Name">Shadows</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002F"><Properties><string name="Name">Shadows</string><ProtectedString name="Source"><![CDATA[--[[
 	Shadows - a round "blob" shadow straight under every bunny.
 
 	In a 3D platformer the sun's shadow is rarely directly beneath you, so
@@ -16594,7 +17245,7 @@ function Shadows.Init()
 end
 
 return Shadows
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002F"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000030"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--[[
 	UI - shared building blocks for Bunny 64's late-90s console look:
 	chunky beveled panels with gold trim, gradient title lettering, a bouncing
 	carrot cursor, and menu navigation that works with keyboard, gamepad,
@@ -16986,7 +17637,7 @@ function UI.list(parent, padding)
 end
 
 return UI
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000030"><Properties><string name="Name">Weather</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000031"><Properties><string name="Name">Weather</string><ProtectedString name="Source"><![CDATA[--[[
 	Weather - a little atmosphere for each region, drawn around the camera:
 	  meadow  drifting pollen motes
 	  peaks   gentle snowfall
@@ -17115,7 +17766,7 @@ function Weather.Init()
 end
 
 return Weather
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000031"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000032"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--[[
 	WorldFX - client-side world behaviour:
 	  * animates firebars and crushers from the shared server clock
 	  * opens golden-carrot gates for players who have enough golden carrots
@@ -17497,8 +18148,8 @@ function WorldFX.Region()
 end
 
 return WorldFX
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterCharacterScripts" referent="RBX00000036"><Properties><string name="Name">StarterCharacterScripts</string></Properties><Item class="LocalScript" referent="RBX00000034"><Properties><string name="Name">Animate</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default "Animate" script.
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterCharacterScripts" referent="RBX00000037"><Properties><string name="Name">StarterCharacterScripts</string></Properties><Item class="LocalScript" referent="RBX00000035"><Properties><string name="Name">Animate</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default "Animate" script.
 -- The bunny is animated procedurally by StarterPlayerScripts.Bunny64Client.Animator.
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX00000035"><Properties><string name="Name">Health</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default health regeneration.
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX00000036"><Properties><string name="Name">Health</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default health regeneration.
 -- In Bunny 64 hearts only come back from carrots and golden carrots.
 ]]></ProtectedString><token name="RunContext">0</token></Properties></Item></Item></Item></roblox>

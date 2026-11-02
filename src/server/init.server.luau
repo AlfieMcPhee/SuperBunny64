@@ -43,6 +43,7 @@ local BossShade = optional("BossShade", { Start = noop, Reset = noop })
 local CrateService = optional("CrateService", { Start = noop, Shockwave = noop })
 local NPCService = optional("NPCService", { Start = noop })
 local Leaderboard = optional("Leaderboard", { Start = noop, RecordClear = noop })
+local ShopService = optional("ShopService", { Start = noop })
 local AdminService = optional("AdminService", { Start = noop, IsAdmin = function()
 	return false
 end })
@@ -76,6 +77,7 @@ local GetProfile = remote("RemoteFunction", "GetProfile")
 local SelectSlot = remote("RemoteFunction", "SelectSlot")
 local EraseSlot = remote("RemoteFunction", "EraseSlot")
 local Customise = remote("RemoteFunction", "Customise")
+local ShopBuy = remote("RemoteFunction", "ShopBuy")
 local QuitToTitle = remote("RemoteEvent", "QuitToTitle")
 local SetOptions = remote("RemoteEvent", "SetOptions")
 local Collect = remote("RemoteEvent", "Collect")
@@ -128,6 +130,7 @@ local function snapshot(player, event)
 			progress = DataService.Progress(player),
 		},
 		active = profile.active and tonumber(profile.active) or nil,
+		coins = profile.data.coins or 0,
 		canSave = profile.canSave,
 		isAdmin = AdminService.IsAdmin(player),
 		totalCarrots = TOTAL_CARROTS,
@@ -379,6 +382,7 @@ Collect.OnServerEvent:Connect(function(player, id)
 		end
 		slot.carrots[id] = true
 		slot.carrotCount += 1
+		DataService.AddCoins(player, Config.Coins.carrot)
 		local event = { kind = "carrot", id = id }
 		if slot.carrotCount % Config.HealEveryCarrots == 0 then
 			heal(player, 1)
@@ -402,6 +406,7 @@ Collect.OnServerEvent:Connect(function(player, id)
 			return
 		end
 		slot.silvers[id] = true
+		DataService.AddCoins(player, Config.Coins.silver)
 		local set = Config.SilverSets[silver.set]
 		local got = 0
 		for sid, data in pairs(info.silvers) do
@@ -477,6 +482,7 @@ Collect.OnServerEvent:Connect(function(player, id)
 		if done then
 			Leaderboard.RecordClear(player, slot.completedTime)
 		end
+		DataService.AddCoins(player, Config.Coins.golden)
 		local after = DataService.Progress(player)
 		local event = { kind = done and "complete" or "golden", id = id }
 		-- tell the player about newly unlocked hats
@@ -546,6 +552,9 @@ Customise.OnServerInvoke = function(player, custom)
 	end
 	if not BunnyModel.IsUnlocked(Config.Necks, clean.neck, progress) then
 		clean.neck = profile.data.custom.neck
+	end
+	if not BunnyModel.IsUnlocked(Config.Trails, clean.trail, progress) then
+		clean.trail = profile.data.custom.trail or "none"
 	end
 	local fur = Config.FurColors[clean.fur]
 	if fur and not BunnyModel.EntryUnlocked(fur, progress) then
@@ -807,6 +816,7 @@ local function bossCallbacks(id)
 				if slot then
 					slot.bosses = slot.bosses or {}
 					slot.bosses[id] = true
+					DataService.AddCoins(player, Config.Coins.boss)
 					if id == "grumble" then
 						slot.bossDefeated = true
 						awardStamp(player, "boss")
@@ -856,8 +866,21 @@ safeStart("CrateService", CrateService.Start, info, {
 	bounce = function(player, vel)
 		Bounce:FireClient(player, vel, true, "stomp")
 	end,
+	ore = function(player, pos)
+		local gained = DataService.AddCoins(player, Config.Coins.ore)
+		local slot = DataService.ActiveSlot(player)
+		if slot then
+			slot.stats = slot.stats or { crates = 0, longjumps = 0 }
+			slot.stats.ores = (slot.stats.ores or 0) + 1
+			if slot.stats.ores >= 15 then
+				awardStamp(player, "prospector")
+			end
+		end
+		push(player, { kind = "coins", amount = gained, pos = pos })
+	end,
 })
 safeStart("NPCService", NPCService.Start, info)
+safeStart("ShopService", ShopService.Start, info, { DataService = DataService, push = push, BuyRemote = ShopBuy })
 safeStart("Leaderboard", Leaderboard.Start, info)
 
 -- Tips: remember which one-off hints this file has already shown

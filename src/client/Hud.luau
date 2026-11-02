@@ -20,6 +20,7 @@ local hearts = {}
 local staminaRow
 local staminaPips = {}
 local goldenLabel, carrotLabel, saveLabel, toastLabel, bannerHolder, bannerFace
+local coinLabel
 local bossFrame, bossPips, bossName
 local toastToken, bannerToken = 0, 0
 local onMenu
@@ -149,6 +150,8 @@ function Hud.Init(menuCallback)
 
 	goldenLabel = counter(root, P.Gold, 36)
 	carrotLabel = counter(root, P.Carrot, 84)
+	coinLabel = counter(root, Color3.fromRGB(236, 190, 90), 132)
+	coinLabel.TextSize = 28
 
 	saveLabel = UI.label(root, {
 		Text = "", TextSize = 14, AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 0, 1, 0),
@@ -461,6 +464,16 @@ function Hud.StaminaEmpty()
 		TweenService:Create(pip, TweenInfo.new(0.5), { BackgroundColor3 = Color3.fromRGB(40, 46, 40) }):Play()
 	end
 	Hud.Pulse(staminaRow)
+end
+
+function Hud.SetCoins(n)
+	if coinLabel then
+		local text = tostring(n or 0)
+		if coinLabel.Text ~= text then
+			coinLabel.Text = text
+			Hud.Pulse(coinLabel)
+		end
+	end
 end
 
 function Hud.SetProgress(slot, canSave)

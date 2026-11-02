@@ -51,7 +51,7 @@ for _, name in ipairs({
 	remotes[name] = Remotes:WaitForChild(name)
 end
 -- optional extras: if a server system is switched off, the game still runs without them
-for _, name in ipairs({ "AdminCommand", "AdminNotice" }) do
+for _, name in ipairs({ "AdminCommand", "AdminNotice", "ShopBuy" }) do
 	remotes[name] = Remotes:WaitForChild(name, 10)
 end
 
@@ -77,6 +77,7 @@ local function applySnapshot(s)
 	Collectibles.Sync(s.slot)
 	if s.slot then
 		Hud.SetProgress(s.slot, s.canSave)
+		Hud.SetCoins(s.coins)
 		WorldFX.SetGoldenCount(s.slot.goldenCount)
 		Movement.SetStaminaMax(Config.StaminaFor(s.slot.goldenCount))
 		WorldFX.SetCheckpoint(s.slot.checkpoint)
@@ -128,6 +129,12 @@ local function handleEvent(s, event)
 		task.delay(2.5, function()
 			Menus.ShowEnding(snap)
 		end)
+	elseif kind == "coins" then
+		Effects.Play("Coin", 1.4)
+		Hud.Toast(string.format("+%d CARROT COINS", event.amount or 0), 1.4, Color3.fromRGB(236, 190, 90))
+	elseif kind == "purchase" then
+		Effects.Jingle()
+		Hud.Toast("THANK YOU!\n" .. tostring(event.what or ""), 3, GOLD)
 	elseif kind == "bop" then
 		Hud.Toast("BOP!", 0.7)
 	elseif kind == "checkpoint" then
@@ -285,6 +292,10 @@ remotes.Effect.OnClientEvent:Connect(function(kind, pos, extra)
 		Hud.ShowSaved()
 	elseif kind == "trialstop" then
 		Hud.StopTimer()
+	elseif kind == "ore" then
+		Effects.Play("Rock", 1.2)
+		Effects.Burst(pos, Color3.fromRGB(110, 104, 100), 12, 7, 0.8, 6)
+		Effects.Burst(pos + Vector3.new(0, 1, 0), Color3.fromRGB(236, 140, 60), 10, 8, 0.6, 9, Enum.Material.Neon)
 	elseif kind == "crate" then
 		Effects.Play("Crate", 1.3)
 		Effects.Burst(pos, Config.Palette.WoodLight, 14, 7, 0.8, 7)

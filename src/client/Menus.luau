@@ -295,10 +295,10 @@ function showCustomise(back)
 	local custom = table.clone(snap.menu.custom)
 	local progress = snap.menu.progress
 
-	local left = UI.panel(layer, UDim2.fromOffset(330, 400), UDim2.new(0.5, -215, 0.53, 0))
+	local left = UI.panel(layer, UDim2.fromOffset(330, 470), UDim2.new(0.5, -215, 0.55, 0))
 	local vp, model = bunnyViewport(left, UDim2.new(1, -20, 1, -20), UDim2.fromScale(0.5, 0.5), custom)
 	vp.ZIndex = 3
-	local right = UI.panel(layer, UDim2.fromOffset(440, 400), UDim2.new(0.5, 200, 0.53, 0))
+	local right = UI.panel(layer, UDim2.fromOffset(440, 470), UDim2.new(0.5, 200, 0.55, 0))
 	local list = Instance.new("Frame")
 	list.BackgroundTransparency = 1
 	list.Size = UDim2.new(1, -30, 1, -30)
@@ -340,6 +340,7 @@ function showCustomise(back)
 		{ title = "ACCENT COLOUR", list = Config.AccentColors, key = "accent", ids = false },
 		{ title = "HAT", list = Config.Hats, key = "hat", ids = true },
 		{ title = "NECK", list = Config.Necks, key = "neck", ids = true },
+		{ title = "TRAIL", list = Config.Trails, key = "trail", ids = true },
 	}
 	local entries = {}
 	local function refreshTexts()
@@ -711,6 +712,201 @@ local function showLog(back)
 end
 
 --------------------------------------------------------------------------------
+-- Shop: spend carrot coins on looks (and the optional Robux supporter items)
+--------------------------------------------------------------------------------
+
+local SHOP_SECTIONS = {
+	{ title = "HATS", list = "Hats", key = "hat" },
+	{ title = "FUR", list = "FurColors", key = "fur", byIndex = true },
+	{ title = "NECK", list = "Necks", key = "neck" },
+	{ title = "TRAILS", list = "Trails", key = "trail" },
+}
+
+function Menus.ShowShop(back)
+	screen = "shop"
+	clear()
+	UI.backdrop(layer, 0.3)
+	UI.title(layer, "SHOP", 60, UDim2.new(0.5, 0, 0, 18), Vector2.new(0.5, 0))
+	local progress = snap.menu.progress
+	local preview = table.clone(snap.menu.custom)
+	local coinText = UI.label(layer, {
+		Text = "", Font = UI.TITLE, TextSize = 26, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 86),
+		Size = UDim2.fromOffset(500, 30), TextColor3 = Color3.fromRGB(236, 190, 90), Stroke = 3,
+	})
+	local function showCoins()
+		coinText.Text = string.format("CARROT COINS: %d", snap.coins or 0)
+	end
+	showCoins()
+
+	local left = UI.panel(layer, UDim2.fromOffset(300, 430), UDim2.new(0.5, -250, 0.58, 0))
+	local _, model = bunnyViewport(left, UDim2.new(1, -20, 1, -20), UDim2.fromScale(0.5, 0.5), preview)
+	local function refreshModel()
+		BunnyModel.Apply(model, preview)
+		for _, d in ipairs(model:GetDescendants()) do
+			if d:IsA("BasePart") then
+				d.Anchored = true
+			end
+		end
+	end
+	local right = UI.panel(layer, UDim2.fromOffset(470, 430), UDim2.new(0.5, 150, 0.58, 0))
+	local scroll = Instance.new("ScrollingFrame")
+	scroll.BackgroundTransparency = 1
+	scroll.BorderSizePixel = 0
+	scroll.Size = UDim2.new(1, -24, 1, -70)
+	scroll.Position = UDim2.fromOffset(12, 12)
+	scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	scroll.CanvasSize = UDim2.new()
+	scroll.ScrollBarThickness = 8
+	scroll.ScrollBarImageColor3 = UI.Gold
+	scroll.Parent = right
+	UI.list(scroll, 3)
+	local status = UI.label(right, {
+		Text = "Coins come from carrots, silver and golden carrots, bosses and ore-carrot rocks.", TextSize = 14, TextWrapped = true,
+		AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -8), Size = UDim2.new(1, -24, 0, 40), Stroke = 2,
+	})
+
+	local entries = {}
+	local order = 0
+	local function focusScroll(b)
+		local y = b.AbsolutePosition.Y - scroll.AbsolutePosition.Y + scroll.CanvasPosition.Y
+		scroll.CanvasPosition = Vector2.new(0, math.max(0, y - scroll.AbsoluteSize.Y / 2))
+	end
+	local function label(item)
+		local unlocked = BunnyModel.EntryUnlocked(item, progress)
+		if unlocked then
+			return item.name .. "   -   OWNED", true
+		elseif item.pass then
+			return item.name .. "   -   SUPPORTER PACK", false
+		end
+		return string.format("%s   -   %d COINS", item.name, item.price), false
+	end
+
+	for _, sec in ipairs(SHOP_SECTIONS) do
+		order += 1
+		UI.label(scroll, { Text = sec.title, Font = UI.TITLE, TextSize = 22, TextColor3 = UI.Gold, Size = UDim2.new(1, 0, 0, 28), LayoutOrder = order, Stroke = 3 })
+		for index, item in ipairs(Config[sec.list]) do
+			if item.price or item.pass then
+				order += 1
+				local text = label(item)
+				local b = UI.item(scroll, text, { LayoutOrder = order, TextSize = 18, Size = UDim2.new(1, -12, 0, 34) })
+				local value = sec.byIndex and index or item.id
+				table.insert(entries, {
+					button = b,
+					focus = function(on)
+						if on then
+							focusScroll(b)
+							preview = table.clone(snap.menu.custom)
+							preview[sec.key] = value
+							refreshModel()
+						end
+					end,
+					select = function()
+						local _, owned = label(item)
+						if owned then
+							status.Text = "ALREADY YOURS! WEAR IT FROM CUSTOMISE."
+							return
+						end
+						if item.pass then
+							local pass = Config.GamePasses[item.pass]
+							if pass and pass.id > 0 then
+								pcall(function()
+									game:GetService("MarketplaceService"):PromptGamePassPurchase(player, pass.id)
+								end)
+							else
+								status.Text = "THE SUPPORTER PACK IS COMING SOON!"
+							end
+							return
+						end
+						if (snap.coins or 0) < item.price then
+							status.Text = string.format("YOU NEED %d MORE COINS. SMASH SOME ORE ROCKS!", item.price - (snap.coins or 0))
+							return
+						end
+						if not deps.Remotes.ShopBuy then
+							status.Text = "THE SHOP IS CLOSED RIGHT NOW."
+							return
+						end
+						status.Text = "..."
+						local ok, msg = deps.Remotes.ShopBuy:InvokeServer(sec.list, item.id or item.name)
+						status.Text = tostring(msg or "")
+						if ok then
+							deps.Effects.Play("Coin", 1.2)
+							task.wait(0.2) -- the server's update brings the new coin total
+							showCoins()
+							progress = snap.menu.progress
+							b.Text = (label(item))
+							status.Text = string.format("%s IS YOURS! WEAR IT FROM CUSTOMISE.", item.name)
+						end
+					end,
+				})
+			end
+		end
+	end
+
+	-- Robux extras (only active once their ids are set in Config)
+	order += 1
+	UI.label(scroll, { Text = "SUPPORT BUNNY 64", Font = UI.TITLE, TextSize = 22, TextColor3 = UI.Gold, Size = UDim2.new(1, 0, 0, 28), LayoutOrder = order, Stroke = 3 })
+	for key, pass in pairs(Config.GamePasses) do
+		order += 1
+		local owned = progress.passes and progress.passes[key]
+		local b = UI.item(scroll, pass.name .. (owned and "   -   OWNED" or (pass.id > 0 and "   -   R$" or "   -   SOON")), {
+			LayoutOrder = order, TextSize = 18, Size = UDim2.new(1, -12, 0, 34),
+		})
+		table.insert(entries, {
+			button = b,
+			focus = function(on)
+				if on then
+					focusScroll(b)
+					status.Text = pass.desc
+				end
+			end,
+			select = function()
+				if owned then
+					status.Text = "YOU HAVE IT - THANK YOU SO MUCH!"
+				elseif pass.id > 0 then
+					pcall(function()
+						game:GetService("MarketplaceService"):PromptGamePassPurchase(player, pass.id)
+					end)
+				else
+					status.Text = "COMING SOON!"
+				end
+			end,
+		})
+	end
+	for _, product in pairs(Config.Products) do
+		order += 1
+		local b = UI.item(scroll, product.name .. (product.id > 0 and "   -   R$" or "   -   SOON"), {
+			LayoutOrder = order, TextSize = 18, Size = UDim2.new(1, -12, 0, 34),
+		})
+		table.insert(entries, {
+			button = b,
+			focus = function(on)
+				if on then
+					focusScroll(b)
+					status.Text = product.desc
+				end
+			end,
+			select = function()
+				if product.id > 0 then
+					pcall(function()
+						game:GetService("MarketplaceService"):PromptProductPurchase(player, product.id)
+					end)
+				else
+					status.Text = "COMING SOON!"
+				end
+			end,
+		})
+	end
+	if player.MembershipType == Enum.MembershipType.Premium then
+		order += 1
+		UI.label(scroll, { Text = "PREMIUM BONUS: YOU EARN 1.5x CARROT COINS!", TextSize = 16, TextColor3 = Color3.fromRGB(150, 210, 255), Size = UDim2.new(1, 0, 0, 24), LayoutOrder = order, Stroke = 2 })
+	end
+
+	local backButton = UI.item(layer, "BACK", { Size = UDim2.fromOffset(200, 38), AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -16) })
+	table.insert(entries, { button = backButton, select = back })
+	UI.SetNav(entries, back)
+end
+
+--------------------------------------------------------------------------------
 -- Map
 --------------------------------------------------------------------------------
 
@@ -946,7 +1142,7 @@ local function showPause()
 			TextSize = 20, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 120), Size = UDim2.new(1, 0, 0, 24), Stroke = 2,
 		})
 	end
-	local panel = UI.panel(layer, UDim2.fromOffset(460, 470), UDim2.fromScale(0.5, 0.6))
+	local panel = UI.panel(layer, UDim2.fromOffset(460, 520), UDim2.fromScale(0.5, 0.6))
 	local list = Instance.new("Frame")
 	list.BackgroundTransparency = 1
 	list.Size = UDim2.new(1, -30, 1, -30)
@@ -958,9 +1154,10 @@ local function showPause()
 	local log = UI.item(list, "CARROT LOG", { LayoutOrder = 3 })
 	local stamps = UI.item(list, "STAMPS", { LayoutOrder = 4 })
 	local custom = UI.item(list, "CUSTOMISE", { LayoutOrder = 5 })
-	local photo = UI.item(list, "PHOTO MODE", { LayoutOrder = 6 })
-	local options = UI.item(list, "OPTIONS", { LayoutOrder = 7 })
-	local quit = UI.item(list, "SAVE & QUIT", { LayoutOrder = 8 })
+	local shop = UI.item(list, "SHOP", { LayoutOrder = 6 })
+	local photo = UI.item(list, "PHOTO MODE", { LayoutOrder = 7 })
+	local options = UI.item(list, "OPTIONS", { LayoutOrder = 8 })
+	local quit = UI.item(list, "SAVE & QUIT", { LayoutOrder = 9 })
 	local backToPause = function()
 		showPause()
 	end
@@ -970,6 +1167,7 @@ local function showPause()
 		{ button = log, select = function() showLog(backToPause) end },
 		{ button = stamps, select = function() Menus.ShowStamps(backToPause) end },
 		{ button = custom, select = function() showCustomise(backToPause) end },
+		{ button = shop, select = function() Menus.ShowShop(backToPause) end },
 		{ button = photo, select = function() Menus.StartPhoto(backToPause) end },
 		{ button = options, select = function() showOptions(backToPause) end },
 		{ button = quit, select = function()

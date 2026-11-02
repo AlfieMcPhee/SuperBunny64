@@ -54,15 +54,21 @@ function Meadow.Build(B)
 	-- rolling hills
 	local hills = 0
 	for _ = 1, 300 do
-		if hills >= 16 then
+		if hills >= 22 then
 			break
 		end
 		local a = rng:NextNumber(0, math.pi * 2)
 		local r = rng:NextNumber(30, 190)
 		local p = V(math.cos(a) * r, 0, math.sin(a) * r)
-		local radius = rng:NextNumber(16, 32)
+		local radius = rng:NextNumber(18, 38)
 		if flatOK(p, radius * 0.6) then
-			B.hill(p.X, p.Z, radius, rng:NextNumber(3, 7), rng:NextNumber() < 0.4 and M.LeafyGrass or M.Grass)
+			-- rolling downs: some gentle, some tall enough to run up and leap off
+			local height = rng:NextNumber() < 0.35 and rng:NextNumber(8, 12) or rng:NextNumber(3, 7)
+			B.hill(p.X, p.Z, radius, height, rng:NextNumber() < 0.4 and M.LeafyGrass or M.Grass)
+			if height > 8 then
+				-- a rocky crest on the tall ones, with a ledge to hop up
+				B.outcrop(V(p.X + radius * 0.2, height - 1, p.Z), 3.5, M.Rock)
+			end
 			table.insert(keepFlat, { p, radius * 0.7 })
 			hills += 1
 		end

@@ -69,6 +69,9 @@ local function defaultData()
 		slots = {},
 		custom = table.clone(Config.DefaultCustom),
 		options = { sfx = 8, music = 6, shake = true, tips = true, assist = false },
+		coins = 0, -- carrot coins, shared by every file
+		owned = {}, -- shop items bought with coins
+		receipts = {}, -- Robux purchases already granted (so none is given twice)
 	}
 end
 
@@ -355,6 +358,33 @@ function DataService.Summaries(player)
 		end
 	end
 	return out
+end
+
+-- Carrot coins: shared across files. Premium members and supporters earn a bit more.
+function DataService.AddCoins(player, amount)
+	local profile = DataService.Get(player)
+	if not profile or type(amount) ~= "number" or amount <= 0 then
+		return 0
+	end
+	local mult = 1
+	if player.MembershipType == Enum.MembershipType.Premium then
+		mult *= Config.Coins.premiumBonus
+	end
+	if player:GetAttribute("Pass_supporter") then
+		mult *= Config.Coins.supporterBonus
+	end
+	local gained = math.floor(amount * mult + 0.5)
+	profile.data.coins = (profile.data.coins or 0) + gained
+	return gained
+end
+
+function DataService.SpendCoins(player, amount)
+	local profile = DataService.Get(player)
+	if not profile or (profile.data.coins or 0) < amount then
+		return false
+	end
+	profile.data.coins -= amount
+	return true
 end
 
 -- Best progress across all files (unlocks cosmetics)

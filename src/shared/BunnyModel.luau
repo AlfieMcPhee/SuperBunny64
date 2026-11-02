@@ -224,6 +224,12 @@ local function sanitize(custom)
 			out.neck = n.id
 		end
 	end
+	out.trail = "none"
+	for _, t in ipairs(Config.Trails or {}) do
+		if t.id == custom.trail then
+			out.trail = t.id
+		end
+	end
 	return out
 end
 BunnyModel.Sanitize = sanitize
@@ -327,6 +333,47 @@ local function hatSpec(id)
 			local a = i / 10 * math.pi * 2
 			add("ball", CF(math.cos(a) * 1.1, 2.6, math.sin(a) * 1.1), V(0.32, 0.32, 0.32), Color3.fromRGB(170, 120, 240), Enum.Material.Neon)
 		end
+	elseif id == "party" then
+		local tilt = ROT(0, 0, 0.15)
+		local cols = { "accent", Color3.fromRGB(236, 220, 160), "accent", Color3.fromRGB(236, 220, 160) }
+		for i = 0, 3 do
+			local r = 1.5 - i * 0.34
+			add("cyl", tilt * vcyl(CF(0, 1.15 + i * 0.42, 0)), V(0.44, r, r), cols[i + 1])
+		end
+		add("ball", tilt * CF(0, 2.95, 0), V(0.55, 0.55, 0.55), Color3.fromRGB(240, 236, 228))
+	elseif id == "cowboy" then
+		local brown = Color3.fromRGB(140, 100, 64)
+		local tilt = ROT(-0.1, 0, 0)
+		add("cyl", tilt * vcyl(CF(0, 1.05, 0)), V(0.14, 3.9, 3.6), brown)
+		add("cyl", tilt * vcyl(CF(0, 1.55, 0)), V(1.0, 1.9, 1.8), brown)
+		add("cyl", tilt * vcyl(CF(0, 1.2, 0)), V(0.22, 1.95, 1.85), "accent")
+		add("block", tilt * CF(0, 2.05, 0), V(0.3, 0.12, 1.7), Color3.fromRGB(110, 78, 50))
+	elseif id == "chef" then
+		local white = Color3.fromRGB(240, 238, 232)
+		add("cyl", vcyl(CF(0, 1.1, 0)), V(0.55, 2.2, 2.2), white)
+		add("ball", CF(0, 1.95, 0), V(2.5, 1.7, 2.5), white)
+		add("ball", CF(0.5, 2.1, 0.3), V(1.4, 1.2, 1.4), white)
+	elseif id == "headphones" then
+		local dark = Color3.fromRGB(46, 44, 52)
+		for i = -2, 2 do
+			add("block", CF(i * 0.5, 1.35 - math.abs(i) * math.abs(i) * 0.12, 0) * ROT(0, 0, -i * 0.35), V(0.55, 0.25, 0.4), dark)
+		end
+		for _, sx in ipairs({ -1, 1 }) do
+			add("cyl", CF(sx * 1.38, 0.15, 0), V(0.45, 1.15, 1.15), dark)
+			add("cyl", CF(sx * 1.55, 0.15, 0), V(0.12, 0.8, 0.8), "accent", Enum.Material.Neon)
+		end
+	elseif id == "pirate" then
+		local black = Color3.fromRGB(34, 30, 32)
+		add("ball", CF(0, 1.2, 0), V(2.8, 1.1, 2.6), black)
+		for _, a in ipairs({ 0, 2.1, 4.2 }) do
+			add("block", CF(math.sin(a) * 1.25, 1.35, -math.cos(a) * 1.25) * ROT(0, -a, 0) * ROT(0.5, 0, 0), V(2.2, 0.15, 0.9), black)
+		end
+		add("ball", CF(0, 1.4, -1.25), V(0.45, 0.45, 0.2), Color3.fromRGB(236, 232, 220))
+		add("block", CF(0, 1.4, -1.32), V(0.7, 0.12, 0.1), Color3.fromRGB(236, 232, 220))
+	elseif id == "astronaut" then
+		add("ball", CF(0, -0.05, -0.05), V(3.7, 3.5, 3.5), Color3.fromRGB(190, 220, 240), Enum.Material.ForceField)
+		add("cyl", vcyl(CF(0, -1.55, 0)), V(0.45, 3.1, 3.1), Color3.fromRGB(236, 236, 240), Enum.Material.Metal)
+		add("ball", CF(1.3, -1.2, -0.9), V(0.35, 0.35, 0.35), "accent", Enum.Material.Neon)
 	elseif id == "crown" then
 		add("cyl", vcyl(CF(0, 1.0, 0)), V(0.42, 2.1, 2.1), P.Gold, Enum.Material.Metal)
 		for i = 0, 7 do
@@ -354,6 +401,16 @@ local function neckSpec(id)
 		add("cyl", vcyl(CF(0, 0.98, 0)), V(0.5, 2.35, 2.25), "accent")
 		add("block", CF(0.5, 0.35, -1.0) * ROT(-0.1, 0, 0.12), V(0.55, 1.15, 0.18), "accent")
 		add("block", CF(0.55, -0.15, -1.04) * ROT(-0.1, 0, 0.12), V(0.55, 0.08, 0.2), Color3.fromRGB(226, 214, 190))
+	elseif id == "bandana" then
+		add("cyl", vcyl(CF(0, 0.98, 0)), V(0.4, 2.3, 2.2), "accent")
+		add("block", CF(0, 0.55, -1.0) * ROT(-0.2, 0, math.pi / 4), V(0.95, 0.95, 0.12), "accent")
+	elseif id == "medal" then
+		add("block", CF(-0.35, 0.6, -1.0) * ROT(-0.15, 0, -0.35), V(0.28, 1.1, 0.08), "accent")
+		add("block", CF(0.35, 0.6, -1.0) * ROT(-0.15, 0, 0.35), V(0.28, 1.1, 0.08), "accent")
+		add("cyl", CF(0, 0.05, -1.12) * ROT(0, math.pi / 2, 0), V(0.12, 0.75, 0.75), P.Gold, Enum.Material.Metal)
+	elseif id == "cape" then
+		add("block", CF(0, 0.95, 0.75), V(2.3, 0.3, 0.6), "accent")
+		add("block", CF(0, -0.15, 1.18) * ROT(0.18, 0, 0), V(2.4, 2.3, 0.12), "accent", Enum.Material.Fabric)
 	elseif id == "bell" then
 		add("cyl", vcyl(CF(0, 0.98, 0)), V(0.26, 2.3, 2.2), "accent")
 		add("ball", CF(0, 0.65, -1.12), V(0.55, 0.55, 0.55), P.Gold, Enum.Material.Metal)
@@ -413,6 +470,55 @@ function BunnyModel.Apply(model, custom)
 		buildSpec(folder, torso, neckSpec(custom.neck), custom)
 	end
 	model:SetAttribute("Hat", custom.hat)
+	-- the trail
+	local old = model:FindFirstChild("Bunny64Trail", true)
+	if old then
+		old:Destroy()
+	end
+	for _, name in ipairs({ "TrailTop", "TrailBottom" }) do
+		local a = model:FindFirstChild(name, true)
+		if a then
+			a:Destroy()
+		end
+	end
+	local def
+	for _, t in ipairs(Config.Trails or {}) do
+		if t.id == custom.trail then
+			def = t
+		end
+	end
+	if torso and def and def.id ~= "none" then
+		local a0 = Instance.new("Attachment")
+		a0.Name = "TrailTop"
+		a0.Position = Vector3.new(0, 0.6, 0.9)
+		a0.Parent = torso
+		local a1 = Instance.new("Attachment")
+		a1.Name = "TrailBottom"
+		a1.Position = Vector3.new(0, -0.7, 0.9)
+		a1.Parent = torso
+		local trail = Instance.new("Trail")
+		trail.Name = "Bunny64Trail"
+		trail.Attachment0 = a0
+		trail.Attachment1 = a1
+		trail.Lifetime = 0.45
+		trail.MinLength = 0.2
+		trail.FaceCamera = true
+		trail.LightEmission = def.light or 0
+		if def.rainbow then
+			trail.Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(214, 110, 104)),
+				ColorSequenceKeypoint.new(0.25, Color3.fromRGB(222, 190, 110)),
+				ColorSequenceKeypoint.new(0.5, Color3.fromRGB(130, 186, 110)),
+				ColorSequenceKeypoint.new(0.75, Color3.fromRGB(100, 140, 200)),
+				ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 116, 190)),
+			})
+		else
+			trail.Color = ColorSequence.new(def.color or Color3.new(1, 1, 1))
+		end
+		trail.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
+		trail.WidthScale = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, 0.1) })
+		trail.Parent = torso
+	end
 	return custom
 end
 

@@ -317,6 +317,7 @@ Config.Stamps = {
 	{ id = "kits", name = "GRANNY'S HERO", desc = "Bring all five lost grandkits home." },
 	{ id = "silvers", name = "SILVER LINING", desc = "Finish every silver carrot hunt." },
 	{ id = "allbosses", name = "GIANT SLAYER", desc = "Defeat every boss - even the hidden one." },
+	{ id = "prospector", name = "PROSPECTOR", desc = "Smash 15 ore-carrot rocks." },
 }
 Config.Badges = {
 	-- golden20 = 1234567890,
@@ -583,6 +584,11 @@ Config.FurColors = {
 	-- post-game rewards
 	{ name = "GOLDEN", fur = rgb(214, 172, 72), cream = rgb(244, 226, 170), need = #Config.Goldens },
 	{ name = "SHADE", fur = rgb(52, 44, 70), cream = rgb(150, 130, 186), boss = "shade" },
+	-- from the shop
+	{ name = "MINT", fur = rgb(150, 190, 166), cream = rgb(226, 240, 228), price = 120 },
+	{ name = "LAVENDER", fur = rgb(160, 146, 190), cream = rgb(232, 224, 240), price = 120 },
+	{ name = "SUNSET", fur = rgb(214, 130, 92), cream = rgb(246, 210, 170), price = 180 },
+	{ name = "STARDUST", fur = rgb(70, 76, 120), cream = rgb(214, 210, 250), pass = "supporter" },
 }
 Config.AccentColors = {
 	{ name = "CRIMSON", color = rgb(140, 50, 48) },
@@ -611,14 +617,58 @@ Config.Hats = {
 	{ id = "rootcrown", name = "ROOT CROWN", need = 0, boss = "rootjaw" },
 	{ id = "stormcap", name = "STORM CLOUD", need = 0, boss = "thunderhead" },
 	{ id = "halo", name = "SHADE HALO", need = 0, boss = "shade" },
+	-- from the shop
+	{ id = "party", name = "PARTY HAT", price = 100 },
+	{ id = "cowboy", name = "COWBOY HAT", price = 150 },
+	{ id = "chef", name = "CHEF'S HAT", price = 200 },
+	{ id = "headphones", name = "HEADPHONES", price = 250 },
+	{ id = "pirate", name = "PIRATE HAT", price = 300 },
+	{ id = "astronaut", name = "SPACE HELMET", pass = "supporter" },
 }
 Config.Necks = {
 	{ id = "bow", name = "BOW TIE", need = 0 },
 	{ id = "scarf", name = "WOOLLY SCARF", need = 0 },
 	{ id = "bell", name = "BELL COLLAR", need = 3 },
 	{ id = "none", name = "NOTHING", need = 0 },
+	{ id = "bandana", name = "BANDANA", price = 80 },
+	{ id = "medal", name = "HERO MEDAL", price = 250 },
+	{ id = "cape", name = "HERO CAPE", pass = "supporter" },
 }
-Config.DefaultCustom = { fur = 1, accent = 1, hat = "none", neck = "bow" }
+-- Trails stream behind you as you run
+Config.Trails = {
+	{ id = "none", name = "NO TRAIL", need = 0 },
+	{ id = "dust", name = "DUST CLOUD", need = 5, color = rgb(206, 196, 176) },
+	{ id = "leaves", name = "FALLING LEAVES", boss = "rootjaw", color = rgb(110, 150, 80) },
+	{ id = "storm", name = "STORM STREAK", boss = "thunderhead", color = rgb(170, 210, 255), light = 1 },
+	{ id = "shadow", name = "SHADOW", boss = "shade", color = rgb(120, 80, 180), light = 0.5 },
+	{ id = "sparkle", name = "SPARKLES", price = 200, color = rgb(255, 236, 170), light = 1 },
+	{ id = "carrots", name = "CARROT STREAK", price = 300, color = rgb(214, 120, 60) },
+	{ id = "stars", name = "STARLIGHT", price = 500, color = rgb(200, 190, 255), light = 1 },
+	{ id = "rainbow", name = "RAINBOW", pass = "supporter", rainbow = true, light = 0.6 },
+}
+Config.DefaultCustom = { fur = 1, accent = 1, hat = "none", neck = "bow", trail = "none" }
+
+-- Carrot coins: earned by playing, spent in the shop (Pause > SHOP) on looks only.
+-- Shared by all three files.
+Config.Coins = {
+	carrot = 1, silver = 5, golden = 25, boss = 60, ore = 10,
+	premiumBonus = 1.5, -- Roblox Premium members earn a bit more (Premium Payouts)
+	supporterBonus = 1.5,
+}
+
+-- Robux purchases. Create these on the Roblox Creator Dashboard (see
+-- PUBLISHING.md) and paste their ids here. While an id is 0 the shop shows
+-- the item as "COMING SOON" and nothing can be bought.
+Config.GamePasses = {
+	supporter = {
+		id = 0,
+		name = "SUPPORTER PACK",
+		desc = "Stardust fur, Space Helmet, Hero Cape, Rainbow trail and 1.5x carrot coins. Thank you!",
+	},
+}
+Config.Products = {
+	coins = { id = 0, name = "BAG OF CARROT COINS", desc = "+1000 carrot coins for the shop.", coins = 1000 },
+}
 
 -- Sounds --------------------------------------------------------------------------------
 -- These use sounds bundled with the Roblox client. Swap in your own uploaded
