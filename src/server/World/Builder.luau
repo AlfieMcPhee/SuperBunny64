@@ -18,7 +18,7 @@ B.rng = Random.new(6464)
 B.info = {
 	carrots = {}, -- [id] = Vector3
 	goldens = {}, -- [id] = Vector3
-	bugs = {}, -- { pos = Vector3, skin = string }
+	enemies = {}, -- { kind = string, pos = Vector3, skin = string, range?, axis? }
 	firebars = {}, -- { pivot, length, speed, phase }
 	crushers = {}, -- { base = CFrame, size, drop, period, offset }
 	boulderSpawns = {}, -- { from = Vector3, dir = Vector3 }
@@ -126,11 +126,73 @@ function B.plank(a, b, width, thickness, color, material, parent)
 	}, parent)
 end
 
--- Earthy pillar: side colour with a top cap
+--------------------------------------------------------------------------------
+-- Terrain (natural ground is Roblox smooth terrain; built things are parts)
+--------------------------------------------------------------------------------
+
+local Terrain = workspace.Terrain
+local M = Enum.Material
+B.Terrain = Terrain
+
+local function capMaterial(capColor, capMat)
+	if capMat == M.Snow then
+		return M.Snow
+	elseif capMat == M.Sand then
+		return M.Sand
+	elseif capMat == M.Basalt then
+		return M.Basalt
+	elseif capMat == M.Sandstone then
+		return M.Sandstone
+	elseif capColor == P.GrassLight then
+		return M.LeafyGrass
+	end
+	return M.Grass
+end
+
+local function sideMaterial(sideColor, sideMat)
+	if sideMat == M.Slate or sideColor == P.Rock then
+		return M.Rock
+	elseif sideMat == M.Basalt or sideColor == P.BasaltLight then
+		return M.Basalt
+	elseif sideMat == M.Sandstone or sideColor == P.SandstoneDark then
+		return M.Sandstone
+	end
+	return M.Ground
+end
+
+function B.SetupTerrain()
+	local colors = {
+		[M.Grass] = Color3.fromRGB(98, 128, 64),
+		[M.LeafyGrass] = Color3.fromRGB(112, 138, 70),
+		[M.Ground] = Color3.fromRGB(118, 92, 66),
+		[M.Mud] = Color3.fromRGB(96, 76, 58),
+		[M.Rock] = Color3.fromRGB(118, 116, 112),
+		[M.Sand] = Color3.fromRGB(194, 178, 134),
+		[M.Snow] = Color3.fromRGB(228, 232, 236),
+		[M.Glacier] = Color3.fromRGB(156, 196, 214),
+		[M.Sandstone] = Color3.fromRGB(176, 126, 86),
+		[M.Basalt] = Color3.fromRGB(58, 52, 54),
+		[M.CrackedLava] = Color3.fromRGB(176, 84, 42),
+		[M.Slate] = Color3.fromRGB(96, 92, 88),
+	}
+	for mat, color in pairs(colors) do
+		pcall(function()
+			Terrain:SetMaterialColor(mat, color)
+		end)
+	end
+	-- animated grass blades on Grass terrain (also settable in Studio: Workspace > Terrain > Decoration)
+	pcall(function()
+		Terrain.Decoration = true
+	end)
+end
+
+-- Earthy pillar of terrain: side material with a grassy (or snowy...) top
 function B.mound(x, z, radius, top, capColor, base, sideColor, capMat, sideMat)
 	base = base or -20
-	B.cyl(x, base, z, radius, top - base - 0.6, sideColor or P.Dirt, sideMat)
-	return B.cyl(x, top - 1, z, radius + 0.4, 1, capColor or P.Grass, capMat)
+	local h = top - base
+	Terrain:FillCylinder(CFrame.new(x, base + h / 2, z), h, radius, sideMaterial(sideColor, sideMat))
+	local capH = math.min(3, h)
+	Terrain:FillCylinder(CFrame.new(x, top - capH / 2, z), capH, radius, capMaterial(capColor, capMat))
 end
 
 function B.terrace(x, z, tiers, sideColor, capMat, sideMat)
@@ -139,23 +201,92 @@ function B.terrace(x, z, tiers, sideColor, capMat, sideMat)
 	end
 end
 
-function B.path(from, to, width, color, y)
-	y = y or 0.12
-	local a = Vector3.new(from.X, y, from.Z)
-	local b = Vector3.new(to.X, y, to.Z)
-	B.make("Part", {
-		Size = Vector3.new(width, 0.25, (b - a).Magnitude),
-		CFrame = CFrame.lookAt((a + b) / 2, b),
-		Color = color or P.Path,
-		CanCollide = false,
-		CanQuery = false,
-	}, B.decor)
+-- A smooth rounded hill rising `height` above y = 0
+function B.hill(x, z, radius, height, material, y0)
+	-- a sphere cap; the sphere is capped in size so flat hills stay cheap and local
+	local r = math.min((radius * radius + height * height) / (2 * height), radius * 1.6)
+	Terrain:FillBall(Vector3.new(x, (y0 or 0) + height - r, z), r, material or M.Grass)
 end
 
--- An island: ground disc with a beach ring
+-- A lump of rock/snow/etc poking out of the ground
+function B.outcrop(pos, radius, material)
+	Terrain:FillBall(pos, radius, material or M.Rock)
+end
+
+-- Repaint the ground surface along a line (dirt paths, scorched earth...)
+function B.paint(from, to, width, toMaterial, fromMaterials)
+	fromMaterials = fromMaterials or { M.Grass, M.LeafyGrass }
+	local a = Vector3.new(from.X, 0, from.Z)
+	local b = Vector3.new(to.X, 0, to.Z)
+	local len = (b - a).Magnitude
+	local steps = math.max(1, math.floor(len / 4))
+	for i = 0, steps do
+		local p = a:Lerp(b, i / steps)
+		local region = Region3.new(p - Vector3.new(width / 2, 6, width / 2), p + Vector3.new(width / 2, 6, width / 2)):ExpandToGrid(4)
+		for _, mat in ipairs(fromMaterials) do
+			Terrain:ReplaceMaterial(region, 4, mat, toMaterial)
+		end
+	end
+end
+
+function B.path(from, to, width)
+	B.paint(from, to, width, M.Ground)
+end
+
+-- Carve a shallow pond and fill it with (harmless) water
+function B.pond(x, z, radius, depth)
+	-- remove a shallow bowl: a big sphere of air whose bottom dips `depth` below the ground
+	local r = (radius * radius + depth * depth) / (2 * depth)
+	Terrain:FillBall(Vector3.new(x, r - depth, z), r, M.Air)
+	Terrain:FillCylinder(CFrame.new(x, -depth - 1.5, z), 3, radius * 0.9, M.Mud)
+	local w = B.cyl(x, -1.4, z, radius * 0.95, 1, P.Water, M.Glass, B.decor)
+	w.Transparency = 0.25
+	w.CanCollide = false
+	w.CanQuery = false
+	w.CastShadow = false
+	for i = 1, 5 do
+		local a = i * 1.3
+		local pad = B.cyl(x + math.cos(a) * radius * 0.5, -0.45, z + math.sin(a) * radius * 0.5, 1.4, 0.15, P.Leaf, nil, B.decor)
+		pad.CanCollide = false
+	end
+	for i = 0, 7 do
+		local a = i / 8 * math.pi * 2 + 0.2
+		B.make("Part", {
+			Size = Vector3.new(0.3, 4 + (i % 3), 0.3),
+			CFrame = CFrame.new(x + math.cos(a) * radius, 1.5, z + math.sin(a) * radius) * CFrame.Angles(0.1, 0, (i % 2) * 0.2 - 0.1),
+			Color = Color3.fromRGB(110, 120, 60),
+			CanCollide = false,
+			CanQuery = false,
+		}, B.decor)
+	end
+end
+
+-- An island: terrain ground on a sandy shelf that slopes into the sea
 function B.island(cx, cz, radius, top, groundColor, beachColor, groundMat, sideColor)
-	B.cyl(cx, -30, cz, radius + 16, 27, beachColor or P.Sand, Enum.Material.Sand)
-	B.mound(cx, cz, radius, top or 0, groundColor or P.Grass, -30, sideColor, groundMat)
+	top = top or 0
+	local beach = (beachColor == P.Sand or beachColor == nil) and M.Sand or (groundMat == M.Snow and M.Snow or (groundMat == M.Basalt and M.Basalt or M.Sand))
+	Terrain:FillCylinder(CFrame.new(cx, -16.5, cz), 27, radius + 14, beach)
+	-- soft slope from the shelf down into the water
+	for i = 0, 23 do
+		local a = i / 24 * math.pi * 2
+		local r = radius + 14
+		Terrain:FillBall(Vector3.new(cx + math.cos(a) * r, -13, cz + math.sin(a) * r), 9, beach)
+	end
+	B.mound(cx, cz, radius, top, groundColor, -30, sideColor, groundMat)
+end
+
+--------------------------------------------------------------------------------
+-- Ground queries
+--------------------------------------------------------------------------------
+
+local groundParams = RaycastParams.new()
+groundParams.FilterType = Enum.RaycastFilterType.Include
+
+-- Height of the ground (terrain or solid parts) under x, z
+function B.groundY(x, z, fromY)
+	groundParams.FilterDescendantsInstances = { Terrain, B.solid }
+	local hit = workspace:Raycast(Vector3.new(x, fromY or 400, z), Vector3.new(0, -(fromY or 400) - 60, 0), groundParams)
+	return hit and hit.Position.Y or 0
 end
 
 --------------------------------------------------------------------------------
@@ -291,18 +422,26 @@ local function carrotModel(pos, golden)
 	return model
 end
 
-function B.carrot(pos)
+-- `pos` names the carrot (its save id); `actual` is where it really floats
+-- (e.g. lifted onto a hill), so ids stay stable when the ground changes.
+function B.carrot(pos, actual)
 	local id = string.format("c_%d_%d_%d", math.round(pos.X), math.round(pos.Y), math.round(pos.Z))
 	if B.info.carrots[id] then
 		return
 	end
-	B.info.carrots[id] = pos
-	local m = carrotModel(pos, false)
+	actual = actual or pos
+	B.info.carrots[id] = actual
+	local m = carrotModel(actual, false)
 	m:SetAttribute("CollectId", id)
 	m:SetAttribute("Kind", "carrot")
 end
 
 -- A line of carrots between two points
+-- A carrot hovering 3 studs above whatever ground is at (x, z)
+function B.carrotOnGround(x, z, nominalY)
+	B.carrot(Vector3.new(x, nominalY or 3, z), Vector3.new(x, B.groundY(x, z) + 3, z))
+end
+
 function B.carrotLine(a, b, n)
 	for i = 0, n - 1 do
 		B.carrot(a:Lerp(b, n == 1 and 0 or i / (n - 1)))
@@ -324,7 +463,12 @@ function B.golden(id, pos)
 end
 
 function B.bug(pos, skin)
-	table.insert(B.info.bugs, { pos = pos, skin = skin or "meadow" })
+	table.insert(B.info.enemies, { kind = "bug", pos = pos, skin = skin or "meadow" })
+end
+
+-- kind: toad, bat, thornhog, puffshroom (bats hover at `pos`; others sit on the ground)
+function B.enemy(kind, pos, skin, range, axis)
+	table.insert(B.info.enemies, { kind = kind, pos = pos, skin = skin, range = range, axis = axis })
 end
 
 --------------------------------------------------------------------------------
@@ -374,6 +518,74 @@ function B.flower(x, y, z)
 		CastShadow = false,
 	}, B.decor)
 	B.blob(Vector3.new(x, y + 1.3, z), Vector3.new(0.9, 0.5, 0.9), colors[B.rng:NextInteger(1, #colors)])
+end
+
+function B.bush(x, y, z, s, color)
+	local c = color or P.LeafDark
+	B.blob(Vector3.new(x, y + 1.2 * s, z), Vector3.new(4.5, 3, 4) * s, c)
+	B.blob(Vector3.new(x + 1.6 * s, y + 1.0 * s, z + 0.8 * s), Vector3.new(3, 2.4, 3) * s, P.Leaf)
+	B.blob(Vector3.new(x - 1.4 * s, y + 0.9 * s, z - 0.6 * s), Vector3.new(2.8, 2.2, 2.8) * s, P.Leaf)
+	if B.rng:NextNumber() < 0.4 then
+		for i = 1, 4 do
+			local a = i * 1.7
+			B.blob(Vector3.new(x + math.cos(a) * 1.6 * s, y + 2.3 * s, z + math.sin(a) * 1.4 * s), Vector3.new(0.45, 0.45, 0.45), Color3.fromRGB(168, 58, 60))
+		end
+	end
+end
+
+function B.log(x, y, z, angle, s)
+	local cf = CFrame.new(x, y + 0.9 * s, z) * CFrame.Angles(0, angle, 0)
+	B.make("Part", {
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(9 * s, 1.9 * s, 1.9 * s),
+		CFrame = cf,
+		Color = P.Wood,
+		Material = Enum.Material.Wood,
+	})
+	for _, e in ipairs({ -1, 1 }) do
+		B.make("Part", {
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.1, 1.6 * s, 1.6 * s),
+			CFrame = cf * CFrame.new(e * 4.52 * s, 0, 0),
+			Color = P.WoodLight,
+			CanCollide = false,
+		}, B.decor)
+	end
+	B.blob(cf.Position + Vector3.new(0, 0.9 * s, 0), Vector3.new(2.2, 0.4, 1.4) * s, Color3.fromRGB(96, 124, 70))
+end
+
+function B.mushrooms(x, y, z)
+	for i = 1, B.rng:NextInteger(3, 5) do
+		local a = i * 2.1
+		local px, pz = x + math.cos(a) * 1.4, z + math.sin(a) * 1.4
+		local h = 0.6 + (i % 3) * 0.35
+		B.make("Part", {
+			Size = Vector3.new(0.3, h, 0.3),
+			CFrame = CFrame.new(px, y + h / 2, pz),
+			Color = P.MushroomStem,
+			CanCollide = false,
+			CanQuery = false,
+		}, B.decor)
+		B.blob(Vector3.new(px, y + h, pz), Vector3.new(0.9, 0.45, 0.9), i % 2 == 0 and P.Mushroom or Color3.fromRGB(176, 140, 96))
+	end
+end
+
+-- A clump of tall grass blades (extra detail on top of the terrain grass)
+function B.tuft(x, y, z)
+	local colors = { Color3.fromRGB(96, 130, 60), Color3.fromRGB(116, 146, 70), Color3.fromRGB(84, 114, 54) }
+	for i = 1, 5 do
+		local a = i / 5 * math.pi * 2 + B.rng:NextNumber(0, 1)
+		local h = B.rng:NextNumber(1.4, 2.6)
+		B.make("WedgePart", {
+			Size = Vector3.new(0.12, h, 0.5),
+			CFrame = CFrame.new(x + math.cos(a) * 0.35, y + h / 2 - 0.1, z + math.sin(a) * 0.35) * CFrame.Angles(0, a, B.rng:NextNumber(-0.25, 0.25)),
+			Color = colors[B.rng:NextInteger(1, #colors)],
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			CastShadow = false,
+		}, B.decor)
+	end
 end
 
 function B.cactus(x, y, z, s)

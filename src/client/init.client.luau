@@ -83,7 +83,7 @@ local function handleEvent(s, event)
 		end
 	elseif kind == "unlock" then
 		Effects.Jingle()
-		local what = event.id == "collector" and (Config.CollectorGoal .. " CARROTS!") or (Config.BugBusterGoal .. " BUGS BOPPED!")
+		local what = event.id == "collector" and (Config.CollectorGoal .. " CARROTS!") or (Config.BugBusterGoal .. " BADDIES BOPPED!")
 		Hud.Toast(what .. "\nA GOLDEN CARROT APPEARED AT THE MEADOW SPAWN", 4, GOLD)
 	elseif kind == "golden" then
 		Effects.Jingle()
@@ -132,6 +132,15 @@ remotes.Effect.OnClientEvent:Connect(function(kind, pos, extra)
 	local P = Config.Palette
 	if kind == "poof" then
 		Effects.Burst(pos, Color3.fromRGB(226, 218, 200), 12, 7, 0.8, 5)
+	elseif kind == "spores" then
+		Effects.Ring(pos - Vector3.new(0, 1.5, 0), Color3.fromRGB(176, 196, 120), 8.5, 20, 0.6)
+		Effects.Burst(pos + Vector3.new(0, 1, 0), Color3.fromRGB(196, 210, 140), 12, 6, 0.9, 3)
+	elseif kind == "screech" then
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if root and (root.Position - pos).Magnitude < 60 then
+			Effects.Play("Screech", 1.6)
+		end
 	elseif kind == "pound" then
 		Effects.Ring(pos, P.Path, 13)
 	elseif kind == "splash" then
@@ -214,7 +223,9 @@ Menus.Init({
 			Hud.SetProgress(snap.slot, snap.canSave)
 			if snap.slot.goldenCount == 0 and snap.slot.carrotCount == 0 then
 				task.delay(1, function()
-					Hud.Toast("FIND THE GOLDEN CARROTS!\nSHIFT: ROLL   C: SLIDE / POUND   M: MENU", 5, GOLD)
+					local c = Menus.CurrentControls()
+					local k = Menus.PrettyKey
+					Hud.Toast(string.format("FIND THE GOLDEN CARROTS!\n%s: ROLL   %s: SLIDE / POUND   %s: MENU", k(c.roll.key), k(c.crouch.key), k(c.menu.key)), 5, GOLD)
 				end)
 			end
 		end

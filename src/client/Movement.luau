@@ -446,6 +446,69 @@ local function watchBouncers()
 	worldFolder.DescendantAdded:Connect(hook)
 end
 
+local function keyCode(name, fallback)
+	local ok, code = pcall(function()
+		return Enum.KeyCode[name]
+	end)
+	return (ok and code) or Enum.KeyCode[fallback]
+end
+
+-- (Re)bind the moves to the player's chosen keys. controls = { [id] = { key, pad } }
+function Movement.ApplyControls(controls)
+	controls = controls or {}
+	local binds = {}
+	for _, def in ipairs(Config.Controls) do
+		local c = controls[def.id] or {}
+		binds[def.id] = { keyCode(c.key or def.key, def.key), keyCode(c.pad or def.pad, def.pad) }
+	end
+	for _, name in ipairs({ "Bunny64Roll", "Bunny64Crouch", "Bunny64Jump" }) do
+		ContextActionService:UnbindAction(name)
+	end
+
+	ContextActionService:BindAction("Bunny64Roll", function(_, inputState)
+		if inputState == Enum.UserInputState.Begin then
+			startRoll()
+		end
+		return Enum.ContextActionResult.Sink
+	end, true, binds.roll[1], binds.roll[2])
+	ContextActionService:SetTitle("Bunny64Roll", "ROLL")
+	ContextActionService:SetPosition("Bunny64Roll", UDim2.new(1, -230, 1, -110))
+
+	ContextActionService:BindAction("Bunny64Crouch", function(_, inputState)
+		if inputState == Enum.UserInputState.Begin then
+			crouch()
+		end
+		return Enum.ContextActionResult.Sink
+	end, true, binds.crouch[1], binds.crouch[2])
+	ContextActionService:SetTitle("Bunny64Crouch", "CROUCH")
+	ContextActionService:SetPosition("Bunny64Crouch", UDim2.new(1, -170, 1, -170))
+
+	-- Space / A always jump (Roblox handles those); a custom jump key is added on top
+	local jumpKeys = {}
+	if binds.jump[1] ~= Enum.KeyCode.Space then
+		table.insert(jumpKeys, binds.jump[1])
+	end
+	if binds.jump[2] ~= Enum.KeyCode.ButtonA then
+		table.insert(jumpKeys, binds.jump[2])
+	end
+	if #jumpKeys > 0 then
+		ContextActionService:BindAction("Bunny64Jump", function(_, inputState)
+			if not enabled or not humanoid then
+				return Enum.ContextActionResult.Pass
+			end
+			if inputState == Enum.UserInputState.Begin then
+				local now = os.clock()
+				lastJumpRequest = now
+				if grounded() then
+					humanoid.Jump = true
+				end
+				tryJumpMove()
+			end
+			return Enum.ContextActionResult.Sink
+		end, false, table.unpack(jumpKeys))
+	end
+end
+
 function Movement.Init(effects, remotes)
 	Effects = effects
 	Remotes = remotes
@@ -476,23 +539,7 @@ function Movement.Init(effects, remotes)
 		end
 	end)
 
-	ContextActionService:BindAction("Bunny64Roll", function(_, inputState)
-		if inputState == Enum.UserInputState.Begin then
-			startRoll()
-		end
-		return Enum.ContextActionResult.Sink
-	end, true, Enum.KeyCode.LeftShift, Enum.KeyCode.Q, Enum.KeyCode.ButtonX)
-	ContextActionService:SetTitle("Bunny64Roll", "ROLL")
-	ContextActionService:SetPosition("Bunny64Roll", UDim2.new(1, -230, 1, -110))
-
-	ContextActionService:BindAction("Bunny64Crouch", function(_, inputState)
-		if inputState == Enum.UserInputState.Begin then
-			crouch()
-		end
-		return Enum.ContextActionResult.Sink
-	end, true, Enum.KeyCode.C, Enum.KeyCode.LeftControl, Enum.KeyCode.E, Enum.KeyCode.ButtonB)
-	ContextActionService:SetTitle("Bunny64Crouch", "CROUCH")
-	ContextActionService:SetPosition("Bunny64Crouch", UDim2.new(1, -170, 1, -170))
+	Movement.ApplyControls(nil)
 
 	remotes.Bounce.OnClientEvent:Connect(function(vel, keepHorizontal, kind)
 		if not root then

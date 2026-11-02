@@ -16,21 +16,74 @@ function Meadow.Build(B)
 	local WATER = Config.WaterLevel
 
 	----------------------------------------------------------------- island
+	B.SetupTerrain()
 	B.island(0, 0, 230, 0, P.Grass, P.Sand)
+	local Terrain = B.Terrain
+	local M = Enum.Material
 	for i = 1, 10 do
 		local a = i / 10 * math.pi * 2 + rng:NextNumber(-0.2, 0.2)
 		local r = rng:NextNumber(205, 222)
 		local rad = rng:NextNumber(26, 40)
-		B.cyl(math.cos(a) * r, -30, math.sin(a) * r, rad + 14, 27, P.Sand, Enum.Material.Sand)
+		Terrain:FillCylinder(CFrame.new(math.cos(a) * r, -16.5, math.sin(a) * r), 27, rad + 14, M.Sand)
 		B.mound(math.cos(a) * r, math.sin(a) * r, rad, 0, P.Grass, -30)
 	end
-	for _ = 1, 9 do
-		local a = rng:NextNumber(0, math.pi * 2)
-		local r = rng:NextNumber(40, 180)
-		local x, z = math.cos(a) * r, math.sin(a) * r
-		if (V(x, 0, z) - V(-130, 0, -120)).Magnitude > 70 and (V(x, 0, z) - V(140, 0, -90)).Magnitude > 80 and math.abs(x) > 20 then
-			B.mound(x, z, rng:NextNumber(14, 24), rng:NextNumber(1.5, 3), P.GrassLight, -2)
+
+	-- keep gameplay spots and the three exit corridors flat
+	local keepFlat = {
+		{ V(0, 0, 60), 34 }, { V(-60, 0, -40), 30 }, { V(-130, 0, -120), 60 }, { V(110, 0, 140), 32 },
+		{ V(140, 0, -90), 68 }, { V(12, 0, 40), 10 }, { V(-24, 0, 44), 12 },
+	}
+	local function flatOK(p, radius)
+		if p.Magnitude + radius > 200 then
+			return false
 		end
+		if math.abs(p.X) < 22 + radius and math.abs(p.Z) > 60 then
+			return false
+		end
+		if math.abs(p.Z) < 22 + radius and p.X > 50 then
+			return false
+		end
+		for _, k in ipairs(keepFlat) do
+			if (p - k[1]).Magnitude < k[2] + radius then
+				return false
+			end
+		end
+		return true
+	end
+	-- rolling hills
+	local hills = 0
+	for _ = 1, 300 do
+		if hills >= 16 then
+			break
+		end
+		local a = rng:NextNumber(0, math.pi * 2)
+		local r = rng:NextNumber(30, 190)
+		local p = V(math.cos(a) * r, 0, math.sin(a) * r)
+		local radius = rng:NextNumber(16, 32)
+		if flatOK(p, radius * 0.6) then
+			B.hill(p.X, p.Z, radius, rng:NextNumber(3, 7), rng:NextNumber() < 0.4 and M.LeafyGrass or M.Grass)
+			table.insert(keepFlat, { p, radius * 0.7 })
+			hills += 1
+		end
+	end
+	-- a couple of reedy ponds
+	B.pond(-100, 5, 16, 4)
+	B.pond(55, 132, 12, 3)
+	-- rocky outcrops near the shore
+	for i = 0, 11 do
+		local a = i / 12 * math.pi * 2 + 0.13
+		local p = V(math.cos(a) * 214, -1, math.sin(a) * 214)
+		if math.abs(p.X) > 30 and math.abs(p.Z) > 30 then
+			B.outcrop(p, rng:NextNumber(5, 9), M.Rock)
+		end
+	end
+	-- patches of leafy meadow grass for colour variation
+	for _ = 1, 18 do
+		local a = rng:NextNumber(0, math.pi * 2)
+		local r = rng:NextNumber(20, 200)
+		local p = V(math.cos(a) * r, 0, math.sin(a) * r)
+		local q = p + V(rng:NextNumber(-20, 20), 0, rng:NextNumber(-20, 20))
+		B.paint(p, q, rng:NextNumber(10, 18), M.LeafyGrass, { M.Grass })
 	end
 
 	----------------------------------------------------------------- spawn
@@ -166,12 +219,14 @@ function Meadow.Build(B)
 			B.blob(V(hx + math.cos(a) * 3.8, 34.4, hz + math.sin(a) * 3.8), V(1.8, 0.6, 1.8), P.MushroomStem)
 		end
 
+		-- floating chunks of terrain: grassy top, rocky roots hanging below
 		local function skyIsland(x, top, z, r)
-			B.cyl(x, top - 3, z, r, 3, P.Dirt)
-			B.cyl(x, top - 1, z, r + 0.4, 1, P.Grass)
-			B.cyl(x, top - 6, z, r * 0.75, 3, P.DirtDark, nil, B.decor)
-			B.cyl(x, top - 9, z, r * 0.45, 3, P.DirtDark, nil, B.decor)
-			B.cyl(x, top - 11, z, r * 0.2, 2, P.DirtDark, nil, B.decor)
+			local T = B.Terrain
+			T:FillCylinder(CFrame.new(x, top - 3, z), 6, r, Enum.Material.Ground)
+			T:FillCylinder(CFrame.new(x, top - 1.25, z), 2.5, r, Enum.Material.Grass)
+			T:FillBall(Vector3.new(x, top - 7, z), r * 0.7, Enum.Material.Ground)
+			T:FillBall(Vector3.new(x + r * 0.15, top - 12, z - r * 0.1), r * 0.42, Enum.Material.Rock)
+			T:FillBall(Vector3.new(x - r * 0.1, top - 16, z + r * 0.05), r * 0.22, Enum.Material.Rock)
 		end
 		skyIsland(125, 95, -62, 12)
 		B.carrot(V(125, 98.5, -62))
@@ -237,9 +292,14 @@ function Meadow.Build(B)
 
 	----------------------------------------------------------------- north causeway to the peaks
 	do
-		B.block(CFrame.new(0, -15.5, -372), V(44, 30, 300), P.Dirt)
-		B.block(CFrame.new(0, -0.5, -372), V(45, 1, 300), P.Grass)
-		B.block(CFrame.new(0, -18, -372), V(70, 30, 304), P.Sand, Enum.Material.Sand)
+		local T = B.Terrain
+		T:FillBlock(CFrame.new(0, -16.5, -372), V(72, 27, 304), Enum.Material.Sand)
+		T:FillBlock(CFrame.new(0, -15, -372), V(44, 30, 300), Enum.Material.Ground)
+		T:FillBlock(CFrame.new(0, -1.25, -372), V(44, 2.5, 300), Enum.Material.Grass)
+		for i = 0, 9 do
+			local z = -240 - i * 30
+			T:FillBall(V((i % 2 == 0) and -24 or 24, -9, z), 8, Enum.Material.Sand)
+		end
 		B.path(V(0, 0, -228), V(0, 0, -515), 8)
 		for i = 0, 7 do
 			local z = -250 - i * 36
@@ -300,6 +360,16 @@ function Meadow.Build(B)
 		B.sign(V(16, 0, 214), V(0, 0, -1), "INFERNAL CASTLE", "10 golden carrots open the gate")
 	end
 
+	----------------------------------------------------------------- other baddies
+	for _, p in ipairs({ V(-80, 0, 70), V(60, 0, 50), V(-150, 0, 20), V(160, 0, 60) }) do
+		B.enemy("toad", p, "meadow", 26)
+	end
+	for _, p in ipairs({ V(-40, 0, -80), V(90, 0, -10), V(-110, 0, 110) }) do
+		B.enemy("puffshroom", p, "meadow")
+	end
+	B.enemy("bat", V(-96, 40, -112), "meadow")
+	B.enemy("thornhog", V(-20, 0, 160), "meadow", 24, V(1, 0, 0))
+
 	----------------------------------------------------------------- bug homes
 	for _, h in ipairs({
 		V(40, 0, 25), V(-40, 0, 10), V(60, 0, -30), V(-20, 0, 120), V(70, 0, 80), V(-100, 0, -30),
@@ -349,22 +419,44 @@ function Meadow.Build(B)
 			end
 		end
 	end
-	scatter(70, 600, 35, 205, 6, function(p)
+	table.insert(avoid, { V(-100, 0, 5), 20 })
+	table.insert(avoid, { V(55, 0, 132), 16 })
+	local function gy(p)
+		return B.groundY(p.X, p.Z, 60)
+	end
+	scatter(80, 700, 35, 205, 6, function(p)
 		local s = rng:NextNumber(0.8, 1.4)
+		local y = gy(p)
 		if rng:NextNumber() < 0.45 then
-			B.pineTree(p.X, 0, p.Z, s)
+			B.pineTree(p.X, y, p.Z, s)
 		else
-			B.roundTree(p.X, 0, p.Z, s)
+			B.roundTree(p.X, y, p.Z, s)
 		end
 	end, 8)
 	scatter(30, 300, 30, 205, 2, function(p)
-		B.rock(p.X, 0, p.Z, rng:NextNumber(0.8, 2.2))
+		B.rock(p.X, gy(p), p.Z, rng:NextNumber(0.8, 2.2))
 	end, 5)
 	scatter(24, 600, 35, 190, 3, function(p)
-		B.carrot(p + V(0, 3, 0))
+		B.carrotOnGround(p.X, p.Z)
 	end, 10)
-	scatter(200, 400, 10, 210, 0, function(p)
-		B.flower(p.X, 0, p.Z)
+	scatter(45, 500, 20, 205, 2, function(p)
+		B.bush(p.X, gy(p), p.Z, rng:NextNumber(0.8, 1.5))
+	end, 4)
+	scatter(12, 300, 40, 200, 3, function(p)
+		B.log(p.X, gy(p), p.Z, rng:NextNumber(0, math.pi), rng:NextNumber(0.8, 1.3))
+	end, 6)
+	scatter(14, 300, 20, 200, 2, function(p)
+		B.mushrooms(p.X, gy(p), p.Z)
+	end, 4)
+	-- flower patches: clusters rather than lonely stems
+	scatter(36, 400, 10, 205, 0, function(p)
+		for _ = 1, rng:NextInteger(5, 9) do
+			local q = p + V(rng:NextNumber(-5, 5), 0, rng:NextNumber(-5, 5))
+			B.flower(q.X, gy(q), q.Z)
+		end
+	end, nil)
+	scatter(160, 400, 8, 210, 0, function(p)
+		B.tuft(p.X, gy(p), p.Z)
 	end, nil)
 end
 

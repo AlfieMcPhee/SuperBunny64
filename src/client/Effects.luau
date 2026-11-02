@@ -10,6 +10,8 @@ local Debris = game:GetService("Debris")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
 local Config = require(Shared:WaitForChild("Config"))
 
+local Chiptune = require(script.Parent:WaitForChild("Chiptune"))
+
 local Effects = {}
 
 local sfxVolume, musicVolume, shakeOn = 0.8, 0.6, true
@@ -22,6 +24,8 @@ local musicGroup = Instance.new("SoundGroup")
 musicGroup.Name = "Bunny64Music"
 musicGroup.Volume = musicVolume
 musicGroup.Parent = SoundService
+
+Chiptune.Init(musicGroup)
 
 local sounds = {}
 for name, def in pairs(Config.Sounds) do
@@ -79,6 +83,12 @@ function Effects.SetMusic(key)
 		Debris:AddItem(old, 1.1)
 	end
 	currentTrack = nil
+	if id == "" then
+		-- no uploaded track: play the built-in 8-bit tune for this area
+		Chiptune.Play(key)
+		return
+	end
+	Chiptune.Stop()
 	if id ~= "" then
 		local s = Instance.new("Sound")
 		s.Name = "Bunny64Track"

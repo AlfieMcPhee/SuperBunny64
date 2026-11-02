@@ -95,6 +95,7 @@ function WorldBuilder.Build()
 	local root = Instance.new("Folder")
 	root.Name = "Bunny64World"
 	B.Init(root)
+	workspace.Terrain:Clear()
 
 	setupLighting()
 	buildSea()

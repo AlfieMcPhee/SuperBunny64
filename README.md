@@ -19,8 +19,27 @@ distance fog and N64-style menus.
 | Menu | M | Select | MENU |
 
 Ice chutes start a slide automatically - steer with the stick.
+All keys and gamepad buttons can be rebound in **Options > Controls**
+(saved with your progress; clashing bindings swap automatically).
+
+## Baddies
+
+| Baddie | Where | How to beat it |
+| --- | --- | --- |
+| Grumblebug | everywhere | stomp, ground pound, roll or slide into it |
+| Hopscotch Toad | meadow, canyon, peaks | hops after you in big arcs - stomp it |
+| Flitbat | peaks, castle, canyon | circles, then swoops - stomp it or roll / long jump into it |
+| Thornhog | canyon floor, castle approach | all spikes: only a ground-pound shockwave works |
+| Puffshroom | meadow, peaks, castle | puffs a ring of spores every few seconds - stomp it between puffs |
+| King Grumble | throne room | see below |
 
 ## The world
+
+Natural ground is Roblox smooth terrain - grassy cliffs, rolling hills, reedy
+ponds, sandy beaches sloping into the sea, painted dirt paths, snow drifts and
+glacier ice, desert dunes and sandstone spires, cracked-lava scorch marks -
+dressed with trees, bushes, logs, mushrooms, flower patches and tall grass
+tufts. Built things (towers, castles, platforms) stay chunky low-poly parts.
 
 * **Carrot Meadow** (hub): cottage roof, spiral Lookout Tower, the Old Oak,
   a springy mushroom up to the Cloud Garden sky islands, the Lonely Islet.
@@ -83,10 +102,11 @@ runtime), so avatar settings don't matter.
 | `src/server/init.server.luau` | `ServerScriptService.Bunny64Server` | Files, pickups, hearts, checkpoints, warps |
 | `src/server/World/*` | module folder | One builder per region |
 | `src/server/DataService.luau` | module | Saving |
-| `src/server/EnemyService.luau`, `BugModel.luau` | modules | Grumblebugs |
+| `src/server/EnemyService.luau`, `BugModel.luau`, `EnemyModels.luau` | modules | All the baddies and their models |
 | `src/server/HazardService.luau` | module | Firebars, crushers, lava, boulders |
 | `src/server/BossService.luau` | module | King Grumble |
 | `src/client/*` | `StarterPlayerScripts.Bunny64Client` | Menus, HUD, moves, animation, effects |
+| `src/client/Chiptune.luau` | 〃 | The 8-bit music sequencer and songs |
 | `src/character/*` | `StarterCharacterScripts` | Empty stand-ins for Roblox's default Animate/Health scripts |
 
 * **Rojo**: `rojo serve` with the included `default.project.json`.
@@ -96,9 +116,21 @@ runtime), so avatar settings don't matter.
 
 ## Sound and music
 
-Sound effects use sounds bundled with the Roblox client. Put uploaded music
-ids in `Config.Music` (title, meadow, peaks, canyon, castle, boss) for
-per-area music; the Options menu has volume sliders.
+**8-bit music is built in.** `src/client/Chiptune.luau` is a tiny tracker that
+plays original chip tunes for the title screen, each region and the boss,
+using one built-in blip sample at different pitches plus a noise sample for
+drums. Songs are plain text patterns you can edit (`C5 . E5 - | ...`).
+`Config.Chiptune` picks the samples and tuning. To use your own uploaded
+tracks instead, put their ids in `Config.Music` - any area with an id plays
+that track rather than the chip tune. Volume sliders are in Options.
+
+Sound effects use sounds bundled with the Roblox client.
+
+## Grass
+
+The animated grass comes from terrain decoration, which the server turns on at
+start-up. If you don't see grass blades, select **Workspace > Terrain** in
+Studio and tick **Decoration**.
 
 ## Changing the save format
 

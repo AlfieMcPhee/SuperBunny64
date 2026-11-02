@@ -27,6 +27,19 @@ function Castle.Build(B)
 	local stone, dark = P.CastleStone, P.CastleDark
 
 	B.island(0, 800, 260, 0, P.Basalt, Color3.fromRGB(72, 64, 62), BASALT, P.BasaltLight)
+	-- scorched earth: cracked-lava streaks and jagged basalt outcrops outside the walls
+	for i = 0, 13 do
+		local a = i / 14 * math.pi * 2 + rng:NextNumber(-0.1, 0.1)
+		local p = V(math.cos(a) * rng:NextNumber(150, 235), 0, 800 + math.sin(a) * rng:NextNumber(150, 235))
+		local inDungeon = p.X > 120 and p.X < 240 and p.Z > 700 and p.Z < 900
+		if not inDungeon and not (math.abs(p.X) < 40 and p.Z < 700) then
+			B.paint(p, p + V(rng:NextNumber(-25, 25), 0, rng:NextNumber(-25, 25)), 7, Enum.Material.CrackedLava, { BASALT })
+			if i % 2 == 0 then
+				B.outcrop(p + V(rng:NextNumber(-10, 10), -1, rng:NextNumber(-10, 10)), rng:NextNumber(4, 7), BASALT)
+			end
+		end
+	end
+	B.paint(V(0, 0, 545), V(0, 0, 650), 10, Enum.Material.Slate, { BASALT })
 
 	----------------------------------------------------------------- approach
 	B.checkpointFlag("castle")
@@ -115,6 +128,14 @@ function Castle.Build(B)
 	B.block(CF(0, 1, 800), V(200, 2, 200), Color3.fromRGB(84, 78, 76), SLATE)
 	B.checkpointFlag("courtyard")
 	B.bug(V(0, 2, 790), "castle")
+	B.enemy("bat", V(-50, 30, 760), "castle")
+	B.enemy("bat", V(60, 40, 800), "castle")
+	B.enemy("bat", V(0, 30, 620), "castle")
+	B.enemy("bat", V(180, 18, 820), "castle")
+	B.enemy("thornhog", V(-70, 0, 615), "castle", 30, V(1, 0, 0))
+	B.enemy("thornhog", V(80, 0, 575), "castle", 30, V(1, 0, 0))
+	B.enemy("puffshroom", V(-80, 2, 870), "castle")
+	B.enemy("puffshroom", V(-130, 0, 700), "castle")
 	B.bug(V(20, 2, 805), "castle")
 
 	-- Firebar Gauntlet (west half)
@@ -315,7 +336,7 @@ function Castle.Build(B)
 		local inDungeon = p.X > 120 and p.X < 240 and p.Z > 710 and p.Z < 890
 		local onApproach = math.abs(p.X) < 40 and p.Z < 700
 		if not inDungeon and not onApproach and (p.Z < 680 or p.Z > 920 or math.abs(p.X) > 125) then
-			B.rock(p.X, 0, p.Z, rng:NextNumber(1.5, 3.5), rng:NextNumber() < 0.5 and P.Basalt or P.BasaltLight)
+			B.rock(p.X, B.groundY(p.X, p.Z, 60), p.Z, rng:NextNumber(1.5, 3.5), rng:NextNumber() < 0.5 and P.Basalt or P.BasaltLight)
 		end
 	end
 end

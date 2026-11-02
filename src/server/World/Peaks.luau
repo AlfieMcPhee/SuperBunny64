@@ -20,6 +20,22 @@ function Peaks.Build(B)
 	local SNOW = Enum.Material.Snow
 
 	B.island(cx, cz, 230, 0, P.Snow, P.SnowShade, SNOW, P.Rock)
+	-- snow drifts and frost-shattered rocks on the open ground around the mountain
+	for i = 0, 27 do
+		local a = i / 28 * math.pi * 2 + rng:NextNumber(-0.08, 0.08)
+		local r = rng:NextNumber(158, 222)
+		local near = function(ang, w)
+			return math.abs(((a - ang + math.pi) % (2 * math.pi)) - math.pi) < w
+		end
+		if not (near(0, 0.32) or near(1.0, 0.25) or near(0.6 * math.pi, 0.15) or near(math.pi / 2, 0.15)) then
+			local p = C + V(math.cos(a) * r, 0, math.sin(a) * r)
+			if i % 3 == 0 then
+				B.outcrop(p + V(0, -2, 0), rng:NextNumber(4, 7), Enum.Material.Rock)
+			else
+				B.hill(p.X, p.Z, rng:NextNumber(8, 16), rng:NextNumber(2, 4), SNOW)
+			end
+		end
+	end
 
 	----------------------------------------------------------------- mountain
 	local tiers = {
@@ -28,6 +44,14 @@ function Peaks.Build(B)
 	}
 	for _, t in ipairs(tiers) do
 		B.mound(cx, cz, t.r, t.top, P.Snow, 0, P.Rock, SNOW, Enum.Material.Slate)
+	end
+	-- glacier ice streaks and exposed rock on the mountain tiers
+	for i = 1, #tiers - 1 do
+		local a = i * 1.3
+		local r = (tiers[i].r + tiers[i + 1].r) / 2
+		local p = C + V(math.cos(a) * r, tiers[i].top, math.sin(a) * r)
+		B.paint(p, p + V(math.cos(a + 1.5) * 18, 0, math.sin(a + 1.5) * 18), 8, Enum.Material.Glacier, { SNOW })
+		B.outcrop(C + V(math.cos(a + 3) * (tiers[i].r - 2), tiers[i].top - 6, math.sin(a + 3) * (tiers[i].r - 2)), 5, Enum.Material.Rock)
 	end
 	for i = 1, #tiers - 1 do
 		local r1 = tiers[i + 1].r
@@ -185,7 +209,7 @@ function Peaks.Build(B)
 		local r = rng:NextNumber(158, 222)
 		local p = C + V(math.cos(a) * r, 0, math.sin(a) * r)
 		if clear(p) then
-			B.pineTree(p.X, 0, p.Z, rng:NextNumber(0.8, 1.3), P.Pine, true)
+			B.pineTree(p.X, B.groundY(p.X, p.Z, 60), p.Z, rng:NextNumber(0.8, 1.3), P.Pine, true)
 			placed += 1
 		end
 	end
@@ -200,6 +224,14 @@ function Peaks.Build(B)
 		B.bug(C + V(math.cos(b[1]) * b[2], 0, math.sin(b[1]) * b[2]), "peaks")
 	end
 	B.bug(C + V(math.cos(3.0) * 140, 24, math.sin(3.0) * 140), "peaks")
+	-- frostbats guard the mountain and the pond; puffshrooms in the snow; a snowy toad
+	B.enemy("bat", C + V(math.cos(2.6) * 120, 40, math.sin(2.6) * 120), "peaks")
+	B.enemy("bat", C + V(math.cos(4.6) * 90, 62, math.sin(4.6) * 90), "peaks")
+	B.enemy("bat", C + V(190, 14, 0), "peaks")
+	B.enemy("bat", C + V(math.cos(0.3) * 50, 104, math.sin(0.3) * 50), "peaks")
+	B.enemy("puffshroom", C + V(math.cos(4.0) * 190, 0, math.sin(4.0) * 190), "peaks")
+	B.enemy("puffshroom", C + V(math.cos(5.3) * 175, 0, math.sin(5.3) * 175), "peaks")
+	B.enemy("toad", C + V(math.cos(3.3) * 185, 0, math.sin(3.3) * 185), "peaks", 20)
 	B.bug(C + V(math.cos(5.0) * 92, 42, math.sin(5.0) * 92), "peaks")
 end
 

@@ -424,7 +424,7 @@ function showOptions(back)
 	clear()
 	UI.backdrop(layer, snap.slot and 0.3 or 0.05)
 	UI.title(layer, "OPTIONS", 60, UDim2.new(0.5, 0, 0, 24), Vector2.new(0.5, 0))
-	local panel = UI.panel(layer, UDim2.fromOffset(520, 330), UDim2.fromScale(0.5, 0.52))
+	local panel = UI.panel(layer, UDim2.fromOffset(520, 380), UDim2.fromScale(0.5, 0.53))
 	local list = Instance.new("Frame")
 	list.BackgroundTransparency = 1
 	list.Size = UDim2.new(1, -40, 1, -40)
@@ -449,14 +449,182 @@ function showOptions(back)
 		deps.Remotes.SetOptions:FireServer(o)
 		back()
 	end
-	local backButton = UI.item(list, "BACK", { LayoutOrder = 5 })
-	UI.label(list, { Text = "Music plays when you add track ids in Config.Music", TextSize = 14, LayoutOrder = 4, Size = UDim2.new(1, 0, 0, 30), Stroke = 2, TextTransparency = 0.3 })
+	local controlsButton = UI.item(list, "CONTROLS", { LayoutOrder = 4 })
+	local backButton = UI.item(list, "BACK", { LayoutOrder = 6 })
+	UI.label(list, { Text = "8-bit music is built in. Add uploaded track ids in Config.Music to replace it.", TextSize = 14, TextWrapped = true, LayoutOrder = 5, Size = UDim2.new(1, 0, 0, 34), Stroke = 2, TextTransparency = 0.3 })
 	UI.SetNav({
 		{ button = sfx, left = function() o.sfx = math.max(0, o.sfx - 1); refresh() end, right = function() o.sfx = math.min(10, o.sfx + 1); refresh() end, select = function() o.sfx = (o.sfx + 1) % 11; refresh() end },
 		{ button = music, left = function() o.music = math.max(0, o.music - 1); refresh() end, right = function() o.music = math.min(10, o.music + 1); refresh() end, select = function() o.music = (o.music + 1) % 11; refresh() end },
 		{ button = shake, left = function() o.shake = not o.shake; refresh() end, right = function() o.shake = not o.shake; refresh() end, select = function() o.shake = not o.shake; refresh() end },
+		{ button = controlsButton, select = function()
+			deps.Remotes.SetOptions:FireServer(o)
+			Menus.ShowControls(function()
+				showOptions(back)
+			end)
+		end },
 		{ button = backButton, select = finish },
 	}, finish)
+end
+
+--------------------------------------------------------------------------------
+-- Controls (rebinding)
+--------------------------------------------------------------------------------
+
+local function prettyKey(name)
+	if not name then
+		return "-"
+	end
+	local pads = {
+		ButtonA = "A", ButtonB = "B", ButtonX = "X", ButtonY = "Y", ButtonL1 = "LB", ButtonR1 = "RB",
+		ButtonL2 = "LT", ButtonR2 = "RT", ButtonL3 = "L-STICK", ButtonR3 = "R-STICK", ButtonSelect = "SELECT",
+		ButtonStart = "START", DPadUp = "D-UP", DPadDown = "D-DOWN", DPadLeft = "D-LEFT", DPadRight = "D-RIGHT",
+	}
+	if pads[name] then
+		return pads[name]
+	end
+	local spaced = string.gsub(name, "(%l)(%u)", "%1 %2")
+	return string.upper(spaced)
+end
+
+Menus.PrettyKey = prettyKey
+
+function Menus.CurrentControls()
+	local o = snap and snap.menu.options or {}
+	local out = {}
+	for _, def in ipairs(Config.Controls) do
+		local c = (o.controls or {})[def.id] or {}
+		out[def.id] = { key = c.key or def.key, pad = c.pad or def.pad }
+	end
+	return out
+end
+
+function Menus.ApplyControls()
+	local controls = Menus.CurrentControls()
+	deps.Movement.ApplyControls(controls)
+	ContextActionService:UnbindAction("Bunny64Menu")
+	local function code(name, fallback)
+		local ok, c = pcall(function()
+			return Enum.KeyCode[name]
+		end)
+		return (ok and c) or Enum.KeyCode[fallback]
+	end
+	ContextActionService:BindAction("Bunny64Menu", function(_, inputState)
+		if inputState == Enum.UserInputState.Begin then
+			Menus.TogglePause()
+		end
+		return Enum.ContextActionResult.Pass
+	end, false, code(controls.menu.key, "M"), code(controls.menu.pad, "ButtonSelect"))
+end
+
+function Menus.ShowControls(back)
+	screen = "controls"
+	clear()
+	UI.backdrop(layer, snap.slot and 0.3 or 0.05)
+	UI.title(layer, "CONTROLS", 60, UDim2.new(0.5, 0, 0, 24), Vector2.new(0.5, 0))
+	local panel = UI.panel(layer, UDim2.fromOffset(640, 420), UDim2.fromScale(0.5, 0.55))
+	local list = Instance.new("Frame")
+	list.BackgroundTransparency = 1
+	list.Size = UDim2.new(1, -40, 1, -40)
+	list.Position = UDim2.fromOffset(20, 20)
+	list.Parent = panel
+	UI.list(list, 8)
+	local controls = Menus.CurrentControls()
+	local status = UI.label(list, {
+		Text = "Pick an action, then press the key or gamepad button you want.", TextSize = 16, TextWrapped = true,
+		Size = UDim2.new(1, 0, 0, 40), LayoutOrder = 0, Stroke = 2,
+	})
+	local rows = {}
+	local entries = {}
+	local function refresh()
+		for _, r in ipairs(rows) do
+			local c = controls[r.def.id]
+			r.button.Text = string.format("%s   [%s]  [%s]", r.def.name, prettyKey(c.key), prettyKey(c.pad))
+		end
+	end
+	local function save()
+		snap.menu.options.controls = controls
+		deps.Remotes.SetOptions:FireServer({ controls = controls })
+		Menus.ApplyControls()
+	end
+	local listening = nil
+	local function listen(def)
+		if listening then
+			return
+		end
+		status.Text = "PRESS A KEY OR BUTTON FOR " .. def.name .. "   (BACKSPACE TO CANCEL)"
+		status.TextColor3 = UI.Gold
+		local savedEntries, savedIndex = entries, nil
+		UI.ClearNav()
+		-- start listening a moment later so the press that chose this row isn't captured
+		task.wait(0.15)
+		if screen ~= "controls" then
+			return
+		end
+		listening = UserInputService.InputBegan:Connect(function(input, processed)
+			if processed then
+				return
+			end
+			local kc = input.KeyCode
+			local isPad = string.find(input.UserInputType.Name, "Gamepad") ~= nil
+			if input.UserInputType ~= Enum.UserInputType.Keyboard and not isPad then
+				return
+			end
+			if kc == Enum.KeyCode.Unknown or kc == Enum.KeyCode.Thumbstick1 or kc == Enum.KeyCode.Thumbstick2 then
+				return
+			end
+			listening:Disconnect()
+			listening = nil
+			status.TextColor3 = UI.Cream
+			if kc == Enum.KeyCode.Backspace then
+				status.Text = "Cancelled."
+			elseif not isPad and Config.ReservedKeys[kc.Name] then
+				status.Text = prettyKey(kc.Name) .. " is reserved (movement, chat or Roblox menus). Try another key."
+			else
+				local slotName = isPad and "pad" or "key"
+				-- if another action already uses it, swap them
+				for _, other in ipairs(Config.Controls) do
+					if other.id ~= def.id and controls[other.id][slotName] == kc.Name then
+						controls[other.id][slotName] = controls[def.id][slotName]
+					end
+				end
+				controls[def.id][slotName] = kc.Name
+				status.Text = def.name .. " is now " .. prettyKey(kc.Name)
+				refresh()
+				save()
+			end
+			task.defer(function()
+				if screen == "controls" then
+					UI.SetNav(savedEntries, back, savedIndex)
+				end
+			end)
+		end)
+	end
+	for i, def in ipairs(Config.Controls) do
+		local b = UI.item(list, "", { LayoutOrder = i, TextSize = 22 })
+		table.insert(rows, { button = b, def = def })
+		table.insert(entries, { button = b, select = function()
+			listen(def)
+		end })
+	end
+	refresh()
+	local reset = UI.item(list, "RESET TO DEFAULTS", { LayoutOrder = 20 })
+	local done = UI.item(list, "BACK", { LayoutOrder = 21 })
+	table.insert(entries, { button = reset, select = function()
+		for _, def in ipairs(Config.Controls) do
+			controls[def.id] = { key = def.key, pad = def.pad }
+		end
+		refresh()
+		save()
+		status.Text = "Controls reset."
+	end })
+	table.insert(entries, { button = done, select = function()
+		if listening then
+			listening:Disconnect()
+			listening = nil
+		end
+		back()
+	end })
+	UI.SetNav(entries, back)
 end
 
 --------------------------------------------------------------------------------
@@ -520,7 +688,7 @@ local function showLog(back)
 	end
 	if slot then
 		UI.label(panel, {
-			Text = string.format("CARROTS %d/%d    BUGS BOPPED %d    TIME %s", slot.carrotCount, snap.totalCarrots or 0, slot.bugs, fmtTime(slot.playTime)),
+			Text = string.format("CARROTS %d/%d    BADDIES BOPPED %d    TIME %s", slot.carrotCount, snap.totalCarrots or 0, slot.bugs, fmtTime(slot.playTime)),
 			TextSize = 18, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -42), Size = UDim2.new(1, 0, 0, 22), Stroke = 2,
 		})
 	end
@@ -699,7 +867,11 @@ function Menus.BackToTitle()
 end
 
 function Menus.SetSnapshot(s)
+	local first = snap == nil
 	snap = s
+	if first and deps then
+		Menus.ApplyControls() -- the player's saved key bindings
+	end
 end
 
 function Menus.Screen()
@@ -747,12 +919,7 @@ function Menus.Init(dependencies)
 		end
 	end)
 
-	ContextActionService:BindAction("Bunny64Menu", function(_, inputState)
-		if inputState == Enum.UserInputState.Begin then
-			Menus.TogglePause()
-		end
-		return Enum.ContextActionResult.Pass
-	end, false, Enum.KeyCode.M, Enum.KeyCode.ButtonSelect)
+	Menus.ApplyControls()
 
 	showTitle()
 end

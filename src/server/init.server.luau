@@ -377,6 +377,28 @@ SetOptions.OnServerEvent:Connect(function(player, options)
 	if type(options.shake) == "boolean" then
 		o.shake = options.shake
 	end
+	if type(options.controls) == "table" then
+		local function validKey(name)
+			if type(name) ~= "string" or #name > 40 then
+				return false
+			end
+			local ok, code = pcall(function()
+				return Enum.KeyCode[name]
+			end)
+			return ok and code ~= nil and not Config.ReservedKeys[name]
+		end
+		local clean = {}
+		for _, def in ipairs(Config.Controls) do
+			local c = options.controls[def.id]
+			if type(c) == "table" then
+				clean[def.id] = {
+					key = validKey(c.key) and c.key or def.key,
+					pad = validKey(c.pad) and c.pad or def.pad,
+				}
+			end
+		end
+		o.controls = clean
+	end
 end)
 
 local VALID_MOVES = { [""] = true, roll = true, slide = true, longjump = true, pound = true, flip = true }
@@ -532,7 +554,7 @@ end)
 -- Water, lava, checkpoints & warp discovery ------------------------------------------------------------
 local floorParams = RaycastParams.new()
 floorParams.FilterType = Enum.RaycastFilterType.Include
-floorParams.FilterDescendantsInstances = { info.solidFolder }
+floorParams.FilterDescendantsInstances = { info.solidFolder, workspace.Terrain }
 
 local acc = 0
 RunService.Heartbeat:Connect(function(dt)
@@ -578,4 +600,4 @@ RunService.Heartbeat:Connect(function(dt)
 	end
 end)
 
-print(string.format("[Bunny64] Ready: %d carrots, %d golden carrots, %d bugs.", TOTAL_CARROTS, #Config.Goldens, #info.bugs))
+print(string.format("[Bunny64] Ready: %d carrots, %d golden carrots, %d bugs.", TOTAL_CARROTS, #Config.Goldens, #info.enemies))

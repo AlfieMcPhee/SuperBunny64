@@ -210,7 +210,7 @@ end
 function Animator.Init(movement)
 	Movement = movement
 	local worldFolder = workspace:WaitForChild("Bunny64World")
-	rayParams.FilterDescendantsInstances = { worldFolder:WaitForChild("Solid") }
+	rayParams.FilterDescendantsInstances = { worldFolder:WaitForChild("Solid"), workspace.Terrain }
 	RunService.Stepped:Connect(function(_, dt)
 		update(dt)
 	end)

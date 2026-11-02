@@ -429,6 +429,19 @@ Config.MaxHearts = 3
 Config.HealEveryCarrots = 10   -- every N carrots restores a heart
 Config.WaterLevel = -6
 
+-- Controls (players can rebind these in Options > Controls) -----------------------
+Config.Controls = {
+	{ id = "jump", name = "JUMP", key = "Space", pad = "ButtonA" },
+	{ id = "roll", name = "ROLL", key = "LeftShift", pad = "ButtonX" },
+	{ id = "crouch", name = "CROUCH / SLIDE / POUND", key = "C", pad = "ButtonB" },
+	{ id = "menu", name = "MENU", key = "M", pad = "ButtonSelect" },
+}
+-- keys that can't be bound (movement, Roblox menus, chat)
+Config.ReservedKeys = {
+	W = true, A = true, S = true, D = true, Up = true, Down = true, Left = true, Right = true,
+	Escape = true, Tab = true, Slash = true, Backquote = true, Backspace = true, Return = true,
+}
+
 -- Goals -----------------------------------------------------------------------------
 Config.CollectorGoal = 100     -- carrots needed for the "Carrot Collector" golden carrot
 Config.BugBusterGoal = 20      -- Grumblebugs to bop for the "Bug Buster" golden carrot
@@ -451,7 +464,7 @@ Config.Goldens = {
 	{ id = "sky", region = "meadow", name = "Cloud Garden", hint = "A springy mushroom tops the big hill..." },
 	{ id = "islet", region = "meadow", name = "Lonely Islet", hint = "Hop the stepping stones out west. Mind the sinking ones." },
 	{ id = "collector", region = "meadow", name = "Carrot Collector", hint = "Gather 100 carrots. It appears at the meadow spawn.", req = "carrots" },
-	{ id = "buster", region = "meadow", name = "Bug Buster", hint = "Bop 20 Grumblebugs. It appears at the meadow spawn.", req = "bugs" },
+	{ id = "buster", region = "meadow", name = "Bug Buster", hint = "Bop 20 baddies of any kind. It appears at the meadow spawn.", req = "bugs" },
 	-- Frostbite Peaks
 	{ id = "summit", region = "peaks", name = "Frosty Summit", hint = "Wind your way up the mountain ramps." },
 	{ id = "chute", region = "peaks", name = "Slippery Slope", hint = "Slide down the ice chute from high on the mountain." },
@@ -552,6 +565,7 @@ Config.Sounds = {
 	MenuSelect = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.45 },
 	Burn = { id = "rbxasset://sounds/action_falling.mp3", volume = 0.6 },
 	Boss = { id = "rbxasset://sounds/action_get_up.mp3", volume = 0.9 },
+	Screech = { id = "rbxasset://sounds/swoosh.wav", volume = 0.4 },
 }
 -- Put uploaded music ids here, e.g. "rbxassetid://1234567890". Empty = silence.
 Config.Music = {
@@ -563,6 +577,22 @@ Config.Music = {
 	boss = "",
 }
 Config.MusicVolume = 0.35
+
+-- Built-in 8-bit music (client/Chiptune.luau). Areas without an uploaded
+-- track in Config.Music play these original chip tunes instead.
+-- baseNote = the MIDI note the sample sounds at when played at normal speed;
+-- nudge it up/down by 12 to shift a whole voice an octave.
+Config.Chiptune = {
+	Enabled = true,
+	Lead = { id = "rbxasset://sounds/electronicpingshort.wav", baseNote = 84, volume = 0.3 },
+	Bass = { id = "rbxasset://sounds/electronicpingshort.wav", baseNote = 72, volume = 0.5 },
+	Noise = { id = "rbxasset://sounds/swoosh.wav", volume = 0.3 },
+	Drums = {
+		k = { speed = 0.22, gate = 0.09, volume = 0.6 },
+		s = { speed = 2.4, gate = 0.07, volume = 0.28 },
+		h = { speed = 5, gate = 0.03, volume = 0.12 },
+	},
+}
 
 -- Palette: muted, earthy, late-90s console colours ----------------------------------------
 Config.Palette = {
@@ -673,7 +703,7 @@ function HazardMath.SegmentDistance(p, a, b)
 end
 
 return HazardMath
-]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX00000015"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX00000014"><Properties><string name="Name">Bunny64Server</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX00000016"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX00000015"><Properties><string name="Name">Bunny64Server</string><ProtectedString name="Source"><![CDATA[--[[
 	Bunny 64 - server entry point.
 	Builds the world, runs save files, pickups, hearts, hazards, checkpoints,
 	warps, enemies, the boss and customisation.
@@ -1052,6 +1082,28 @@ SetOptions.OnServerEvent:Connect(function(player, options)
 	if type(options.shake) == "boolean" then
 		o.shake = options.shake
 	end
+	if type(options.controls) == "table" then
+		local function validKey(name)
+			if type(name) ~= "string" or #name > 40 then
+				return false
+			end
+			local ok, code = pcall(function()
+				return Enum.KeyCode[name]
+			end)
+			return ok and code ~= nil and not Config.ReservedKeys[name]
+		end
+		local clean = {}
+		for _, def in ipairs(Config.Controls) do
+			local c = options.controls[def.id]
+			if type(c) == "table" then
+				clean[def.id] = {
+					key = validKey(c.key) and c.key or def.key,
+					pad = validKey(c.pad) and c.pad or def.pad,
+				}
+			end
+		end
+		o.controls = clean
+	end
 end)
 
 local VALID_MOVES = { [""] = true, roll = true, slide = true, longjump = true, pound = true, flip = true }
@@ -1207,7 +1259,7 @@ end)
 -- Water, lava, checkpoints & warp discovery ------------------------------------------------------------
 local floorParams = RaycastParams.new()
 floorParams.FilterType = Enum.RaycastFilterType.Include
-floorParams.FilterDescendantsInstances = { info.solidFolder }
+floorParams.FilterDescendantsInstances = { info.solidFolder, workspace.Terrain }
 
 local acc = 0
 RunService.Heartbeat:Connect(function(dt)
@@ -1253,7 +1305,7 @@ RunService.Heartbeat:Connect(function(dt)
 	end
 end)
 
-print(string.format("[Bunny64] Ready: %d carrots, %d golden carrots, %d bugs.", TOTAL_CARROTS, #Config.Goldens, #info.bugs))
+print(string.format("[Bunny64] Ready: %d carrots, %d golden carrots, %d bugs.", TOTAL_CARROTS, #Config.Goldens, #info.enemies))
 ]]></ProtectedString><token name="RunContext">0</token></Properties><Item class="ModuleScript" referent="RBX00000008"><Properties><string name="Name">BossService</string><ProtectedString name="Source"><![CDATA[--[[
 	BossService - King Grumble, the giant crowned Grumblebug in the throne room.
 
@@ -2189,10 +2241,212 @@ game:BindToClose(function()
 end)
 
 return DataService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000B"><Properties><string name="Name">EnemyService</string><ProtectedString name="Source"><![CDATA[--[[
-	EnemyService - Grumblebugs wander their patch and charge at bunnies who
-	get too close. Stomp them, ground pound near them, or roll/slide into them.
-	They come back after a while.
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000B"><Properties><string name="Name">EnemyModels</string><ProtectedString name="Source"><![CDATA[--[[
+	EnemyModels - builds the non-beetle baddies. Each builder returns
+	(model, extras) with the model's PrimaryPart at the enemy's centre;
+	front is -Z. Everything is anchored and non-colliding (the server moves
+	them and does its own contact checks).
+
+	  toad        Hopscotch Toad    hops after you in big arcs       stomp it
+	  bat         Flitbat           circles, then swoops at you      stomp / roll into it
+	  thornhog    Thornhog          rolls back and forth, all spikes ground pound it
+	  puffshroom  Puffshroom        puffs a ring of spores           stomp it between puffs
+]]
+
+local EnemyModels = {}
+
+local SMOOTH = Enum.Material.SmoothPlastic
+local rgb = Color3.fromRGB
+local CF, V, R = CFrame.new, Vector3.new, CFrame.Angles
+
+local SKINS = {
+	toad = {
+		meadow = { body = rgb(96, 128, 70), belly = rgb(214, 204, 160), spot = rgb(70, 96, 52), eye = rgb(214, 180, 70) },
+		canyon = { body = rgb(170, 130, 82), belly = rgb(226, 206, 166), spot = rgb(132, 96, 60), eye = rgb(226, 160, 60) },
+		peaks = { body = rgb(120, 140, 156), belly = rgb(226, 230, 232), spot = rgb(92, 108, 124), eye = rgb(150, 210, 230) },
+	},
+	bat = {
+		castle = { body = rgb(62, 44, 54), wing = rgb(92, 56, 66), eye = rgb(240, 120, 50) },
+		peaks = { body = rgb(86, 100, 120), wing = rgb(120, 140, 160), eye = rgb(160, 220, 240) },
+		meadow = { body = rgb(70, 56, 66), wing = rgb(104, 80, 92), eye = rgb(230, 200, 90) },
+	},
+	thornhog = {
+		canyon = { body = rgb(112, 84, 60), spike = rgb(226, 214, 186), face = rgb(196, 160, 120), tip = rgb(226, 214, 186) },
+		castle = { body = rgb(48, 40, 40), spike = rgb(80, 70, 70), face = rgb(120, 96, 86), tip = rgb(232, 120, 50) },
+		meadow = { body = rgb(100, 84, 70), spike = rgb(214, 204, 180), face = rgb(190, 160, 128), tip = rgb(214, 204, 180) },
+	},
+	puffshroom = {
+		meadow = { cap = rgb(120, 82, 132), spot = rgb(222, 210, 190), stem = rgb(220, 208, 182) },
+		peaks = { cap = rgb(90, 120, 150), spot = rgb(232, 236, 240), stem = rgb(220, 224, 228) },
+		castle = { cap = rgb(150, 56, 46), spot = rgb(240, 170, 90), stem = rgb(170, 150, 136) },
+		canyon = { cap = rgb(176, 120, 70), spot = rgb(232, 214, 170), stem = rgb(214, 196, 160) },
+	},
+}
+
+local function skinFor(kind, name)
+	local set = SKINS[kind]
+	return set[name] or set[next(set)]
+end
+
+local function newPart(model, origin, cf, size, color, ball, material, name)
+	local p = Instance.new("Part")
+	p.Name = name or "Part"
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Size = size
+	p.CFrame = origin * cf
+	p.Color = color
+	p.Material = material or SMOOTH
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	if ball then
+		local m = Instance.new("SpecialMesh")
+		m.MeshType = Enum.MeshType.Sphere
+		m.Parent = p
+	end
+	p.Parent = model
+	return p
+end
+
+local function rootPart(model, origin, size)
+	local r = newPart(model, origin, CF(), size, Color3.new(), false, nil, "Root")
+	r.Transparency = 1
+	model.PrimaryPart = r
+	return r
+end
+
+local function eyes(model, origin, y, z, spread, size, glint, angry, browColor)
+	for _, sx in ipairs({ -1, 1 }) do
+		newPart(model, origin, CF(sx * spread, y, z), V(size, size * 1.1, size * 0.7), rgb(236, 230, 214), true)
+		local pupil = newPart(model, origin, CF(sx * spread * 0.95, y - size * 0.05, z - size * 0.3), V(size * 0.5, size * 0.6, size * 0.3), rgb(24, 20, 22), true)
+		pupil.Reflectance = 0.2
+		if glint then
+			newPart(model, origin, CF(sx * spread * 0.9, y + size * 0.12, z - size * 0.42), V(size * 0.16, size * 0.16, size * 0.08), glint, true, Enum.Material.Neon)
+		end
+		if angry then
+			newPart(model, origin, CF(sx * spread, y + size * 0.62, z - size * 0.2) * R(0, 0, sx * 0.4), V(size * 1.1, size * 0.22, size * 0.3), browColor or rgb(30, 24, 24))
+		end
+	end
+end
+
+-- Hopscotch Toad --------------------------------------------------------------------
+function EnemyModels.toad(skinName, origin)
+	local s = skinFor("toad", skinName)
+	local model = Instance.new("Model")
+	model.Name = "HopscotchToad"
+	rootPart(model, origin, V(4, 3, 4))
+	newPart(model, origin, CF(0, -0.1, 0.2), V(4.2, 2.6, 4.6), s.body, true, nil, "Body")
+	newPart(model, origin, CF(0, -0.55, -0.7), V(3.2, 1.6, 2.6), s.belly, true)
+	for _, sp in ipairs({ { -0.9, 1.0, 0.8 }, { 1.0, 0.95, 1.4 }, { 0.2, 1.1, 0.2 } }) do
+		newPart(model, origin, CF(sp[1], sp[2], sp[3]), V(0.9, 0.3, 0.9), s.spot, true)
+	end
+	-- bulging eyes on top
+	for _, sx in ipairs({ -1, 1 }) do
+		newPart(model, origin, CF(sx * 1.05, 1.15, -1.3), V(1.3, 1.3, 1.3), s.body, true)
+	end
+	eyes(model, origin, 1.35, -1.75, 1.05, 0.95, s.eye, false)
+	newPart(model, origin, CF(0, -0.25, -2.25) * R(0, 0, 0), V(2.6, 0.12, 0.2), rgb(40, 30, 30))
+	-- folded back legs and little front feet
+	local legs = {}
+	for _, sx in ipairs({ -1, 1 }) do
+		table.insert(legs, newPart(model, origin, CF(sx * 2.05, -0.6, 1.3), V(1.4, 1.6, 2.6), s.body, true, nil, "BackLeg"))
+		newPart(model, origin, CF(sx * 2.3, -1.3, 0.2), V(1.3, 0.4, 2.0), s.belly, true)
+		newPart(model, origin, CF(sx * 1.3, -1.3, -1.8), V(0.8, 0.35, 1.0), s.belly, true)
+	end
+	model:SetAttribute("Kind", "toad")
+	return model, { legs = legs }
+end
+
+-- Flitbat ---------------------------------------------------------------------------------
+function EnemyModels.bat(skinName, origin)
+	local s = skinFor("bat", skinName)
+	local model = Instance.new("Model")
+	model.Name = "Flitbat"
+	rootPart(model, origin, V(2, 2, 2))
+	newPart(model, origin, CF(0, 0, 0), V(2.2, 2.4, 2.0), s.body, true, nil, "Body")
+	newPart(model, origin, CF(0, -0.3, -0.75), V(1.3, 1.0, 0.6), s.wing, true)
+	for _, sx in ipairs({ -1, 1 }) do
+		newPart(model, origin, CF(sx * 0.6, 1.45, 0) * R(0, 0, sx * -0.3), V(0.5, 1.2, 0.3), s.body)
+	end
+	eyes(model, origin, 0.35, -0.85, 0.42, 0.5, s.eye, true)
+	for _, sx in ipairs({ -1, 1 }) do
+		newPart(model, origin, CF(sx * 0.2, -0.55, -0.95), V(0.14, 0.3, 0.1), rgb(236, 230, 214))
+	end
+	local wings = {}
+	for _, sx in ipairs({ -1, 1 }) do
+		local offset = CF(sx * 1.0, 0.3, 0.1)
+		local wing = newPart(model, origin, offset * CF(sx * 1.9, 0, 0), V(3.8, 0.18, 2.2), s.wing, false, nil, "Wing")
+		local tip = newPart(model, origin, offset * CF(sx * 3.4, -0.1, 0.6) * R(0, sx * 0.4, 0), V(1.6, 0.16, 1.4), s.wing, false, nil, "WingTip")
+		table.insert(wings, { part = wing, offset = offset, local1 = CF(sx * 1.9, 0, 0), side = sx, tip = tip, local2 = CF(sx * 3.4, -0.1, 0.6) * R(0, sx * 0.4, 0) })
+	end
+	model:SetAttribute("Kind", "bat")
+	return model, { wings = wings }
+end
+
+-- Thornhog ---------------------------------------------------------------------------------
+function EnemyModels.thornhog(skinName, origin)
+	local s = skinFor("thornhog", skinName)
+	local model = Instance.new("Model")
+	model.Name = "Thornhog"
+	rootPart(model, origin, V(4, 4, 4))
+	newPart(model, origin, CF(), V(4.4, 4.0, 4.6), s.body, true, nil, "Body")
+	-- spikes all over the back
+	local n = 0
+	for ring = 0, 3 do
+		local pitch = -0.2 + ring * 0.55
+		local count = 7 - math.abs(ring - 1)
+		for i = 0, count - 1 do
+			local yaw = i / count * math.pi * 2 + ring * 0.3
+			local dir = (CFrame.Angles(0, yaw, 0) * CFrame.Angles(pitch, 0, 0)).LookVector
+			if dir.Z > -0.55 or dir.Y > 0.35 then
+				local base = dir * 1.9
+				local cf = CFrame.lookAt(base, base + dir) * CF(0, 0, -0.9)
+				newPart(model, origin, cf, V(0.35, 0.35, 1.9), s.spike)
+				newPart(model, origin, cf * CF(0, 0, -1.0), V(0.2, 0.2, 0.5), s.tip, false, s.tip == rgb(232, 120, 50) and Enum.Material.Neon or SMOOTH)
+				n += 1
+			end
+		end
+	end
+	newPart(model, origin, CF(0, -0.4, -2.0), V(2.4, 2.0, 1.6), s.face, true)
+	newPart(model, origin, CF(0, -0.55, -2.85), V(0.6, 0.5, 0.5), rgb(30, 24, 24), true)
+	eyes(model, origin, 0.15, -2.45, 0.6, 0.48, nil, true)
+	model:SetAttribute("Kind", "thornhog")
+	return model, {}
+end
+
+-- Puffshroom -------------------------------------------------------------------------------
+function EnemyModels.puffshroom(skinName, origin)
+	local s = skinFor("puffshroom", skinName)
+	local model = Instance.new("Model")
+	model.Name = "Puffshroom"
+	rootPart(model, origin, V(3, 3, 3))
+	local stem = newPart(model, origin, CF(0, -0.4, 0), V(2.6, 3.2, 2.6), s.stem, true, nil, "Stem")
+	local cap = newPart(model, origin, CF(0, 1.6, 0), V(6.2, 3.0, 6.2), s.cap, true, nil, "Cap")
+	local spots = {}
+	for i = 0, 5 do
+		local a = i / 6 * math.pi * 2
+		table.insert(spots, newPart(model, origin, CF(math.cos(a) * 2.1, 2.45, math.sin(a) * 2.1), V(1.0, 0.4, 1.0), s.spot, true))
+	end
+	newPart(model, origin, CF(0, 3.05, 0), V(1.2, 0.4, 1.2), s.spot, true)
+	eyes(model, origin, 0.0, -1.1, 0.5, 0.55, nil, true)
+	newPart(model, origin, CF(0, -0.75, -1.25), V(0.7, 0.18, 0.1), rgb(40, 30, 30))
+	model:SetAttribute("Kind", "puffshroom")
+	return model, { cap = cap, stem = stem, spots = spots }
+end
+
+return EnemyModels
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000C"><Properties><string name="Name">EnemyService</string><ProtectedString name="Source"><![CDATA[--[[
+	EnemyService - all the baddies.
+
+	  bug         Grumblebug      wanders, charges            stomp / pound / roll / slide
+	  toad        Hopscotch Toad  hops toward you in arcs     stomp / pound / roll / slide
+	  bat         Flitbat         circles, swoops at you      stomp / roll / long jump / pound wave
+	  thornhog    Thornhog        rolls back and forth        ONLY a ground-pound shockwave (spikes!)
+	  puffshroom  Puffshroom      puffs a ring of spores      stomp it between puffs
+
+	Defeated baddies come back after Config.BugRespawnSeconds.
 ]]
 
 local Players = game:GetService("Players")
@@ -2201,10 +2455,11 @@ local RunService = game:GetService("RunService")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
 local Config = require(Shared:WaitForChild("Config"))
 local BugModel = require(script.Parent:WaitForChild("BugModel"))
+local EnemyModels = require(script.Parent:WaitForChild("EnemyModels"))
 
 local EnemyService = {}
 
-local bugs = {}
+local enemies = {}
 local folder
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Include
@@ -2212,6 +2467,16 @@ local callbacks
 local poundingUntil = {} -- [Player] = os.clock()
 
 local ATTACK_MOVES = { roll = true, slide = true, longjump = true }
+local FEET = 2.6 -- HumanoidRootPart centre to feet
+
+-- Per-kind shape: how tall the centre sits above the ground, contact radius, top height
+local SHAPE = {
+	bug = { lift = 1.8, radius = 4.4, top = 4.0 },
+	toad = { lift = 1.6, radius = 3.6, top = 3.2 },
+	bat = { lift = 0, radius = 3.2, top = 1.6 },
+	thornhog = { lift = 2.0, radius = 3.6, top = 4.2 },
+	puffshroom = { lift = 1.9, radius = 3.4, top = 5.0 },
+}
 
 local function groundAt(pos)
 	local hit = workspace:Raycast(pos + Vector3.new(0, 8, 0), Vector3.new(0, -30, 0), rayParams)
@@ -2221,54 +2486,96 @@ local function groundAt(pos)
 	return nil
 end
 
-local function placeModel(bug, extraY, roll)
-	bug.model:PivotTo(CFrame.new(bug.pos + Vector3.new(0, 1.8 + extraY, 0)) * CFrame.Angles(0, bug.yaw, roll or 0))
+local function walkable(gy, hitPart, fromY, maxStep)
+	if not gy or gy < Config.WaterLevel + 1 or math.abs(gy - fromY) > (maxStep or 3) then
+		return false
+	end
+	if hitPart and (hitPart:GetAttribute("Moving") or hitPart:GetAttribute("Lava") or hitPart:GetAttribute("Water") or hitPart:GetAttribute("Slide")) then
+		return false
+	end
+	return true
 end
 
-local function defeat(bug, player)
-	bug.alive = false
-	bug.respawnAt = os.clock() + Config.BugRespawnSeconds
-	callbacks.effect("poof", bug.pos + Vector3.new(0, 2, 0))
+local function center(e)
+	if e.kind == "bat" then
+		return e.pos
+	end
+	return e.pos + Vector3.new(0, SHAPE[e.kind].lift + (e.lift or 0), 0)
+end
+
+local function place(e, roll, pitch)
+	e.model:PivotTo(CFrame.new(center(e)) * CFrame.Angles(0, e.yaw, 0) * CFrame.Angles(pitch or 0, 0, roll or 0))
+end
+
+local function lookYaw(from, to)
+	local d = to - from
+	return math.atan2(-d.X, -d.Z)
+end
+
+local function forward(yaw)
+	return Vector3.new(-math.sin(yaw), 0, -math.cos(yaw))
+end
+
+local function defeat(e, player)
+	e.alive = false
+	e.respawnAt = os.clock() + Config.BugRespawnSeconds
+	local c = center(e)
+	callbacks.effect("poof", c)
 	task.spawn(function()
-		-- flip over and squash
 		for i = 1, 8 do
-			if not bug.model.Parent then
+			if not e.model.Parent then
 				break
 			end
-			bug.model:PivotTo(CFrame.new(bug.pos + Vector3.new(0, 1.8 + math.sin(i / 8 * math.pi) * 2, 0)) * CFrame.Angles(0, bug.yaw, i / 8 * math.pi))
+			e.model:PivotTo(CFrame.new(c + Vector3.new(0, math.sin(i / 8 * math.pi) * 2, 0)) * CFrame.Angles(0, e.yaw, i / 8 * math.pi))
 			task.wait(0.03)
 		end
-		bug.model.Parent = nil
+		e.model.Parent = nil
 	end)
 	if player then
 		callbacks.bopped(player)
 	end
 end
 
+local function build(e)
+	if e.kind == "bug" then
+		e.model = BugModel.Build(e.skin, 1, CFrame.new(e.pos))
+	else
+		e.model, e.extra = EnemyModels[e.kind](e.skin, CFrame.new(e.pos))
+	end
+	e.model.Parent = folder
+end
+
 function EnemyService.Start(info, cb)
 	callbacks = cb
 	folder = Instance.new("Folder")
-	folder.Name = "Grumblebugs"
+	folder.Name = "Baddies"
 	folder.Parent = workspace
-	rayParams.FilterDescendantsInstances = { info.solidFolder }
+	rayParams.FilterDescendantsInstances = { info.solidFolder, workspace.Terrain }
 
-	for _, def in ipairs(info.bugs) do
+	for _, def in ipairs(info.enemies) do
 		local home = def.pos
-		local y = groundAt(home + Vector3.new(0, 10, 0)) or home.Y
-		local pos = Vector3.new(home.X, y, home.Z)
-		local model = BugModel.Build(def.skin, 1, CFrame.new(pos))
-		model.Parent = folder
-		table.insert(bugs, {
-			model = model,
+		local pos = home
+		if def.kind ~= "bat" then
+			local y = groundAt(home + Vector3.new(0, 10, 0)) or home.Y
+			pos = Vector3.new(home.X, y, home.Z)
+		end
+		local e = {
+			kind = def.kind,
+			skin = def.skin,
 			home = pos,
 			pos = pos,
 			yaw = math.random() * math.pi * 2,
-			turnAt = 0,
 			alive = true,
 			respawnAt = 0,
 			phase = math.random() * 6,
+			state = "idle",
+			t0 = os.clock() + math.random() * 2,
 			fast = def.skin == "castle",
-		})
+			range = def.range or 22,
+			axis = def.axis,
+		}
+		build(e)
+		table.insert(enemies, e)
 	end
 
 	RunService.Heartbeat:Connect(function(dt)
@@ -2280,26 +2587,28 @@ function EnemyService.MarkPounding(player, seconds)
 	poundingUntil[player] = os.clock() + seconds
 end
 
+-- Ground pound shockwave: beats every kind, even the spiky one
 function EnemyService.Shockwave(player, pos)
-	for _, bug in ipairs(bugs) do
-		if bug.alive then
-			local d = Vector3.new(bug.pos.X - pos.X, 0, bug.pos.Z - pos.Z).Magnitude
-			if d < 14 and math.abs(bug.pos.Y - pos.Y) < 8 then
-				defeat(bug, player)
+	for _, e in ipairs(enemies) do
+		if e.alive then
+			local c = center(e)
+			local d = Vector3.new(c.X - pos.X, 0, c.Z - pos.Z).Magnitude
+			if d < 14 and math.abs(c.Y - pos.Y) < 9 then
+				defeat(e, player)
 			end
 		end
 	end
 end
 
-local function nearestPlayer(pos)
-	local best, bestDist, bestHrp = nil, 45, nil
+local function nearestPlayer(pos, maxDist, maxDy)
+	local best, bestDist, bestHrp = nil, maxDist, nil
 	for _, player in ipairs(Players:GetPlayers()) do
 		local char = player.Character
 		local hrp = char and char:FindFirstChild("HumanoidRootPart")
 		local hum = char and char:FindFirstChildOfClass("Humanoid")
 		if hrp and hum and hum.Health > 0 then
 			local d = (hrp.Position - pos).Magnitude
-			if d < bestDist and math.abs(hrp.Position.Y - 2.6 - pos.Y) < 10 then
+			if d < bestDist and math.abs(hrp.Position.Y - FEET - pos.Y) < maxDy then
 				best, bestDist, bestHrp = player, d, hrp
 			end
 		end
@@ -2307,77 +2616,240 @@ local function nearestPlayer(pos)
 	return best, bestHrp
 end
 
-function EnemyService.Step(dt)
-	local now = os.clock()
-	for _, bug in ipairs(bugs) do
-		if not bug.alive then
-			if now >= bug.respawnAt then
-				bug.alive = true
-				bug.pos = bug.home
-				bug.model.Parent = folder
-				placeModel(bug, 0)
-				callbacks.effect("poof", bug.pos + Vector3.new(0, 2, 0))
+--------------------------------------------------------------------------------
+-- Behaviours
+--------------------------------------------------------------------------------
+
+local BEHAVIOUR = {}
+
+function BEHAVIOUR.bug(e, dt, now)
+	local target, hrp = nearestPlayer(e.pos, 45, 10)
+	local fromHome = Vector3.new(e.pos.X - e.home.X, 0, e.pos.Z - e.home.Z).Magnitude
+	local speed = e.fast and 9 or 7
+	if target and fromHome < 60 then
+		e.yaw = lookYaw(e.pos, hrp.Position)
+		speed = e.fast and 19 or 15
+	elseif fromHome > e.range then
+		e.yaw = lookYaw(e.pos, e.home)
+	elseif now > e.t0 then
+		e.yaw += (math.random() - 0.5) * 2.5
+		e.t0 = now + 1 + math.random() * 2
+	end
+	local nextPos = e.pos + forward(e.yaw) * speed * dt
+	local gy, hit = groundAt(nextPos)
+	if walkable(gy, hit, e.pos.Y) then
+		e.pos = Vector3.new(nextPos.X, gy, nextPos.Z)
+	else
+		e.yaw += math.pi * (0.5 + math.random() * 0.5)
+	end
+	local step = now * (speed > 10 and 18 or 10) + e.phase
+	e.lift = math.abs(math.sin(step)) * 0.25
+	place(e, math.sin(step) * 0.06)
+end
+
+function BEHAVIOUR.toad(e, dt, now)
+	if e.state == "idle" then
+		e.lift = math.abs(math.sin(now * 3 + e.phase)) * 0.12
+		place(e, 0, -0.05)
+		if now > e.t0 then
+			local _, hrp = nearestPlayer(e.pos, 40, 12)
+			local fromHome = (e.pos - e.home) * Vector3.new(1, 0, 1)
+			if hrp then
+				e.yaw = lookYaw(e.pos, hrp.Position)
+			elseif fromHome.Magnitude > e.range then
+				e.yaw = lookYaw(e.pos, e.home)
+			else
+				e.yaw += (math.random() - 0.5) * 2.4
 			end
-			continue
-		end
-
-		local target, hrp = nearestPlayer(bug.pos)
-		local fromHome = Vector3.new(bug.pos.X - bug.home.X, 0, bug.pos.Z - bug.home.Z).Magnitude
-		local speed = bug.fast and 9 or 7
-		if target and fromHome < 60 then
-			local d = hrp.Position - bug.pos
-			bug.yaw = math.atan2(-d.X, -d.Z)
-			speed = bug.fast and 19 or 15
-		else
-			if fromHome > 22 then
-				local d = bug.home - bug.pos
-				bug.yaw = math.atan2(-d.X, -d.Z)
-			elseif now > bug.turnAt then
-				bug.yaw += (math.random() - 0.5) * 2.5
-				bug.turnAt = now + 1 + math.random() * 2
+			local dist = hrp and 14 or 10
+			local dest = e.pos + forward(e.yaw) * dist
+			local gy, hit = groundAt(dest)
+			if walkable(gy, hit, e.pos.Y, 8) then
+				e.state = "hop"
+				e.hopFrom = e.pos
+				e.hopTo = Vector3.new(dest.X, gy, dest.Z)
+				e.t0 = now
+			else
+				e.yaw += math.pi
+				e.t0 = now + 0.6
 			end
 		end
-
-		local look = Vector3.new(-math.sin(bug.yaw), 0, -math.cos(bug.yaw))
-		local nextPos = bug.pos + look * speed * dt
-		local gy, hitPart = groundAt(nextPos)
-		local ok = gy and gy > Config.WaterLevel + 1 and math.abs(gy - bug.pos.Y) < 3
-		if ok and hitPart and (hitPart:GetAttribute("Moving") or hitPart:GetAttribute("Lava") or hitPart:GetAttribute("Water") or hitPart:GetAttribute("Slide")) then
-			ok = false
+	else
+		local u = math.clamp((now - e.t0) / 0.7, 0, 1)
+		local flat = e.hopFrom:Lerp(e.hopTo, u)
+		e.pos = flat
+		e.lift = math.sin(u * math.pi) * 7
+		place(e, 0, -0.35 * math.sin(u * math.pi))
+		if e.extra and e.extra.legs then
+			-- legs kick out behind while airborne
+			for _, leg in ipairs(e.extra.legs) do
+				leg.CFrame = leg.CFrame * CFrame.new(0, -math.sin(u * math.pi) * 0.6, math.sin(u * math.pi) * 0.9)
+			end
 		end
-		if ok then
-			bug.pos = Vector3.new(nextPos.X, gy, nextPos.Z)
+		if u >= 1 then
+			e.state = "idle"
+			e.lift = 0
+			e.t0 = now + 0.9 + math.random() * 1.2
+		end
+	end
+end
+
+function BEHAVIOUR.bat(e, dt, now)
+	local hover = e.home + Vector3.new(0, 0, 0)
+	if e.state == "idle" then
+		e.orbit = (e.orbit or e.phase) + dt * 1.1
+		local want = hover + Vector3.new(math.cos(e.orbit) * 10, math.sin(now * 2 + e.phase) * 1.2, math.sin(e.orbit) * 10)
+		e.pos = e.pos:Lerp(want, math.clamp(dt * 3, 0, 1))
+		e.yaw = e.orbit + math.pi
+		if now > e.t0 then
+			local _, hrp = nearestPlayer(e.pos, 42, 30)
+			if hrp then
+				e.state = "swoop"
+				e.target = hrp.Position
+				e.t0 = now
+				e.yaw = lookYaw(e.pos, e.target)
+				callbacks.effect("screech", e.pos)
+			else
+				e.t0 = now + 0.5
+			end
+		end
+	elseif e.state == "swoop" then
+		local d = e.target - e.pos
+		if d.Magnitude < 2 or now - e.t0 > 1.6 then
+			e.state = "rise"
+			e.t0 = now
 		else
-			bug.yaw += math.pi * (0.5 + math.random() * 0.5)
+			e.pos += d.Unit * math.min(d.Magnitude, (e.fast and 38 or 32) * dt)
 		end
-		local step = now * (speed > 10 and 18 or 10) + bug.phase
-		placeModel(bug, math.abs(math.sin(step)) * 0.25, math.sin(step) * 0.06)
+	else -- rise back home
+		e.pos = e.pos:Lerp(hover, math.clamp(dt * 1.8, 0, 1))
+		if now - e.t0 > 1.4 then
+			e.state = "idle"
+			e.t0 = now + 1.8 + math.random()
+		end
+	end
+	place(e, 0, e.state == "swoop" and -0.5 or 0)
+	-- flap
+	local root = e.model.PrimaryPart.CFrame
+	local flap = math.sin(now * (e.state == "swoop" and 10 or 18) + e.phase) * 0.7
+	for _, w in ipairs(e.extra.wings) do
+		local hinge = root * w.offset * CFrame.Angles(0, 0, w.side * flap)
+		w.part.CFrame = hinge * w.local1
+		w.tip.CFrame = hinge * w.local2
+	end
+end
 
-		-- Contact with bunnies
-		for _, player in ipairs(Players:GetPlayers()) do
-			local char = player.Character
-			local root = char and char:FindFirstChild("HumanoidRootPart")
-			local hum = char and char:FindFirstChildOfClass("Humanoid")
-			if root and hum and hum.Health > 0 then
-				local feet = root.Position.Y - 2.6
-				local flat = Vector3.new(root.Position.X - bug.pos.X, 0, root.Position.Z - bug.pos.Z).Magnitude
-				if flat < 4.4 and feet < bug.pos.Y + 4 and feet > bug.pos.Y - 2.5 then
-					local vy = root.AssemblyLinearVelocity.Y
-					local pounding = (poundingUntil[player] or 0) > now
-					local move = char:GetAttribute("Move")
-					if (vy < -1 and feet > bug.pos.Y + 1.6) or pounding then
-						defeat(bug, player)
-						callbacks.bounce(player, Vector3.new(0, Config.StompBounce, 0), true)
-						break
-					elseif move and ATTACK_MOVES[move] then
-						defeat(bug, player)
-						break
-					else
-						callbacks.hurt(player, bug.pos)
+function BEHAVIOUR.thornhog(e, dt, now)
+	-- patrols along its axis; charges if a bunny is in front of it on the ground
+	e.dir = e.dir or 1
+	local axis = e.axis or Vector3.new(1, 0, 0)
+	local _, hrp = nearestPlayer(e.pos, 26, 5)
+	local speed = e.fast and 18 or 15
+	local moveDir = axis * e.dir
+	if hrp then
+		local to = (hrp.Position - e.pos) * Vector3.new(1, 0, 1)
+		if to.Magnitude > 0.1 then
+			moveDir = to.Unit
+			speed = e.fast and 26 or 22
+		end
+	end
+	local nextPos = e.pos + moveDir * speed * dt
+	local along = (nextPos - e.home):Dot(axis)
+	local gy, hit = groundAt(nextPos)
+	if not hrp and math.abs(along) > e.range then
+		e.dir = -e.dir
+	elseif walkable(gy, hit, e.pos.Y) and (nextPos - e.home).Magnitude < e.range + 25 then
+		e.pos = Vector3.new(nextPos.X, gy, nextPos.Z)
+	else
+		e.dir = -e.dir
+	end
+	e.yaw = lookYaw(Vector3.zero, moveDir)
+	e.spin = (e.spin or 0) + dt * speed / 2.2
+	place(e, 0, -e.spin)
+end
+
+function BEHAVIOUR.puffshroom(e, dt, now)
+	-- idle 2.4s, swell 0.6s, puff 0.9s
+	local cycle = (now + e.phase) % 3.9
+	local was = e.state
+	if cycle < 2.4 then
+		e.state = "idle"
+		e.lift = math.sin(now * 2 + e.phase) * 0.1
+	elseif cycle < 3.0 then
+		e.state = "swell"
+		e.lift = (cycle - 2.4) * 0.8
+	else
+		e.state = "puff"
+		e.lift = 0
+	end
+	if e.state == "puff" and was ~= "puff" then
+		callbacks.effect("spores", center(e))
+	end
+	place(e, math.sin(now * 20) * (e.state == "swell" and 0.06 or 0))
+end
+
+--------------------------------------------------------------------------------
+-- Contact with bunnies
+--------------------------------------------------------------------------------
+
+local function contact(e, now)
+	local shape = SHAPE[e.kind]
+	local c = center(e)
+	for _, player in ipairs(Players:GetPlayers()) do
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if root and hum and hum.Health > 0 then
+			local p = root.Position
+			local feet = p.Y - FEET
+			local flat = Vector3.new(p.X - c.X, 0, p.Z - c.Z).Magnitude
+			local bottom = c.Y - (e.kind == "bat" and 1.6 or shape.lift)
+			local top = bottom + shape.top
+			-- spore puffs reach further than the body
+			if e.kind == "puffshroom" and e.state == "puff" and flat < 8.5 and feet < top + 2 and feet > bottom - 3 then
+				callbacks.hurt(player, c)
+			elseif flat < shape.radius and feet < top + 0.8 and p.Y + 2 > bottom then
+				local vy = root.AssemblyLinearVelocity.Y
+				local pounding = (poundingUntil[player] or 0) > now
+				local move = char:GetAttribute("Move")
+				local stomping = (vy < -1 and feet > top - 1.4) or pounding
+				if e.kind == "thornhog" then
+					-- spikes: only a shockwave works, everything else hurts
+					callbacks.hurt(player, c)
+					if stomping then
+						callbacks.bounce(player, Vector3.new(0, 55, 0), true)
 					end
+				elseif stomping then
+					defeat(e, player)
+					callbacks.bounce(player, Vector3.new(0, Config.StompBounce, 0), true)
+					return
+				elseif move and ATTACK_MOVES[move] and e.kind ~= "puffshroom" then
+					defeat(e, player)
+					return
+				else
+					callbacks.hurt(player, c)
 				end
 			end
 		end
+	end
+end
+
+function EnemyService.Step(dt)
+	local now = os.clock()
+	for _, e in ipairs(enemies) do
+		if not e.alive then
+			if now >= e.respawnAt then
+				e.alive = true
+				e.pos = e.home
+				e.state = "idle"
+				e.t0 = now + 1
+				e.model.Parent = folder
+				callbacks.effect("poof", center(e))
+			end
+			continue
+		end
+		BEHAVIOUR[e.kind](e, dt, now)
+		contact(e, now)
 	end
 end
 
@@ -2386,7 +2858,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 return EnemyService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000C"><Properties><string name="Name">HazardService</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000D"><Properties><string name="Name">HazardService</string><ProtectedString name="Source"><![CDATA[--[[
 	HazardService - decides who gets hurt by firebars, crushers, lava and
 	boulders. Firebars and crushers move on the shared server clock (see
 	shared/HazardMath); clients animate them, the server checks collisions.
@@ -2526,7 +2998,7 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 return HazardService
-]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX00000012"><Properties><string name="Name">World</string></Properties><Item class="ModuleScript" referent="RBX0000000D"><Properties><string name="Name">Builder</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX00000013"><Properties><string name="Name">World</string></Properties><Item class="ModuleScript" referent="RBX0000000E"><Properties><string name="Name">Builder</string><ProtectedString name="Source"><![CDATA[--[[
 	Builder - shared helpers for constructing the world out of chunky parts,
 	plus the registry of collectibles, enemies, hazards and checkpoints that
 	the rest of the server reads.
@@ -2546,7 +3018,7 @@ B.rng = Random.new(6464)
 B.info = {
 	carrots = {}, -- [id] = Vector3
 	goldens = {}, -- [id] = Vector3
-	bugs = {}, -- { pos = Vector3, skin = string }
+	enemies = {}, -- { kind = string, pos = Vector3, skin = string, range?, axis? }
 	firebars = {}, -- { pivot, length, speed, phase }
 	crushers = {}, -- { base = CFrame, size, drop, period, offset }
 	boulderSpawns = {}, -- { from = Vector3, dir = Vector3 }
@@ -2654,11 +3126,73 @@ function B.plank(a, b, width, thickness, color, material, parent)
 	}, parent)
 end
 
--- Earthy pillar: side colour with a top cap
+--------------------------------------------------------------------------------
+-- Terrain (natural ground is Roblox smooth terrain; built things are parts)
+--------------------------------------------------------------------------------
+
+local Terrain = workspace.Terrain
+local M = Enum.Material
+B.Terrain = Terrain
+
+local function capMaterial(capColor, capMat)
+	if capMat == M.Snow then
+		return M.Snow
+	elseif capMat == M.Sand then
+		return M.Sand
+	elseif capMat == M.Basalt then
+		return M.Basalt
+	elseif capMat == M.Sandstone then
+		return M.Sandstone
+	elseif capColor == P.GrassLight then
+		return M.LeafyGrass
+	end
+	return M.Grass
+end
+
+local function sideMaterial(sideColor, sideMat)
+	if sideMat == M.Slate or sideColor == P.Rock then
+		return M.Rock
+	elseif sideMat == M.Basalt or sideColor == P.BasaltLight then
+		return M.Basalt
+	elseif sideMat == M.Sandstone or sideColor == P.SandstoneDark then
+		return M.Sandstone
+	end
+	return M.Ground
+end
+
+function B.SetupTerrain()
+	local colors = {
+		[M.Grass] = Color3.fromRGB(98, 128, 64),
+		[M.LeafyGrass] = Color3.fromRGB(112, 138, 70),
+		[M.Ground] = Color3.fromRGB(118, 92, 66),
+		[M.Mud] = Color3.fromRGB(96, 76, 58),
+		[M.Rock] = Color3.fromRGB(118, 116, 112),
+		[M.Sand] = Color3.fromRGB(194, 178, 134),
+		[M.Snow] = Color3.fromRGB(228, 232, 236),
+		[M.Glacier] = Color3.fromRGB(156, 196, 214),
+		[M.Sandstone] = Color3.fromRGB(176, 126, 86),
+		[M.Basalt] = Color3.fromRGB(58, 52, 54),
+		[M.CrackedLava] = Color3.fromRGB(176, 84, 42),
+		[M.Slate] = Color3.fromRGB(96, 92, 88),
+	}
+	for mat, color in pairs(colors) do
+		pcall(function()
+			Terrain:SetMaterialColor(mat, color)
+		end)
+	end
+	-- animated grass blades on Grass terrain (also settable in Studio: Workspace > Terrain > Decoration)
+	pcall(function()
+		Terrain.Decoration = true
+	end)
+end
+
+-- Earthy pillar of terrain: side material with a grassy (or snowy...) top
 function B.mound(x, z, radius, top, capColor, base, sideColor, capMat, sideMat)
 	base = base or -20
-	B.cyl(x, base, z, radius, top - base - 0.6, sideColor or P.Dirt, sideMat)
-	return B.cyl(x, top - 1, z, radius + 0.4, 1, capColor or P.Grass, capMat)
+	local h = top - base
+	Terrain:FillCylinder(CFrame.new(x, base + h / 2, z), h, radius, sideMaterial(sideColor, sideMat))
+	local capH = math.min(3, h)
+	Terrain:FillCylinder(CFrame.new(x, top - capH / 2, z), capH, radius, capMaterial(capColor, capMat))
 end
 
 function B.terrace(x, z, tiers, sideColor, capMat, sideMat)
@@ -2667,23 +3201,92 @@ function B.terrace(x, z, tiers, sideColor, capMat, sideMat)
 	end
 end
 
-function B.path(from, to, width, color, y)
-	y = y or 0.12
-	local a = Vector3.new(from.X, y, from.Z)
-	local b = Vector3.new(to.X, y, to.Z)
-	B.make("Part", {
-		Size = Vector3.new(width, 0.25, (b - a).Magnitude),
-		CFrame = CFrame.lookAt((a + b) / 2, b),
-		Color = color or P.Path,
-		CanCollide = false,
-		CanQuery = false,
-	}, B.decor)
+-- A smooth rounded hill rising `height` above y = 0
+function B.hill(x, z, radius, height, material, y0)
+	-- a sphere cap; the sphere is capped in size so flat hills stay cheap and local
+	local r = math.min((radius * radius + height * height) / (2 * height), radius * 1.6)
+	Terrain:FillBall(Vector3.new(x, (y0 or 0) + height - r, z), r, material or M.Grass)
 end
 
--- An island: ground disc with a beach ring
+-- A lump of rock/snow/etc poking out of the ground
+function B.outcrop(pos, radius, material)
+	Terrain:FillBall(pos, radius, material or M.Rock)
+end
+
+-- Repaint the ground surface along a line (dirt paths, scorched earth...)
+function B.paint(from, to, width, toMaterial, fromMaterials)
+	fromMaterials = fromMaterials or { M.Grass, M.LeafyGrass }
+	local a = Vector3.new(from.X, 0, from.Z)
+	local b = Vector3.new(to.X, 0, to.Z)
+	local len = (b - a).Magnitude
+	local steps = math.max(1, math.floor(len / 4))
+	for i = 0, steps do
+		local p = a:Lerp(b, i / steps)
+		local region = Region3.new(p - Vector3.new(width / 2, 6, width / 2), p + Vector3.new(width / 2, 6, width / 2)):ExpandToGrid(4)
+		for _, mat in ipairs(fromMaterials) do
+			Terrain:ReplaceMaterial(region, 4, mat, toMaterial)
+		end
+	end
+end
+
+function B.path(from, to, width)
+	B.paint(from, to, width, M.Ground)
+end
+
+-- Carve a shallow pond and fill it with (harmless) water
+function B.pond(x, z, radius, depth)
+	-- remove a shallow bowl: a big sphere of air whose bottom dips `depth` below the ground
+	local r = (radius * radius + depth * depth) / (2 * depth)
+	Terrain:FillBall(Vector3.new(x, r - depth, z), r, M.Air)
+	Terrain:FillCylinder(CFrame.new(x, -depth - 1.5, z), 3, radius * 0.9, M.Mud)
+	local w = B.cyl(x, -1.4, z, radius * 0.95, 1, P.Water, M.Glass, B.decor)
+	w.Transparency = 0.25
+	w.CanCollide = false
+	w.CanQuery = false
+	w.CastShadow = false
+	for i = 1, 5 do
+		local a = i * 1.3
+		local pad = B.cyl(x + math.cos(a) * radius * 0.5, -0.45, z + math.sin(a) * radius * 0.5, 1.4, 0.15, P.Leaf, nil, B.decor)
+		pad.CanCollide = false
+	end
+	for i = 0, 7 do
+		local a = i / 8 * math.pi * 2 + 0.2
+		B.make("Part", {
+			Size = Vector3.new(0.3, 4 + (i % 3), 0.3),
+			CFrame = CFrame.new(x + math.cos(a) * radius, 1.5, z + math.sin(a) * radius) * CFrame.Angles(0.1, 0, (i % 2) * 0.2 - 0.1),
+			Color = Color3.fromRGB(110, 120, 60),
+			CanCollide = false,
+			CanQuery = false,
+		}, B.decor)
+	end
+end
+
+-- An island: terrain ground on a sandy shelf that slopes into the sea
 function B.island(cx, cz, radius, top, groundColor, beachColor, groundMat, sideColor)
-	B.cyl(cx, -30, cz, radius + 16, 27, beachColor or P.Sand, Enum.Material.Sand)
-	B.mound(cx, cz, radius, top or 0, groundColor or P.Grass, -30, sideColor, groundMat)
+	top = top or 0
+	local beach = (beachColor == P.Sand or beachColor == nil) and M.Sand or (groundMat == M.Snow and M.Snow or (groundMat == M.Basalt and M.Basalt or M.Sand))
+	Terrain:FillCylinder(CFrame.new(cx, -16.5, cz), 27, radius + 14, beach)
+	-- soft slope from the shelf down into the water
+	for i = 0, 23 do
+		local a = i / 24 * math.pi * 2
+		local r = radius + 14
+		Terrain:FillBall(Vector3.new(cx + math.cos(a) * r, -13, cz + math.sin(a) * r), 9, beach)
+	end
+	B.mound(cx, cz, radius, top, groundColor, -30, sideColor, groundMat)
+end
+
+--------------------------------------------------------------------------------
+-- Ground queries
+--------------------------------------------------------------------------------
+
+local groundParams = RaycastParams.new()
+groundParams.FilterType = Enum.RaycastFilterType.Include
+
+-- Height of the ground (terrain or solid parts) under x, z
+function B.groundY(x, z, fromY)
+	groundParams.FilterDescendantsInstances = { Terrain, B.solid }
+	local hit = workspace:Raycast(Vector3.new(x, fromY or 400, z), Vector3.new(0, -(fromY or 400) - 60, 0), groundParams)
+	return hit and hit.Position.Y or 0
 end
 
 --------------------------------------------------------------------------------
@@ -2819,18 +3422,26 @@ local function carrotModel(pos, golden)
 	return model
 end
 
-function B.carrot(pos)
+-- `pos` names the carrot (its save id); `actual` is where it really floats
+-- (e.g. lifted onto a hill), so ids stay stable when the ground changes.
+function B.carrot(pos, actual)
 	local id = string.format("c_%d_%d_%d", math.round(pos.X), math.round(pos.Y), math.round(pos.Z))
 	if B.info.carrots[id] then
 		return
 	end
-	B.info.carrots[id] = pos
-	local m = carrotModel(pos, false)
+	actual = actual or pos
+	B.info.carrots[id] = actual
+	local m = carrotModel(actual, false)
 	m:SetAttribute("CollectId", id)
 	m:SetAttribute("Kind", "carrot")
 end
 
 -- A line of carrots between two points
+-- A carrot hovering 3 studs above whatever ground is at (x, z)
+function B.carrotOnGround(x, z, nominalY)
+	B.carrot(Vector3.new(x, nominalY or 3, z), Vector3.new(x, B.groundY(x, z) + 3, z))
+end
+
 function B.carrotLine(a, b, n)
 	for i = 0, n - 1 do
 		B.carrot(a:Lerp(b, n == 1 and 0 or i / (n - 1)))
@@ -2852,7 +3463,12 @@ function B.golden(id, pos)
 end
 
 function B.bug(pos, skin)
-	table.insert(B.info.bugs, { pos = pos, skin = skin or "meadow" })
+	table.insert(B.info.enemies, { kind = "bug", pos = pos, skin = skin or "meadow" })
+end
+
+-- kind: toad, bat, thornhog, puffshroom (bats hover at `pos`; others sit on the ground)
+function B.enemy(kind, pos, skin, range, axis)
+	table.insert(B.info.enemies, { kind = kind, pos = pos, skin = skin, range = range, axis = axis })
 end
 
 --------------------------------------------------------------------------------
@@ -2902,6 +3518,74 @@ function B.flower(x, y, z)
 		CastShadow = false,
 	}, B.decor)
 	B.blob(Vector3.new(x, y + 1.3, z), Vector3.new(0.9, 0.5, 0.9), colors[B.rng:NextInteger(1, #colors)])
+end
+
+function B.bush(x, y, z, s, color)
+	local c = color or P.LeafDark
+	B.blob(Vector3.new(x, y + 1.2 * s, z), Vector3.new(4.5, 3, 4) * s, c)
+	B.blob(Vector3.new(x + 1.6 * s, y + 1.0 * s, z + 0.8 * s), Vector3.new(3, 2.4, 3) * s, P.Leaf)
+	B.blob(Vector3.new(x - 1.4 * s, y + 0.9 * s, z - 0.6 * s), Vector3.new(2.8, 2.2, 2.8) * s, P.Leaf)
+	if B.rng:NextNumber() < 0.4 then
+		for i = 1, 4 do
+			local a = i * 1.7
+			B.blob(Vector3.new(x + math.cos(a) * 1.6 * s, y + 2.3 * s, z + math.sin(a) * 1.4 * s), Vector3.new(0.45, 0.45, 0.45), Color3.fromRGB(168, 58, 60))
+		end
+	end
+end
+
+function B.log(x, y, z, angle, s)
+	local cf = CFrame.new(x, y + 0.9 * s, z) * CFrame.Angles(0, angle, 0)
+	B.make("Part", {
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(9 * s, 1.9 * s, 1.9 * s),
+		CFrame = cf,
+		Color = P.Wood,
+		Material = Enum.Material.Wood,
+	})
+	for _, e in ipairs({ -1, 1 }) do
+		B.make("Part", {
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.1, 1.6 * s, 1.6 * s),
+			CFrame = cf * CFrame.new(e * 4.52 * s, 0, 0),
+			Color = P.WoodLight,
+			CanCollide = false,
+		}, B.decor)
+	end
+	B.blob(cf.Position + Vector3.new(0, 0.9 * s, 0), Vector3.new(2.2, 0.4, 1.4) * s, Color3.fromRGB(96, 124, 70))
+end
+
+function B.mushrooms(x, y, z)
+	for i = 1, B.rng:NextInteger(3, 5) do
+		local a = i * 2.1
+		local px, pz = x + math.cos(a) * 1.4, z + math.sin(a) * 1.4
+		local h = 0.6 + (i % 3) * 0.35
+		B.make("Part", {
+			Size = Vector3.new(0.3, h, 0.3),
+			CFrame = CFrame.new(px, y + h / 2, pz),
+			Color = P.MushroomStem,
+			CanCollide = false,
+			CanQuery = false,
+		}, B.decor)
+		B.blob(Vector3.new(px, y + h, pz), Vector3.new(0.9, 0.45, 0.9), i % 2 == 0 and P.Mushroom or Color3.fromRGB(176, 140, 96))
+	end
+end
+
+-- A clump of tall grass blades (extra detail on top of the terrain grass)
+function B.tuft(x, y, z)
+	local colors = { Color3.fromRGB(96, 130, 60), Color3.fromRGB(116, 146, 70), Color3.fromRGB(84, 114, 54) }
+	for i = 1, 5 do
+		local a = i / 5 * math.pi * 2 + B.rng:NextNumber(0, 1)
+		local h = B.rng:NextNumber(1.4, 2.6)
+		B.make("WedgePart", {
+			Size = Vector3.new(0.12, h, 0.5),
+			CFrame = CFrame.new(x + math.cos(a) * 0.35, y + h / 2 - 0.1, z + math.sin(a) * 0.35) * CFrame.Angles(0, a, B.rng:NextNumber(-0.25, 0.25)),
+			Color = colors[B.rng:NextInteger(1, #colors)],
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			CastShadow = false,
+		}, B.decor)
+	end
 end
 
 function B.cactus(x, y, z, s)
@@ -3180,7 +3864,7 @@ function B.warpBurrow(def)
 end
 
 return B
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000E"><Properties><string name="Name">Canyon</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000F"><Properties><string name="Name">Canyon</string><ProtectedString name="Source"><![CDATA[--[[
 	Dustbowl Canyon - a sun-baked mesa island east of the meadow.
 	  * Canyon Leap: pillars too far apart for a double jump; roll + jump to long jump
 	  * Eagle's Mesa: a tall mesa ringed with ledges
@@ -3201,6 +3885,22 @@ function Canyon.Build(B)
 	local SAND = Enum.Material.Sandstone
 
 	B.island(cx, cz, 210, 0, P.Sandstone, P.Sand, Enum.Material.Sand, P.SandstoneDark)
+	-- dunes, a dry riverbed and wind-carved sandstone spires
+	local T = B.Terrain
+	for _, d in ipairs({ { 760, -150, 30, 6 }, { 830, -20, 22, 5 }, { 690, -150, 26, 5 }, { 600, 110, 18, 4 }, { 880, 110, 24, 5 } }) do
+		B.hill(d[1], d[2], d[3], d[4], Enum.Material.Sand)
+	end
+	B.paint(V(560, 0, 60), V(720, 0, 30), 14, Enum.Material.Ground, { Enum.Material.Sand })
+	B.paint(V(720, 0, 30), V(900, 0, 80), 14, Enum.Material.Ground, { Enum.Material.Sand })
+	for _, sp in ipairs({ { 900, 30, 7, 34 }, { 560, 150, 6, 28 }, { 840, -140, 8, 40 }, { 610, -160, 5, 22 } }) do
+		T:FillCylinder(CFrame.new(sp[1], sp[4] / 2, sp[2]), sp[4], sp[3], Enum.Material.Sandstone)
+		T:FillBall(Vector3.new(sp[1], sp[4], sp[2]), sp[3] * 1.15, Enum.Material.Sandstone)
+		T:FillBall(Vector3.new(sp[1], 1, sp[2]), sp[3] * 1.6, Enum.Material.Sandstone)
+	end
+	for i = 0, 15 do
+		local a = i / 16 * math.pi * 2 + 0.2
+		B.outcrop(C + V(math.cos(a) * 208, -2, math.sin(a) * 208), rng:NextNumber(4, 8), Enum.Material.Sandstone)
+	end
 
 	-- Layered mesa block helper
 	local function mesa(center, size, top)
@@ -3321,9 +4021,9 @@ function Canyon.Build(B)
 		local p = C + V(math.cos(a) * r, 0, math.sin(a) * r)
 		if clear(p) then
 			if rng:NextNumber() < 0.6 then
-				B.cactus(p.X, 0, p.Z, rng:NextNumber(0.8, 1.3))
+				B.cactus(p.X, B.groundY(p.X, p.Z, 60), p.Z, rng:NextNumber(0.8, 1.3))
 			else
-				B.rock(p.X, 0, p.Z, rng:NextNumber(1, 2.5), P.SandstoneDark)
+				B.rock(p.X, B.groundY(p.X, p.Z, 60), p.Z, rng:NextNumber(1, 2.5), P.SandstoneDark)
 			end
 			placed += 1
 		end
@@ -3331,13 +4031,21 @@ function Canyon.Build(B)
 	for _, p in ipairs({ V(700, 0, 20), V(760, 0, -10), V(820, 0, 40), V(700, 0, -130), V(600, 0, 60), V(860, 0, 90) }) do
 		B.bug(p, "canyon")
 	end
+	-- thornhogs patrol the canyon floor under the leap pillars and the riverbed
+	B.enemy("thornhog", V(690, 0, -60), "canyon", 30, V(1, 0, 0))
+	B.enemy("thornhog", V(790, 0, -60), "canyon", 30, V(1, 0, 0))
+	B.enemy("thornhog", V(720, 0, 40), "canyon", 26, V(1, 0, 0.3).Unit)
+	B.enemy("toad", V(620, 0, 20), "canyon", 24)
+	B.enemy("toad", V(800, 0, 110), "canyon", 24)
+	B.enemy("puffshroom", V(860, 0, 40), "canyon")
+	B.enemy("bat", V(650, 70, 110), "meadow")
 	for _, p in ipairs({ V(740, 0, -120), V(800, 0, -100), V(700, 0, 80) }) do
 		B.carrot(p + V(0, 3, 0))
 	end
 end
 
 return Canyon
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000F"><Properties><string name="Name">Castle</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000010"><Properties><string name="Name">Castle</string><ProtectedString name="Source"><![CDATA[--[[
 	Infernal Castle - a volcanic island south of the meadow. The hard part.
 
 	  Approach      lava rivers, cinderbugs, a drawbridge over the lava moat
@@ -3366,6 +4074,19 @@ function Castle.Build(B)
 	local stone, dark = P.CastleStone, P.CastleDark
 
 	B.island(0, 800, 260, 0, P.Basalt, Color3.fromRGB(72, 64, 62), BASALT, P.BasaltLight)
+	-- scorched earth: cracked-lava streaks and jagged basalt outcrops outside the walls
+	for i = 0, 13 do
+		local a = i / 14 * math.pi * 2 + rng:NextNumber(-0.1, 0.1)
+		local p = V(math.cos(a) * rng:NextNumber(150, 235), 0, 800 + math.sin(a) * rng:NextNumber(150, 235))
+		local inDungeon = p.X > 120 and p.X < 240 and p.Z > 700 and p.Z < 900
+		if not inDungeon and not (math.abs(p.X) < 40 and p.Z < 700) then
+			B.paint(p, p + V(rng:NextNumber(-25, 25), 0, rng:NextNumber(-25, 25)), 7, Enum.Material.CrackedLava, { BASALT })
+			if i % 2 == 0 then
+				B.outcrop(p + V(rng:NextNumber(-10, 10), -1, rng:NextNumber(-10, 10)), rng:NextNumber(4, 7), BASALT)
+			end
+		end
+	end
+	B.paint(V(0, 0, 545), V(0, 0, 650), 10, Enum.Material.Slate, { BASALT })
 
 	----------------------------------------------------------------- approach
 	B.checkpointFlag("castle")
@@ -3454,6 +4175,14 @@ function Castle.Build(B)
 	B.block(CF(0, 1, 800), V(200, 2, 200), Color3.fromRGB(84, 78, 76), SLATE)
 	B.checkpointFlag("courtyard")
 	B.bug(V(0, 2, 790), "castle")
+	B.enemy("bat", V(-50, 30, 760), "castle")
+	B.enemy("bat", V(60, 40, 800), "castle")
+	B.enemy("bat", V(0, 30, 620), "castle")
+	B.enemy("bat", V(180, 18, 820), "castle")
+	B.enemy("thornhog", V(-70, 0, 615), "castle", 30, V(1, 0, 0))
+	B.enemy("thornhog", V(80, 0, 575), "castle", 30, V(1, 0, 0))
+	B.enemy("puffshroom", V(-80, 2, 870), "castle")
+	B.enemy("puffshroom", V(-130, 0, 700), "castle")
 	B.bug(V(20, 2, 805), "castle")
 
 	-- Firebar Gauntlet (west half)
@@ -3654,13 +4383,13 @@ function Castle.Build(B)
 		local inDungeon = p.X > 120 and p.X < 240 and p.Z > 710 and p.Z < 890
 		local onApproach = math.abs(p.X) < 40 and p.Z < 700
 		if not inDungeon and not onApproach and (p.Z < 680 or p.Z > 920 or math.abs(p.X) > 125) then
-			B.rock(p.X, 0, p.Z, rng:NextNumber(1.5, 3.5), rng:NextNumber() < 0.5 and P.Basalt or P.BasaltLight)
+			B.rock(p.X, B.groundY(p.X, p.Z, 60), p.Z, rng:NextNumber(1.5, 3.5), rng:NextNumber() < 0.5 and P.Basalt or P.BasaltLight)
 		end
 	end
 end
 
 return Castle
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000010"><Properties><string name="Name">Meadow</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000011"><Properties><string name="Name">Meadow</string><ProtectedString name="Source"><![CDATA[--[[
 	Carrot Meadow - the hub island, plus the routes out to the other regions:
 	a grassy causeway north to Frostbite Peaks, a boardwalk east to Dustbowl
 	Canyon and a long stone bridge south to the Infernal Castle.
@@ -3678,21 +4407,74 @@ function Meadow.Build(B)
 	local WATER = Config.WaterLevel
 
 	----------------------------------------------------------------- island
+	B.SetupTerrain()
 	B.island(0, 0, 230, 0, P.Grass, P.Sand)
+	local Terrain = B.Terrain
+	local M = Enum.Material
 	for i = 1, 10 do
 		local a = i / 10 * math.pi * 2 + rng:NextNumber(-0.2, 0.2)
 		local r = rng:NextNumber(205, 222)
 		local rad = rng:NextNumber(26, 40)
-		B.cyl(math.cos(a) * r, -30, math.sin(a) * r, rad + 14, 27, P.Sand, Enum.Material.Sand)
+		Terrain:FillCylinder(CFrame.new(math.cos(a) * r, -16.5, math.sin(a) * r), 27, rad + 14, M.Sand)
 		B.mound(math.cos(a) * r, math.sin(a) * r, rad, 0, P.Grass, -30)
 	end
-	for _ = 1, 9 do
-		local a = rng:NextNumber(0, math.pi * 2)
-		local r = rng:NextNumber(40, 180)
-		local x, z = math.cos(a) * r, math.sin(a) * r
-		if (V(x, 0, z) - V(-130, 0, -120)).Magnitude > 70 and (V(x, 0, z) - V(140, 0, -90)).Magnitude > 80 and math.abs(x) > 20 then
-			B.mound(x, z, rng:NextNumber(14, 24), rng:NextNumber(1.5, 3), P.GrassLight, -2)
+
+	-- keep gameplay spots and the three exit corridors flat
+	local keepFlat = {
+		{ V(0, 0, 60), 34 }, { V(-60, 0, -40), 30 }, { V(-130, 0, -120), 60 }, { V(110, 0, 140), 32 },
+		{ V(140, 0, -90), 68 }, { V(12, 0, 40), 10 }, { V(-24, 0, 44), 12 },
+	}
+	local function flatOK(p, radius)
+		if p.Magnitude + radius > 200 then
+			return false
 		end
+		if math.abs(p.X) < 22 + radius and math.abs(p.Z) > 60 then
+			return false
+		end
+		if math.abs(p.Z) < 22 + radius and p.X > 50 then
+			return false
+		end
+		for _, k in ipairs(keepFlat) do
+			if (p - k[1]).Magnitude < k[2] + radius then
+				return false
+			end
+		end
+		return true
+	end
+	-- rolling hills
+	local hills = 0
+	for _ = 1, 300 do
+		if hills >= 16 then
+			break
+		end
+		local a = rng:NextNumber(0, math.pi * 2)
+		local r = rng:NextNumber(30, 190)
+		local p = V(math.cos(a) * r, 0, math.sin(a) * r)
+		local radius = rng:NextNumber(16, 32)
+		if flatOK(p, radius * 0.6) then
+			B.hill(p.X, p.Z, radius, rng:NextNumber(3, 7), rng:NextNumber() < 0.4 and M.LeafyGrass or M.Grass)
+			table.insert(keepFlat, { p, radius * 0.7 })
+			hills += 1
+		end
+	end
+	-- a couple of reedy ponds
+	B.pond(-100, 5, 16, 4)
+	B.pond(55, 132, 12, 3)
+	-- rocky outcrops near the shore
+	for i = 0, 11 do
+		local a = i / 12 * math.pi * 2 + 0.13
+		local p = V(math.cos(a) * 214, -1, math.sin(a) * 214)
+		if math.abs(p.X) > 30 and math.abs(p.Z) > 30 then
+			B.outcrop(p, rng:NextNumber(5, 9), M.Rock)
+		end
+	end
+	-- patches of leafy meadow grass for colour variation
+	for _ = 1, 18 do
+		local a = rng:NextNumber(0, math.pi * 2)
+		local r = rng:NextNumber(20, 200)
+		local p = V(math.cos(a) * r, 0, math.sin(a) * r)
+		local q = p + V(rng:NextNumber(-20, 20), 0, rng:NextNumber(-20, 20))
+		B.paint(p, q, rng:NextNumber(10, 18), M.LeafyGrass, { M.Grass })
 	end
 
 	----------------------------------------------------------------- spawn
@@ -3828,12 +4610,14 @@ function Meadow.Build(B)
 			B.blob(V(hx + math.cos(a) * 3.8, 34.4, hz + math.sin(a) * 3.8), V(1.8, 0.6, 1.8), P.MushroomStem)
 		end
 
+		-- floating chunks of terrain: grassy top, rocky roots hanging below
 		local function skyIsland(x, top, z, r)
-			B.cyl(x, top - 3, z, r, 3, P.Dirt)
-			B.cyl(x, top - 1, z, r + 0.4, 1, P.Grass)
-			B.cyl(x, top - 6, z, r * 0.75, 3, P.DirtDark, nil, B.decor)
-			B.cyl(x, top - 9, z, r * 0.45, 3, P.DirtDark, nil, B.decor)
-			B.cyl(x, top - 11, z, r * 0.2, 2, P.DirtDark, nil, B.decor)
+			local T = B.Terrain
+			T:FillCylinder(CFrame.new(x, top - 3, z), 6, r, Enum.Material.Ground)
+			T:FillCylinder(CFrame.new(x, top - 1.25, z), 2.5, r, Enum.Material.Grass)
+			T:FillBall(Vector3.new(x, top - 7, z), r * 0.7, Enum.Material.Ground)
+			T:FillBall(Vector3.new(x + r * 0.15, top - 12, z - r * 0.1), r * 0.42, Enum.Material.Rock)
+			T:FillBall(Vector3.new(x - r * 0.1, top - 16, z + r * 0.05), r * 0.22, Enum.Material.Rock)
 		end
 		skyIsland(125, 95, -62, 12)
 		B.carrot(V(125, 98.5, -62))
@@ -3899,9 +4683,14 @@ function Meadow.Build(B)
 
 	----------------------------------------------------------------- north causeway to the peaks
 	do
-		B.block(CFrame.new(0, -15.5, -372), V(44, 30, 300), P.Dirt)
-		B.block(CFrame.new(0, -0.5, -372), V(45, 1, 300), P.Grass)
-		B.block(CFrame.new(0, -18, -372), V(70, 30, 304), P.Sand, Enum.Material.Sand)
+		local T = B.Terrain
+		T:FillBlock(CFrame.new(0, -16.5, -372), V(72, 27, 304), Enum.Material.Sand)
+		T:FillBlock(CFrame.new(0, -15, -372), V(44, 30, 300), Enum.Material.Ground)
+		T:FillBlock(CFrame.new(0, -1.25, -372), V(44, 2.5, 300), Enum.Material.Grass)
+		for i = 0, 9 do
+			local z = -240 - i * 30
+			T:FillBall(V((i % 2 == 0) and -24 or 24, -9, z), 8, Enum.Material.Sand)
+		end
 		B.path(V(0, 0, -228), V(0, 0, -515), 8)
 		for i = 0, 7 do
 			local z = -250 - i * 36
@@ -3962,6 +4751,16 @@ function Meadow.Build(B)
 		B.sign(V(16, 0, 214), V(0, 0, -1), "INFERNAL CASTLE", "10 golden carrots open the gate")
 	end
 
+	----------------------------------------------------------------- other baddies
+	for _, p in ipairs({ V(-80, 0, 70), V(60, 0, 50), V(-150, 0, 20), V(160, 0, 60) }) do
+		B.enemy("toad", p, "meadow", 26)
+	end
+	for _, p in ipairs({ V(-40, 0, -80), V(90, 0, -10), V(-110, 0, 110) }) do
+		B.enemy("puffshroom", p, "meadow")
+	end
+	B.enemy("bat", V(-96, 40, -112), "meadow")
+	B.enemy("thornhog", V(-20, 0, 160), "meadow", 24, V(1, 0, 0))
+
 	----------------------------------------------------------------- bug homes
 	for _, h in ipairs({
 		V(40, 0, 25), V(-40, 0, 10), V(60, 0, -30), V(-20, 0, 120), V(70, 0, 80), V(-100, 0, -30),
@@ -4011,27 +4810,49 @@ function Meadow.Build(B)
 			end
 		end
 	end
-	scatter(70, 600, 35, 205, 6, function(p)
+	table.insert(avoid, { V(-100, 0, 5), 20 })
+	table.insert(avoid, { V(55, 0, 132), 16 })
+	local function gy(p)
+		return B.groundY(p.X, p.Z, 60)
+	end
+	scatter(80, 700, 35, 205, 6, function(p)
 		local s = rng:NextNumber(0.8, 1.4)
+		local y = gy(p)
 		if rng:NextNumber() < 0.45 then
-			B.pineTree(p.X, 0, p.Z, s)
+			B.pineTree(p.X, y, p.Z, s)
 		else
-			B.roundTree(p.X, 0, p.Z, s)
+			B.roundTree(p.X, y, p.Z, s)
 		end
 	end, 8)
 	scatter(30, 300, 30, 205, 2, function(p)
-		B.rock(p.X, 0, p.Z, rng:NextNumber(0.8, 2.2))
+		B.rock(p.X, gy(p), p.Z, rng:NextNumber(0.8, 2.2))
 	end, 5)
 	scatter(24, 600, 35, 190, 3, function(p)
-		B.carrot(p + V(0, 3, 0))
+		B.carrotOnGround(p.X, p.Z)
 	end, 10)
-	scatter(200, 400, 10, 210, 0, function(p)
-		B.flower(p.X, 0, p.Z)
+	scatter(45, 500, 20, 205, 2, function(p)
+		B.bush(p.X, gy(p), p.Z, rng:NextNumber(0.8, 1.5))
+	end, 4)
+	scatter(12, 300, 40, 200, 3, function(p)
+		B.log(p.X, gy(p), p.Z, rng:NextNumber(0, math.pi), rng:NextNumber(0.8, 1.3))
+	end, 6)
+	scatter(14, 300, 20, 200, 2, function(p)
+		B.mushrooms(p.X, gy(p), p.Z)
+	end, 4)
+	-- flower patches: clusters rather than lonely stems
+	scatter(36, 400, 10, 205, 0, function(p)
+		for _ = 1, rng:NextInteger(5, 9) do
+			local q = p + V(rng:NextNumber(-5, 5), 0, rng:NextNumber(-5, 5))
+			B.flower(q.X, gy(q), q.Z)
+		end
+	end, nil)
+	scatter(160, 400, 8, 210, 0, function(p)
+		B.tuft(p.X, gy(p), p.Z)
 	end, nil)
 end
 
 return Meadow
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000011"><Properties><string name="Name">Peaks</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000012"><Properties><string name="Name">Peaks</string><ProtectedString name="Source"><![CDATA[--[[
 	Frostbite Peaks - a snowy island north of the meadow.
 	  * A terraced mountain with winding ramps up to the summit
 	  * A long ice slide chute spiralling down the outside of the mountain
@@ -4053,6 +4874,22 @@ function Peaks.Build(B)
 	local SNOW = Enum.Material.Snow
 
 	B.island(cx, cz, 230, 0, P.Snow, P.SnowShade, SNOW, P.Rock)
+	-- snow drifts and frost-shattered rocks on the open ground around the mountain
+	for i = 0, 27 do
+		local a = i / 28 * math.pi * 2 + rng:NextNumber(-0.08, 0.08)
+		local r = rng:NextNumber(158, 222)
+		local near = function(ang, w)
+			return math.abs(((a - ang + math.pi) % (2 * math.pi)) - math.pi) < w
+		end
+		if not (near(0, 0.32) or near(1.0, 0.25) or near(0.6 * math.pi, 0.15) or near(math.pi / 2, 0.15)) then
+			local p = C + V(math.cos(a) * r, 0, math.sin(a) * r)
+			if i % 3 == 0 then
+				B.outcrop(p + V(0, -2, 0), rng:NextNumber(4, 7), Enum.Material.Rock)
+			else
+				B.hill(p.X, p.Z, rng:NextNumber(8, 16), rng:NextNumber(2, 4), SNOW)
+			end
+		end
+	end
 
 	----------------------------------------------------------------- mountain
 	local tiers = {
@@ -4061,6 +4898,14 @@ function Peaks.Build(B)
 	}
 	for _, t in ipairs(tiers) do
 		B.mound(cx, cz, t.r, t.top, P.Snow, 0, P.Rock, SNOW, Enum.Material.Slate)
+	end
+	-- glacier ice streaks and exposed rock on the mountain tiers
+	for i = 1, #tiers - 1 do
+		local a = i * 1.3
+		local r = (tiers[i].r + tiers[i + 1].r) / 2
+		local p = C + V(math.cos(a) * r, tiers[i].top, math.sin(a) * r)
+		B.paint(p, p + V(math.cos(a + 1.5) * 18, 0, math.sin(a + 1.5) * 18), 8, Enum.Material.Glacier, { SNOW })
+		B.outcrop(C + V(math.cos(a + 3) * (tiers[i].r - 2), tiers[i].top - 6, math.sin(a + 3) * (tiers[i].r - 2)), 5, Enum.Material.Rock)
 	end
 	for i = 1, #tiers - 1 do
 		local r1 = tiers[i + 1].r
@@ -4218,7 +5063,7 @@ function Peaks.Build(B)
 		local r = rng:NextNumber(158, 222)
 		local p = C + V(math.cos(a) * r, 0, math.sin(a) * r)
 		if clear(p) then
-			B.pineTree(p.X, 0, p.Z, rng:NextNumber(0.8, 1.3), P.Pine, true)
+			B.pineTree(p.X, B.groundY(p.X, p.Z, 60), p.Z, rng:NextNumber(0.8, 1.3), P.Pine, true)
 			placed += 1
 		end
 	end
@@ -4233,11 +5078,19 @@ function Peaks.Build(B)
 		B.bug(C + V(math.cos(b[1]) * b[2], 0, math.sin(b[1]) * b[2]), "peaks")
 	end
 	B.bug(C + V(math.cos(3.0) * 140, 24, math.sin(3.0) * 140), "peaks")
+	-- frostbats guard the mountain and the pond; puffshrooms in the snow; a snowy toad
+	B.enemy("bat", C + V(math.cos(2.6) * 120, 40, math.sin(2.6) * 120), "peaks")
+	B.enemy("bat", C + V(math.cos(4.6) * 90, 62, math.sin(4.6) * 90), "peaks")
+	B.enemy("bat", C + V(190, 14, 0), "peaks")
+	B.enemy("bat", C + V(math.cos(0.3) * 50, 104, math.sin(0.3) * 50), "peaks")
+	B.enemy("puffshroom", C + V(math.cos(4.0) * 190, 0, math.sin(4.0) * 190), "peaks")
+	B.enemy("puffshroom", C + V(math.cos(5.3) * 175, 0, math.sin(5.3) * 175), "peaks")
+	B.enemy("toad", C + V(math.cos(3.3) * 185, 0, math.sin(3.3) * 185), "peaks", 20)
 	B.bug(C + V(math.cos(5.0) * 92, 42, math.sin(5.0) * 92), "peaks")
 end
 
 return Peaks
-]]></ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX00000013"><Properties><string name="Name">WorldBuilder</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX00000014"><Properties><string name="Name">WorldBuilder</string><ProtectedString name="Source"><![CDATA[--[[
 	WorldBuilder - builds the whole world at server start.
 
 	  Carrot Meadow (hub)      centre            World/Meadow
@@ -4334,6 +5187,7 @@ function WorldBuilder.Build()
 	local root = Instance.new("Folder")
 	root.Name = "Bunny64World"
 	B.Init(root)
+	workspace.Terrain:Clear()
 
 	setupLighting()
 	buildSea()
@@ -4352,7 +5206,7 @@ function WorldBuilder.Build()
 end
 
 return WorldBuilder
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000023"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="EnableMouseLockOption">false</bool></Properties><Item class="StarterPlayerScripts" referent="RBX0000001F"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX0000001E"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000025"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="EnableMouseLockOption">false</bool></Properties><Item class="StarterPlayerScripts" referent="RBX00000021"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX00000020"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
 	Bunny 64 - client entry point. Wires together menus, HUD, movement,
 	animation, collectibles and world effects, and reacts to server events.
 ]]
@@ -4437,7 +5291,7 @@ local function handleEvent(s, event)
 		end
 	elseif kind == "unlock" then
 		Effects.Jingle()
-		local what = event.id == "collector" and (Config.CollectorGoal .. " CARROTS!") or (Config.BugBusterGoal .. " BUGS BOPPED!")
+		local what = event.id == "collector" and (Config.CollectorGoal .. " CARROTS!") or (Config.BugBusterGoal .. " BADDIES BOPPED!")
 		Hud.Toast(what .. "\nA GOLDEN CARROT APPEARED AT THE MEADOW SPAWN", 4, GOLD)
 	elseif kind == "golden" then
 		Effects.Jingle()
@@ -4486,6 +5340,15 @@ remotes.Effect.OnClientEvent:Connect(function(kind, pos, extra)
 	local P = Config.Palette
 	if kind == "poof" then
 		Effects.Burst(pos, Color3.fromRGB(226, 218, 200), 12, 7, 0.8, 5)
+	elseif kind == "spores" then
+		Effects.Ring(pos - Vector3.new(0, 1.5, 0), Color3.fromRGB(176, 196, 120), 8.5, 20, 0.6)
+		Effects.Burst(pos + Vector3.new(0, 1, 0), Color3.fromRGB(196, 210, 140), 12, 6, 0.9, 3)
+	elseif kind == "screech" then
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if root and (root.Position - pos).Magnitude < 60 then
+			Effects.Play("Screech", 1.6)
+		end
 	elseif kind == "pound" then
 		Effects.Ring(pos, P.Path, 13)
 	elseif kind == "splash" then
@@ -4568,7 +5431,9 @@ Menus.Init({
 			Hud.SetProgress(snap.slot, snap.canSave)
 			if snap.slot.goldenCount == 0 and snap.slot.carrotCount == 0 then
 				task.delay(1, function()
-					Hud.Toast("FIND THE GOLDEN CARROTS!\nSHIFT: ROLL   C: SLIDE / POUND   M: MENU", 5, GOLD)
+					local c = Menus.CurrentControls()
+					local k = Menus.PrettyKey
+					Hud.Toast(string.format("FIND THE GOLDEN CARROTS!\n%s: ROLL   %s: SLIDE / POUND   %s: MENU", k(c.roll.key), k(c.crouch.key), k(c.menu.key)), 5, GOLD)
 				end)
 			end
 		end
@@ -4596,7 +5461,7 @@ task.spawn(function()
 		applySnapshot(s)
 	end
 end)
-]]></ProtectedString></Properties><Item class="ModuleScript" referent="RBX00000016"><Properties><string name="Name">Animator</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties><Item class="ModuleScript" referent="RBX00000017"><Properties><string name="Name">Animator</string><ProtectedString name="Source"><![CDATA[--[[
 	Animator - procedural animation for every bunny in the server.
 
 	No animation assets: each frame we compute a pose from the bunny's
@@ -4808,14 +5673,297 @@ end
 function Animator.Init(movement)
 	Movement = movement
 	local worldFolder = workspace:WaitForChild("Bunny64World")
-	rayParams.FilterDescendantsInstances = { worldFolder:WaitForChild("Solid") }
+	rayParams.FilterDescendantsInstances = { worldFolder:WaitForChild("Solid"), workspace.Terrain }
 	RunService.Stepped:Connect(function(_, dt)
 		update(dt)
 	end)
 end
 
 return Animator
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000017"><Properties><string name="Name">Collectibles</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000018"><Properties><string name="Name">Chiptune</string><ProtectedString name="Source"><![CDATA[--[[
+	Chiptune - a tiny 8-bit music sequencer.
+
+	Roblox can't synthesise sound, so this "tracker" plays one short blip
+	sample at different pitches (PlaybackSpeed = 2^(semitones/12)) and cuts
+	each note off at the right length, which gives that staccato console-chip
+	sound. Drums are a noise sample pitched up or down.
+
+	Songs are written as text patterns, one token per step (an eighth note):
+	  C5  D#4  Bb3   a note         .   rest         -   hold the previous note
+	  drums:  k = kick   s = snare   h = hi-hat
+	`|` is just a bar line for readability.
+
+	All songs below are original compositions for Bunny 64.
+	Swap the sample in Config.Chiptune for a different timbre.
+]]
+
+local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+
+local Chiptune = {}
+
+--------------------------------------------------------------------------------
+-- Songs
+--------------------------------------------------------------------------------
+
+local SONGS = {
+	title = {
+		bpm = 132,
+		lead = [[
+			G4 . C5 . E5 . G5 - | - . E5 . G5 . C6 - | - - B5 . A5 . G5 . | A5 - - - . . . . |
+			F5 . A5 . G5 . E5 . | F5 . D5 . E5 . C5 . | D5 . E5 . F5 . D5 . | C5 - - - . . . . ]],
+		harmony = [[
+			E4 . G4 . C5 . E5 - | - . C5 . E5 . G5 - | - - G5 . F5 . E5 . | F5 - - - . . . . |
+			D5 . F5 . E5 . C5 . | D5 . B4 . C5 . A4 . | B4 . C5 . D5 . B4 . | G4 - - - . . . . ]],
+		bass = [[
+			C3 . . . G2 . . . | C3 . . . E3 . . . | G2 . . . G3 . . . | F3 . . . F2 . . . |
+			F2 . . . C3 . . . | D3 . . . A2 . . . | G2 . . . G2 . B2 . | C3 . . . G2 . C3 . ]],
+		drums = [[ k . . . s . . . | k . . . s . . . | k . . . s . . . | k . k . s . s s |
+			k . . . s . . . | k . . . s . . . | k . . . s . h . | k . s . k . . . ]],
+	},
+	meadow = {
+		bpm = 140,
+		lead = [[
+			C5 . E5 G5 A5 G5 E5 . | F5 . A5 - G5 E5 C5 . | D5 . F5 A5 G5 F5 E5 D5 | E5 - C5 - G4 - . . |
+			C5 . E5 G5 C6 B5 A5 G5 | A5 . F5 A5 G5 - E5 . | F5 E5 D5 F5 E5 D5 C5 D5 | C5 - - . G4 . . . ]],
+		bass = [[
+			C3 . G3 . C3 . G3 . | F3 . C4 . F3 . C4 . | D3 . A3 . D3 . A3 . | C3 . G3 . E3 . G3 . |
+			C3 . G3 . C3 . G3 . | F3 . C4 . F3 . C4 . | G3 . D4 . G3 . B3 . | C3 . G3 . C3 . . . ]],
+		drums = [[ k . h . s . h . | k . h . s . h . | k . h . s . h . | k . h k s . h . |
+			k . h . s . h . | k . h . s . h . | k . h . s . h h | k . s . k s s . ]],
+	},
+	peaks = {
+		bpm = 118,
+		lead = [[
+			A4 . C5 . E5 - D5 . | C5 . B4 . A4 - - . | G4 . B4 . D5 - C5 . | B4 . G4 . E4 - - . |
+			A4 . C5 . E5 . A5 . | G5 - E5 . D5 . C5 . | B4 . C5 . D5 . E5 . | A4 - - - . . . . ]],
+		harmony = [[
+			. . . . A5 . . . | . . . . E5 . . . | . . . . G5 . . . | . . . . B4 . . . |
+			. . . . C6 . . . | . . . . B5 . . . | . . . . G5 . . . | . . . . E5 . . . ]],
+		bass = [[
+			A2 - - . E3 - - . | F2 - - . C3 - - . | G2 - - . D3 - - . | E2 - - . B2 - - . |
+			A2 - - . E3 - - . | F2 - - . C3 - - . | G2 - - . D3 - - . | A2 - - . E2 - - . ]],
+		drums = [[ k . . . h . . . | k . . . h . . . | k . . . h . . . | k . . . h . h . |
+			k . . . h . . . | k . . . h . . . | k . . . h . . . | k . . h k . . . ]],
+	},
+	canyon = {
+		bpm = 150,
+		lead = [[
+			D5 . . F5 . G5 A5 . | C6 . A5 . G5 . F5 . | G5 . . A5 . G5 F5 . | D5 - - - . . . . |
+			D5 . . F5 . G5 A5 . | C6 . D6 . C6 . A5 . | G5 . F5 . E5 . C5 . | D5 - - - . . A4 C5 ]],
+		bass = [[
+			D3 . A3 . D3 . A3 . | C3 . G3 . C3 . G3 . | G2 . D3 . G2 . D3 . | D3 . A3 . D3 . A3 . |
+			D3 . A3 . D3 . A3 . | C3 . G3 . C3 . G3 . | C3 . G3 . A2 . E3 . | D3 . A3 . D3 . . . ]],
+		drums = [[ k . h k s . h . | k . h k s . h . | k . h k s . h . | k . h k s . s . |
+			k . h k s . h . | k . h k s . h . | k . h k s . h . | k k s . k . s s ]],
+	},
+	castle = {
+		bpm = 112,
+		lead = [[
+			E4 . . G4 . F4 . E4 | . . B4 . C5 . B4 . | A4 . . G4 . F4 . E4 | D#4 - - - . . . . |
+			E4 . . G4 . F4 . E4 | . . C5 . D5 . C5 . | B4 . A4 . G4 . F4 . | E4 - - - . . . . ]],
+		bass = [[
+			E2 E2 . E2 F2 . E2 . | E2 E2 . E2 G2 . F2 . | A2 A2 . A2 G2 . F2 . | B2 B2 . B2 B2 . B2 . |
+			E2 E2 . E2 F2 . E2 . | C3 C3 . C3 D3 . C3 . | B2 B2 . A2 G2 . F2 . | E2 . . . E2 . . . ]],
+		drums = [[ k . . k s . . . | k . . k s . . . | k . . k s . . . | k . k k s . s . |
+			k . . k s . . . | k . . k s . . . | k . . k s . . . | k . . . s s s s ]],
+	},
+	boss = {
+		bpm = 168,
+		lead = [[
+			E5 E5 G5 E5 A5 E5 B5 A5 | G5 E5 F#5 D5 E5 - . . | E5 E5 G5 E5 A5 E5 C6 B5 | A5 G5 F#5 G5 E5 - . . |
+			C5 C5 E5 C5 G5 C5 A5 G5 | D5 D5 F#5 D5 A5 D5 B5 A5 | E5 F#5 G5 A5 B5 C6 B5 A5 | B5 - - - D#5 - - - ]],
+		bass = [[
+			E2 E3 E2 E3 E2 E3 E2 E3 | E2 E3 E2 E3 E2 E3 E2 E3 | E2 E3 E2 E3 E2 E3 E2 E3 | E2 E3 E2 E3 D2 D3 D2 D3 |
+			C2 C3 C2 C3 C2 C3 C2 C3 | D2 D3 D2 D3 D2 D3 D2 D3 | E2 E3 E2 E3 E2 E3 E2 E3 | B1 B2 B1 B2 B1 B2 B1 B2 ]],
+		drums = [[ k h s h k k s h | k h s h k k s h | k h s h k k s h | k h s h k s s s |
+			k h s h k k s h | k h s h k k s h | k h s h k k s h | k s k s k s s s ]],
+	},
+}
+
+--------------------------------------------------------------------------------
+-- Parsing
+--------------------------------------------------------------------------------
+
+local SEMI = { C = 0, D = 2, E = 4, F = 5, G = 7, A = 9, B = 11 }
+
+local function noteToMidi(tok)
+	local letter, acc, oct = string.match(tok, "^([A-G])([#b]?)(%-?%d)$")
+	if not letter then
+		return nil
+	end
+	local n = SEMI[letter] + (acc == "#" and 1 or (acc == "b" and -1 or 0))
+	return 12 * (tonumber(oct) + 1) + n
+end
+
+local function tokenize(pattern)
+	local out = {}
+	for tok in string.gmatch(pattern, "%S+") do
+		if tok ~= "|" then
+			table.insert(out, tok)
+		end
+	end
+	return out
+end
+
+-- Returns { length = steps, events = { [step] = { note|drum, steps } } }
+local function parseChannel(pattern, isDrums)
+	local toks = tokenize(pattern)
+	local events = {}
+	local lastStep = nil
+	for i, tok in ipairs(toks) do
+		local step = i - 1
+		if tok == "-" then
+			if lastStep then
+				events[lastStep].len += 1
+			end
+		elseif tok == "." then
+			lastStep = nil
+		elseif isDrums then
+			events[step] = { drum = tok, len = 1 }
+			lastStep = nil
+		else
+			local midi = noteToMidi(tok)
+			if midi then
+				events[step] = { midi = midi, len = 1 }
+				lastStep = step
+			end
+		end
+	end
+	return { length = #toks, events = events }
+end
+
+local parsed = {}
+for name, song in pairs(SONGS) do
+	local p = { stepDur = 60 / song.bpm / 2, channels = {} }
+	for _, ch in ipairs({ "lead", "harmony", "bass", "drums" }) do
+		if song[ch] then
+			p.channels[ch] = parseChannel(song[ch], ch == "drums")
+		end
+	end
+	parsed[name] = p
+end
+
+--------------------------------------------------------------------------------
+-- Voices
+--------------------------------------------------------------------------------
+
+local group
+local voices = {} -- [channel] = { list = {voice}, next = 1 }
+local current, currentName = nil, nil
+local step, nextStepAt = 0, 0
+
+local function makeVoices(channel, def, count)
+	local list = {}
+	for _ = 1, count do
+		local s = Instance.new("Sound")
+		s.Name = "Chip_" .. channel
+		s.SoundId = def.id
+		s.Volume = def.volume
+		s.SoundGroup = group
+		s.Parent = SoundService
+		table.insert(list, { sound = s, stopAt = math.huge, def = def })
+	end
+	voices[channel] = { list = list, next = 1 }
+end
+
+local function trigger(channel, speed, length, volume)
+	local bank = voices[channel]
+	if not bank then
+		return
+	end
+	local v = bank.list[bank.next]
+	bank.next = bank.next % #bank.list + 1
+	local s = v.sound
+	s.PlaybackSpeed = math.clamp(speed, 0.05, 20)
+	s.Volume = volume or v.def.volume
+	s.TimePosition = 0
+	s:Play()
+	v.stopAt = os.clock() + length
+end
+
+local function playStep(index)
+	local cfg = Config.Chiptune
+	for ch, data in pairs(current.channels) do
+		local e = data.events[index % data.length]
+		if e then
+			local len = e.len * current.stepDur
+			if e.drum then
+				local d = cfg.Drums[e.drum]
+				if d then
+					trigger(e.drum == "k" and "kick" or "noise", d.speed, d.gate, d.volume)
+				end
+			else
+				local def = ch == "bass" and cfg.Bass or cfg.Lead
+				local speed = 2 ^ ((e.midi - def.baseNote) / 12)
+				trigger(ch == "bass" and "bass" or (ch == "harmony" and "harmony" or "lead"), speed, len * 0.85, def.volume * (ch == "harmony" and 0.55 or 1))
+			end
+		end
+	end
+end
+
+function Chiptune.Init(soundGroup)
+	group = soundGroup
+	local cfg = Config.Chiptune
+	makeVoices("lead", cfg.Lead, 3)
+	makeVoices("harmony", cfg.Lead, 2)
+	makeVoices("bass", cfg.Bass, 2)
+	makeVoices("kick", cfg.Lead, 2)
+	makeVoices("noise", cfg.Noise, 3)
+
+	RunService.Heartbeat:Connect(function()
+		local now = os.clock()
+		for _, bank in pairs(voices) do
+			for _, v in ipairs(bank.list) do
+				if now >= v.stopAt then
+					v.sound:Stop()
+					v.stopAt = math.huge
+				end
+			end
+		end
+		if not current then
+			return
+		end
+		if now - nextStepAt > 0.5 then
+			nextStepAt = now -- we fell behind (window was hidden); don't machine-gun notes
+		end
+		while now >= nextStepAt do
+			playStep(step)
+			step += 1
+			nextStepAt += current.stepDur
+		end
+	end)
+end
+
+function Chiptune.Play(name)
+	if name == currentName then
+		return
+	end
+	currentName = name
+	current = Config.Chiptune.Enabled and parsed[name] or nil
+	step = 0
+	nextStepAt = os.clock() + 0.25
+	for _, bank in pairs(voices) do
+		for _, v in ipairs(bank.list) do
+			v.sound:Stop()
+			v.stopAt = math.huge
+		end
+	end
+end
+
+function Chiptune.Stop()
+	Chiptune.Play(nil)
+end
+
+function Chiptune.Has(name)
+	return parsed[name] ~= nil
+end
+
+return Chiptune
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000019"><Properties><string name="Name">Collectibles</string><ProtectedString name="Source"><![CDATA[--[[
 	Collectibles - spins the carrots, hides the ones this file already has,
 	and asks the server to collect carrots the bunny touches.
 	Each player has their own carrots, so pickups are client-side visuals
@@ -4955,7 +6103,7 @@ function Collectibles.Init(effects, remotes)
 end
 
 return Collectibles
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000018"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001A"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
 	Effects - local sounds, music, chunky block particles and camera shake.
 ]]
 
@@ -4966,6 +6114,8 @@ local Debris = game:GetService("Debris")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
 local Config = require(Shared:WaitForChild("Config"))
+
+local Chiptune = require(script.Parent:WaitForChild("Chiptune"))
 
 local Effects = {}
 
@@ -4979,6 +6129,8 @@ local musicGroup = Instance.new("SoundGroup")
 musicGroup.Name = "Bunny64Music"
 musicGroup.Volume = musicVolume
 musicGroup.Parent = SoundService
+
+Chiptune.Init(musicGroup)
 
 local sounds = {}
 for name, def in pairs(Config.Sounds) do
@@ -5036,6 +6188,12 @@ function Effects.SetMusic(key)
 		Debris:AddItem(old, 1.1)
 	end
 	currentTrack = nil
+	if id == "" then
+		-- no uploaded track: play the built-in 8-bit tune for this area
+		Chiptune.Play(key)
+		return
+	end
+	Chiptune.Stop()
 	if id ~= "" then
 		local s = Instance.new("Sound")
 		s.Name = "Bunny64Track"
@@ -5143,7 +6301,7 @@ RunService:BindToRenderStep("Bunny64Shake", Enum.RenderPriority.Camera.Value + 1
 end)
 
 return Effects
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000019"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001B"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
 	Hud - in-game overlay: hearts, golden carrot and carrot counters,
 	region title cards, toasts, the boss health bar and the MENU button.
 ]]
@@ -5387,7 +6545,7 @@ function Hud.WatchBoss(inArenaFn)
 end
 
 return Hud
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001A"><Properties><string name="Name">Menus</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001C"><Properties><string name="Name">Menus</string><ProtectedString name="Source"><![CDATA[--[[
 	Menus - every full-screen menu:
 	  Title (PRESS START) -> File Select (File A/B/C, erase) -> game
 	  Customise (fur, accent colour, hat, neckwear with a live 3D preview)
@@ -5813,7 +6971,7 @@ function showOptions(back)
 	clear()
 	UI.backdrop(layer, snap.slot and 0.3 or 0.05)
 	UI.title(layer, "OPTIONS", 60, UDim2.new(0.5, 0, 0, 24), Vector2.new(0.5, 0))
-	local panel = UI.panel(layer, UDim2.fromOffset(520, 330), UDim2.fromScale(0.5, 0.52))
+	local panel = UI.panel(layer, UDim2.fromOffset(520, 380), UDim2.fromScale(0.5, 0.53))
 	local list = Instance.new("Frame")
 	list.BackgroundTransparency = 1
 	list.Size = UDim2.new(1, -40, 1, -40)
@@ -5838,14 +6996,182 @@ function showOptions(back)
 		deps.Remotes.SetOptions:FireServer(o)
 		back()
 	end
-	local backButton = UI.item(list, "BACK", { LayoutOrder = 5 })
-	UI.label(list, { Text = "Music plays when you add track ids in Config.Music", TextSize = 14, LayoutOrder = 4, Size = UDim2.new(1, 0, 0, 30), Stroke = 2, TextTransparency = 0.3 })
+	local controlsButton = UI.item(list, "CONTROLS", { LayoutOrder = 4 })
+	local backButton = UI.item(list, "BACK", { LayoutOrder = 6 })
+	UI.label(list, { Text = "8-bit music is built in. Add uploaded track ids in Config.Music to replace it.", TextSize = 14, TextWrapped = true, LayoutOrder = 5, Size = UDim2.new(1, 0, 0, 34), Stroke = 2, TextTransparency = 0.3 })
 	UI.SetNav({
 		{ button = sfx, left = function() o.sfx = math.max(0, o.sfx - 1); refresh() end, right = function() o.sfx = math.min(10, o.sfx + 1); refresh() end, select = function() o.sfx = (o.sfx + 1) % 11; refresh() end },
 		{ button = music, left = function() o.music = math.max(0, o.music - 1); refresh() end, right = function() o.music = math.min(10, o.music + 1); refresh() end, select = function() o.music = (o.music + 1) % 11; refresh() end },
 		{ button = shake, left = function() o.shake = not o.shake; refresh() end, right = function() o.shake = not o.shake; refresh() end, select = function() o.shake = not o.shake; refresh() end },
+		{ button = controlsButton, select = function()
+			deps.Remotes.SetOptions:FireServer(o)
+			Menus.ShowControls(function()
+				showOptions(back)
+			end)
+		end },
 		{ button = backButton, select = finish },
 	}, finish)
+end
+
+--------------------------------------------------------------------------------
+-- Controls (rebinding)
+--------------------------------------------------------------------------------
+
+local function prettyKey(name)
+	if not name then
+		return "-"
+	end
+	local pads = {
+		ButtonA = "A", ButtonB = "B", ButtonX = "X", ButtonY = "Y", ButtonL1 = "LB", ButtonR1 = "RB",
+		ButtonL2 = "LT", ButtonR2 = "RT", ButtonL3 = "L-STICK", ButtonR3 = "R-STICK", ButtonSelect = "SELECT",
+		ButtonStart = "START", DPadUp = "D-UP", DPadDown = "D-DOWN", DPadLeft = "D-LEFT", DPadRight = "D-RIGHT",
+	}
+	if pads[name] then
+		return pads[name]
+	end
+	local spaced = string.gsub(name, "(%l)(%u)", "%1 %2")
+	return string.upper(spaced)
+end
+
+Menus.PrettyKey = prettyKey
+
+function Menus.CurrentControls()
+	local o = snap and snap.menu.options or {}
+	local out = {}
+	for _, def in ipairs(Config.Controls) do
+		local c = (o.controls or {})[def.id] or {}
+		out[def.id] = { key = c.key or def.key, pad = c.pad or def.pad }
+	end
+	return out
+end
+
+function Menus.ApplyControls()
+	local controls = Menus.CurrentControls()
+	deps.Movement.ApplyControls(controls)
+	ContextActionService:UnbindAction("Bunny64Menu")
+	local function code(name, fallback)
+		local ok, c = pcall(function()
+			return Enum.KeyCode[name]
+		end)
+		return (ok and c) or Enum.KeyCode[fallback]
+	end
+	ContextActionService:BindAction("Bunny64Menu", function(_, inputState)
+		if inputState == Enum.UserInputState.Begin then
+			Menus.TogglePause()
+		end
+		return Enum.ContextActionResult.Pass
+	end, false, code(controls.menu.key, "M"), code(controls.menu.pad, "ButtonSelect"))
+end
+
+function Menus.ShowControls(back)
+	screen = "controls"
+	clear()
+	UI.backdrop(layer, snap.slot and 0.3 or 0.05)
+	UI.title(layer, "CONTROLS", 60, UDim2.new(0.5, 0, 0, 24), Vector2.new(0.5, 0))
+	local panel = UI.panel(layer, UDim2.fromOffset(640, 420), UDim2.fromScale(0.5, 0.55))
+	local list = Instance.new("Frame")
+	list.BackgroundTransparency = 1
+	list.Size = UDim2.new(1, -40, 1, -40)
+	list.Position = UDim2.fromOffset(20, 20)
+	list.Parent = panel
+	UI.list(list, 8)
+	local controls = Menus.CurrentControls()
+	local status = UI.label(list, {
+		Text = "Pick an action, then press the key or gamepad button you want.", TextSize = 16, TextWrapped = true,
+		Size = UDim2.new(1, 0, 0, 40), LayoutOrder = 0, Stroke = 2,
+	})
+	local rows = {}
+	local entries = {}
+	local function refresh()
+		for _, r in ipairs(rows) do
+			local c = controls[r.def.id]
+			r.button.Text = string.format("%s   [%s]  [%s]", r.def.name, prettyKey(c.key), prettyKey(c.pad))
+		end
+	end
+	local function save()
+		snap.menu.options.controls = controls
+		deps.Remotes.SetOptions:FireServer({ controls = controls })
+		Menus.ApplyControls()
+	end
+	local listening = nil
+	local function listen(def)
+		if listening then
+			return
+		end
+		status.Text = "PRESS A KEY OR BUTTON FOR " .. def.name .. "   (BACKSPACE TO CANCEL)"
+		status.TextColor3 = UI.Gold
+		local savedEntries, savedIndex = entries, nil
+		UI.ClearNav()
+		-- start listening a moment later so the press that chose this row isn't captured
+		task.wait(0.15)
+		if screen ~= "controls" then
+			return
+		end
+		listening = UserInputService.InputBegan:Connect(function(input, processed)
+			if processed then
+				return
+			end
+			local kc = input.KeyCode
+			local isPad = string.find(input.UserInputType.Name, "Gamepad") ~= nil
+			if input.UserInputType ~= Enum.UserInputType.Keyboard and not isPad then
+				return
+			end
+			if kc == Enum.KeyCode.Unknown or kc == Enum.KeyCode.Thumbstick1 or kc == Enum.KeyCode.Thumbstick2 then
+				return
+			end
+			listening:Disconnect()
+			listening = nil
+			status.TextColor3 = UI.Cream
+			if kc == Enum.KeyCode.Backspace then
+				status.Text = "Cancelled."
+			elseif not isPad and Config.ReservedKeys[kc.Name] then
+				status.Text = prettyKey(kc.Name) .. " is reserved (movement, chat or Roblox menus). Try another key."
+			else
+				local slotName = isPad and "pad" or "key"
+				-- if another action already uses it, swap them
+				for _, other in ipairs(Config.Controls) do
+					if other.id ~= def.id and controls[other.id][slotName] == kc.Name then
+						controls[other.id][slotName] = controls[def.id][slotName]
+					end
+				end
+				controls[def.id][slotName] = kc.Name
+				status.Text = def.name .. " is now " .. prettyKey(kc.Name)
+				refresh()
+				save()
+			end
+			task.defer(function()
+				if screen == "controls" then
+					UI.SetNav(savedEntries, back, savedIndex)
+				end
+			end)
+		end)
+	end
+	for i, def in ipairs(Config.Controls) do
+		local b = UI.item(list, "", { LayoutOrder = i, TextSize = 22 })
+		table.insert(rows, { button = b, def = def })
+		table.insert(entries, { button = b, select = function()
+			listen(def)
+		end })
+	end
+	refresh()
+	local reset = UI.item(list, "RESET TO DEFAULTS", { LayoutOrder = 20 })
+	local done = UI.item(list, "BACK", { LayoutOrder = 21 })
+	table.insert(entries, { button = reset, select = function()
+		for _, def in ipairs(Config.Controls) do
+			controls[def.id] = { key = def.key, pad = def.pad }
+		end
+		refresh()
+		save()
+		status.Text = "Controls reset."
+	end })
+	table.insert(entries, { button = done, select = function()
+		if listening then
+			listening:Disconnect()
+			listening = nil
+		end
+		back()
+	end })
+	UI.SetNav(entries, back)
 end
 
 --------------------------------------------------------------------------------
@@ -5909,7 +7235,7 @@ local function showLog(back)
 	end
 	if slot then
 		UI.label(panel, {
-			Text = string.format("CARROTS %d/%d    BUGS BOPPED %d    TIME %s", slot.carrotCount, snap.totalCarrots or 0, slot.bugs, fmtTime(slot.playTime)),
+			Text = string.format("CARROTS %d/%d    BADDIES BOPPED %d    TIME %s", slot.carrotCount, snap.totalCarrots or 0, slot.bugs, fmtTime(slot.playTime)),
 			TextSize = 18, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -42), Size = UDim2.new(1, 0, 0, 22), Stroke = 2,
 		})
 	end
@@ -6088,7 +7414,11 @@ function Menus.BackToTitle()
 end
 
 function Menus.SetSnapshot(s)
+	local first = snap == nil
 	snap = s
+	if first and deps then
+		Menus.ApplyControls() -- the player's saved key bindings
+	end
 end
 
 function Menus.Screen()
@@ -6136,18 +7466,13 @@ function Menus.Init(dependencies)
 		end
 	end)
 
-	ContextActionService:BindAction("Bunny64Menu", function(_, inputState)
-		if inputState == Enum.UserInputState.Begin then
-			Menus.TogglePause()
-		end
-		return Enum.ContextActionResult.Pass
-	end, false, Enum.KeyCode.M, Enum.KeyCode.ButtonSelect)
+	Menus.ApplyControls()
 
 	showTitle()
 end
 
 return Menus
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001B"><Properties><string name="Name">Movement</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001D"><Properties><string name="Name">Movement</string><ProtectedString name="Source"><![CDATA[--[[
 	Movement - the bunny's moveset on top of Roblox's humanoid.
 
 	  Jump            Space / A / jump button
@@ -6595,6 +7920,69 @@ local function watchBouncers()
 	worldFolder.DescendantAdded:Connect(hook)
 end
 
+local function keyCode(name, fallback)
+	local ok, code = pcall(function()
+		return Enum.KeyCode[name]
+	end)
+	return (ok and code) or Enum.KeyCode[fallback]
+end
+
+-- (Re)bind the moves to the player's chosen keys. controls = { [id] = { key, pad } }
+function Movement.ApplyControls(controls)
+	controls = controls or {}
+	local binds = {}
+	for _, def in ipairs(Config.Controls) do
+		local c = controls[def.id] or {}
+		binds[def.id] = { keyCode(c.key or def.key, def.key), keyCode(c.pad or def.pad, def.pad) }
+	end
+	for _, name in ipairs({ "Bunny64Roll", "Bunny64Crouch", "Bunny64Jump" }) do
+		ContextActionService:UnbindAction(name)
+	end
+
+	ContextActionService:BindAction("Bunny64Roll", function(_, inputState)
+		if inputState == Enum.UserInputState.Begin then
+			startRoll()
+		end
+		return Enum.ContextActionResult.Sink
+	end, true, binds.roll[1], binds.roll[2])
+	ContextActionService:SetTitle("Bunny64Roll", "ROLL")
+	ContextActionService:SetPosition("Bunny64Roll", UDim2.new(1, -230, 1, -110))
+
+	ContextActionService:BindAction("Bunny64Crouch", function(_, inputState)
+		if inputState == Enum.UserInputState.Begin then
+			crouch()
+		end
+		return Enum.ContextActionResult.Sink
+	end, true, binds.crouch[1], binds.crouch[2])
+	ContextActionService:SetTitle("Bunny64Crouch", "CROUCH")
+	ContextActionService:SetPosition("Bunny64Crouch", UDim2.new(1, -170, 1, -170))
+
+	-- Space / A always jump (Roblox handles those); a custom jump key is added on top
+	local jumpKeys = {}
+	if binds.jump[1] ~= Enum.KeyCode.Space then
+		table.insert(jumpKeys, binds.jump[1])
+	end
+	if binds.jump[2] ~= Enum.KeyCode.ButtonA then
+		table.insert(jumpKeys, binds.jump[2])
+	end
+	if #jumpKeys > 0 then
+		ContextActionService:BindAction("Bunny64Jump", function(_, inputState)
+			if not enabled or not humanoid then
+				return Enum.ContextActionResult.Pass
+			end
+			if inputState == Enum.UserInputState.Begin then
+				local now = os.clock()
+				lastJumpRequest = now
+				if grounded() then
+					humanoid.Jump = true
+				end
+				tryJumpMove()
+			end
+			return Enum.ContextActionResult.Sink
+		end, false, table.unpack(jumpKeys))
+	end
+end
+
 function Movement.Init(effects, remotes)
 	Effects = effects
 	Remotes = remotes
@@ -6625,23 +8013,7 @@ function Movement.Init(effects, remotes)
 		end
 	end)
 
-	ContextActionService:BindAction("Bunny64Roll", function(_, inputState)
-		if inputState == Enum.UserInputState.Begin then
-			startRoll()
-		end
-		return Enum.ContextActionResult.Sink
-	end, true, Enum.KeyCode.LeftShift, Enum.KeyCode.Q, Enum.KeyCode.ButtonX)
-	ContextActionService:SetTitle("Bunny64Roll", "ROLL")
-	ContextActionService:SetPosition("Bunny64Roll", UDim2.new(1, -230, 1, -110))
-
-	ContextActionService:BindAction("Bunny64Crouch", function(_, inputState)
-		if inputState == Enum.UserInputState.Begin then
-			crouch()
-		end
-		return Enum.ContextActionResult.Sink
-	end, true, Enum.KeyCode.C, Enum.KeyCode.LeftControl, Enum.KeyCode.E, Enum.KeyCode.ButtonB)
-	ContextActionService:SetTitle("Bunny64Crouch", "CROUCH")
-	ContextActionService:SetPosition("Bunny64Crouch", UDim2.new(1, -170, 1, -170))
+	Movement.ApplyControls(nil)
 
 	remotes.Bounce.OnClientEvent:Connect(function(vel, keepHorizontal, kind)
 		if not root then
@@ -6666,7 +8038,7 @@ function Movement.Init(effects, remotes)
 end
 
 return Movement
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001C"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001E"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--[[
 	UI - shared building blocks for Bunny 64's late-90s console look:
 	chunky beveled panels with gold trim, gradient title lettering, a bouncing
 	carrot cursor, and menu navigation that works with keyboard, gamepad,
@@ -7058,7 +8430,7 @@ function UI.list(parent, padding)
 end
 
 return UI
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001D"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001F"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--[[
 	WorldFX - client-side world behaviour:
 	  * animates firebars and crushers from the shared server clock
 	  * opens golden-carrot gates for players who have enough golden carrots
@@ -7276,8 +8648,8 @@ function WorldFX.Region()
 end
 
 return WorldFX
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterCharacterScripts" referent="RBX00000022"><Properties><string name="Name">StarterCharacterScripts</string></Properties><Item class="LocalScript" referent="RBX00000020"><Properties><string name="Name">Animate</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default "Animate" script.
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterCharacterScripts" referent="RBX00000024"><Properties><string name="Name">StarterCharacterScripts</string></Properties><Item class="LocalScript" referent="RBX00000022"><Properties><string name="Name">Animate</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default "Animate" script.
 -- The bunny is animated procedurally by StarterPlayerScripts.Bunny64Client.Animator.
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX00000021"><Properties><string name="Name">Health</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default health regeneration.
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX00000023"><Properties><string name="Name">Health</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default health regeneration.
 -- In Bunny 64 hearts only come back from carrots and golden carrots.
 ]]></ProtectedString><token name="RunContext">0</token></Properties></Item></Item></Item></roblox>

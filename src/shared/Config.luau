@@ -38,6 +38,19 @@ Config.MaxHearts = 3
 Config.HealEveryCarrots = 10   -- every N carrots restores a heart
 Config.WaterLevel = -6
 
+-- Controls (players can rebind these in Options > Controls) -----------------------
+Config.Controls = {
+	{ id = "jump", name = "JUMP", key = "Space", pad = "ButtonA" },
+	{ id = "roll", name = "ROLL", key = "LeftShift", pad = "ButtonX" },
+	{ id = "crouch", name = "CROUCH / SLIDE / POUND", key = "C", pad = "ButtonB" },
+	{ id = "menu", name = "MENU", key = "M", pad = "ButtonSelect" },
+}
+-- keys that can't be bound (movement, Roblox menus, chat)
+Config.ReservedKeys = {
+	W = true, A = true, S = true, D = true, Up = true, Down = true, Left = true, Right = true,
+	Escape = true, Tab = true, Slash = true, Backquote = true, Backspace = true, Return = true,
+}
+
 -- Goals -----------------------------------------------------------------------------
 Config.CollectorGoal = 100     -- carrots needed for the "Carrot Collector" golden carrot
 Config.BugBusterGoal = 20      -- Grumblebugs to bop for the "Bug Buster" golden carrot
@@ -60,7 +73,7 @@ Config.Goldens = {
 	{ id = "sky", region = "meadow", name = "Cloud Garden", hint = "A springy mushroom tops the big hill..." },
 	{ id = "islet", region = "meadow", name = "Lonely Islet", hint = "Hop the stepping stones out west. Mind the sinking ones." },
 	{ id = "collector", region = "meadow", name = "Carrot Collector", hint = "Gather 100 carrots. It appears at the meadow spawn.", req = "carrots" },
-	{ id = "buster", region = "meadow", name = "Bug Buster", hint = "Bop 20 Grumblebugs. It appears at the meadow spawn.", req = "bugs" },
+	{ id = "buster", region = "meadow", name = "Bug Buster", hint = "Bop 20 baddies of any kind. It appears at the meadow spawn.", req = "bugs" },
 	-- Frostbite Peaks
 	{ id = "summit", region = "peaks", name = "Frosty Summit", hint = "Wind your way up the mountain ramps." },
 	{ id = "chute", region = "peaks", name = "Slippery Slope", hint = "Slide down the ice chute from high on the mountain." },
@@ -161,6 +174,7 @@ Config.Sounds = {
 	MenuSelect = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.45 },
 	Burn = { id = "rbxasset://sounds/action_falling.mp3", volume = 0.6 },
 	Boss = { id = "rbxasset://sounds/action_get_up.mp3", volume = 0.9 },
+	Screech = { id = "rbxasset://sounds/swoosh.wav", volume = 0.4 },
 }
 -- Put uploaded music ids here, e.g. "rbxassetid://1234567890". Empty = silence.
 Config.Music = {
@@ -172,6 +186,22 @@ Config.Music = {
 	boss = "",
 }
 Config.MusicVolume = 0.35
+
+-- Built-in 8-bit music (client/Chiptune.luau). Areas without an uploaded
+-- track in Config.Music play these original chip tunes instead.
+-- baseNote = the MIDI note the sample sounds at when played at normal speed;
+-- nudge it up/down by 12 to shift a whole voice an octave.
+Config.Chiptune = {
+	Enabled = true,
+	Lead = { id = "rbxasset://sounds/electronicpingshort.wav", baseNote = 84, volume = 0.3 },
+	Bass = { id = "rbxasset://sounds/electronicpingshort.wav", baseNote = 72, volume = 0.5 },
+	Noise = { id = "rbxasset://sounds/swoosh.wav", volume = 0.3 },
+	Drums = {
+		k = { speed = 0.22, gate = 0.09, volume = 0.6 },
+		s = { speed = 2.4, gate = 0.07, volume = 0.28 },
+		h = { speed = 5, gate = 0.03, volume = 0.12 },
+	},
+}
 
 -- Palette: muted, earthy, late-90s console colours ----------------------------------------
 Config.Palette = {

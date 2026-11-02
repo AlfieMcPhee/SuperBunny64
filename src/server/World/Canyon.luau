@@ -19,6 +19,22 @@ function Canyon.Build(B)
 	local SAND = Enum.Material.Sandstone
 
 	B.island(cx, cz, 210, 0, P.Sandstone, P.Sand, Enum.Material.Sand, P.SandstoneDark)
+	-- dunes, a dry riverbed and wind-carved sandstone spires
+	local T = B.Terrain
+	for _, d in ipairs({ { 760, -150, 30, 6 }, { 830, -20, 22, 5 }, { 690, -150, 26, 5 }, { 600, 110, 18, 4 }, { 880, 110, 24, 5 } }) do
+		B.hill(d[1], d[2], d[3], d[4], Enum.Material.Sand)
+	end
+	B.paint(V(560, 0, 60), V(720, 0, 30), 14, Enum.Material.Ground, { Enum.Material.Sand })
+	B.paint(V(720, 0, 30), V(900, 0, 80), 14, Enum.Material.Ground, { Enum.Material.Sand })
+	for _, sp in ipairs({ { 900, 30, 7, 34 }, { 560, 150, 6, 28 }, { 840, -140, 8, 40 }, { 610, -160, 5, 22 } }) do
+		T:FillCylinder(CFrame.new(sp[1], sp[4] / 2, sp[2]), sp[4], sp[3], Enum.Material.Sandstone)
+		T:FillBall(Vector3.new(sp[1], sp[4], sp[2]), sp[3] * 1.15, Enum.Material.Sandstone)
+		T:FillBall(Vector3.new(sp[1], 1, sp[2]), sp[3] * 1.6, Enum.Material.Sandstone)
+	end
+	for i = 0, 15 do
+		local a = i / 16 * math.pi * 2 + 0.2
+		B.outcrop(C + V(math.cos(a) * 208, -2, math.sin(a) * 208), rng:NextNumber(4, 8), Enum.Material.Sandstone)
+	end
 
 	-- Layered mesa block helper
 	local function mesa(center, size, top)
@@ -139,9 +155,9 @@ function Canyon.Build(B)
 		local p = C + V(math.cos(a) * r, 0, math.sin(a) * r)
 		if clear(p) then
 			if rng:NextNumber() < 0.6 then
-				B.cactus(p.X, 0, p.Z, rng:NextNumber(0.8, 1.3))
+				B.cactus(p.X, B.groundY(p.X, p.Z, 60), p.Z, rng:NextNumber(0.8, 1.3))
 			else
-				B.rock(p.X, 0, p.Z, rng:NextNumber(1, 2.5), P.SandstoneDark)
+				B.rock(p.X, B.groundY(p.X, p.Z, 60), p.Z, rng:NextNumber(1, 2.5), P.SandstoneDark)
 			end
 			placed += 1
 		end
@@ -149,6 +165,14 @@ function Canyon.Build(B)
 	for _, p in ipairs({ V(700, 0, 20), V(760, 0, -10), V(820, 0, 40), V(700, 0, -130), V(600, 0, 60), V(860, 0, 90) }) do
 		B.bug(p, "canyon")
 	end
+	-- thornhogs patrol the canyon floor under the leap pillars and the riverbed
+	B.enemy("thornhog", V(690, 0, -60), "canyon", 30, V(1, 0, 0))
+	B.enemy("thornhog", V(790, 0, -60), "canyon", 30, V(1, 0, 0))
+	B.enemy("thornhog", V(720, 0, 40), "canyon", 26, V(1, 0, 0.3).Unit)
+	B.enemy("toad", V(620, 0, 20), "canyon", 24)
+	B.enemy("toad", V(800, 0, 110), "canyon", 24)
+	B.enemy("puffshroom", V(860, 0, 40), "canyon")
+	B.enemy("bat", V(650, 70, 110), "meadow")
 	for _, p in ipairs({ V(740, 0, -120), V(800, 0, -100), V(700, 0, 80) }) do
 		B.carrot(p + V(0, 3, 0))
 	end
