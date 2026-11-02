@@ -1,11 +1,14 @@
 # Bunny 64
 
 A 3D collect-a-thon platformer for **Roblox** starring a plush bunny teddy.
-Explore six lands, find **37 golden carrots**, bring Granny Clover's lost
-grandkits home and topple **King Grumble** in his throne room above the
-Infernal Castle. Three save files, unlockable
-hats, and a late-90s console look: chunky low-poly shapes, a muted palette,
-distance fog and N64-style menus.
+Explore seven lands (one of them secret), find **47 golden carrots**, beat
+**four bosses**, bring Granny Clover's lost grandkits home, and dress your
+bunny up with things you've earned. Three save files, a late-90s console
+look (chunky low-poly shapes, a muted palette, distance fog, N64-style menus)
+and an original 8-bit soundtrack.
+
+Publishing it and setting up the optional Robux items is covered in
+**[PUBLISHING.md](PUBLISHING.md)**.
 
 ## Moves
 
@@ -13,230 +16,224 @@ distance fog and N64-style menus.
 | --- | --- | --- | --- |
 | Run / jump | WASD / Space | Stick / A | Stick / Jump |
 | Double jump (front flip) | Space in the air | A in the air | Jump in the air |
-| Roll (bops bugs) | Shift or Q | X | ROLL |
+| Roll (bops baddies) | Shift or Q | X | ROLL |
 | Long jump | Jump during a roll or slide | | |
+| Dive | Roll button in the air (jump during it to roll out) | X in the air | ROLL in the air |
 | Belly slide | C / Ctrl / E while running | B | CROUCH |
-| Ground pound | C / Ctrl / E in the air | B in the air | CROUCH in the air |
+| Ground pound | Crouch in the air | B in the air | CROUCH in the air |
+| Pound jump | Jump the moment a ground pound lands | | |
+| Backflip | Hold crouch while standing still, then jump | | |
+| Wall jump | Jump while against a wall in mid-air | | |
+| Zipline | Jump up into the rope; jump to let go, crouch to drop | | |
 | Menu | M | Select | MENU |
 
-Ice chutes start a slide automatically - steer with the stick.
-All keys and gamepad buttons can be rebound in **Options > Controls**
-(saved with your progress; clashing bindings swap automatically).
+All keys and gamepad buttons can be rebound in **Options > Controls**.
+
+**Stamina.** The green pips under your hearts are stamina. Rolls, dives and
+long jumps each use one (a long jump straight out of a roll is included in the
+roll), and they refill while you stand on the ground. You start with three and
+earn a fourth and fifth pip at 12 and 24 golden carrots. Out of puff, rolls and
+long jumps come out short.
+
+**Weight.** Running builds up to full speed, turning hard at speed skids, you
+fall faster than you rise, and big drops land with a thump and a short
+stagger.
+
+## The lands
+
+* **Carrot Meadow** (hub). The cottage, the Lookout Tower, the Old Oak, the
+  Cloud Garden and the Lonely Islet are all here. The revamp adds:
+  * **Willow Falls**, a cliff to climb with a waterfall (and something behind it).
+  * **The Windmill**, with a mill wheel you ride to the top.
+  * **The Slide** down the big hill.
+  * **Ziplines** from the tower and the oak.
+  * **Spring pads**, **Carrot Henge**, a shipwreck, **the Old Stone Bunny** and the
+    **old well**.
+* **Frostbite Peaks** (north). A terraced mountain, the ice chute, a giant
+  snowman and a freezing pond. Also the **Chairlift** (leap off onto the pylon
+  half way up), a **summit zipline** and a **hot spring** that heals you.
+* **Dustbowl Canyon** (east). Long-jump pillars, Eagle's Mesa and Boulder Run.
+  Also **Geyser Gulch** (steam vents fling you up three pillars), a **mesa
+  zipline** and a giant fossil.
+* **Infernal Castle** (south, 10 golden carrots). Lava rivers, the Firebar
+  Gauntlet, Crusher Hall, the ramparts, the Lava Dungeon and the Keep. Also
+  the **Magma Wheel** over a lava lake. King Grumble waits in the throne room
+  (15 golden carrots).
+* **Whisperwood** (far west, over the rope bridge from the Lonely Islet). The
+  Elder Tree's shelf-fungus climb, Treetop Village's rope bridges, Bouncy Grove
+  and the Bog's sinking lily pads. Old Rootjaw lives in **the Hollow**.
+* **Cloudtop Heights** (climb the beanstalk; 18 golden carrots). Cloud Hop,
+  the Rainbow Bridge, Captain Gust's airship and the Updraft Spire's rising
+  winds. The Thunderhead broods over **the Stormcrown**. Falling off the
+  clouds costs a heart and puts you back where you last stood.
+* **???**: a secret. Ask Elder Shellby once you have 20 golden carrots.
+
+## Bosses
+
+Every boss telegraphs its attacks: a flashing circle on the floor shows where
+lightning, lava or roots are about to strike, and shockwave rings are jumped.
+
+| Boss | Where | How to hurt it |
+| --- | --- | --- |
+| **King Grumble** | Throne room above the castle | Bait him into charging a stone pillar, or survive his slams; then jump on a glowing weak point. Four weak points; he spits fireballs, raises lava, calls his bugs and finally gets **enraged**. |
+| **Old Rootjaw** | The Hollow, Whisperwood | It lunges and gets its head stuck in the ground. Jump on the bud on its head. Seed bombs, root rings and Mosslings. |
+| **Thunderhead** | The Stormcrown, Cloudtop | Dodge rounds of lightning, then it sinks down worn out. Stomp its storm core. Gales push you to the edge; it calls Puffers. |
+| **The Shade** | The secret dungeon | A dark mirror bunny that runs your trail. Leaps at you, then it's dazed: jump on its head. Five hits, homing orbs, half-arena eruptions. |
 
 ## Baddies
 
-| Baddie | Where | How to beat it |
-| --- | --- | --- |
-| Grumblebug | everywhere | stomp, ground pound, roll or slide into it |
-| Hopscotch Toad | meadow, canyon, peaks | hops after you in big arcs - stomp it |
-| Flitbat | peaks, castle, canyon | circles, then swoops - stomp it or roll / long jump into it |
-| Thornhog | canyon floor, castle approach | all spikes: only a ground-pound shockwave works |
-| Puffshroom | meadow, peaks, castle, woods | puffs a ring of spores every few seconds - stomp it between puffs |
-| Mossling | Whisperwood | hides as a hump of moss, pops up and chases you - stomp it or roll into it |
-| Snapper | Whisperwood (bog edges, grove) | rooted biting plant: rears back, lunges, then droops - stomp its head while it's tired |
-| Puffer | Cloudtop Heights | grumpy cloud that puffs up and blows you away - stomp it from above |
-| King Grumble | throne room | see below |
+| Baddie | How to beat it |
+| --- | --- |
+| Grumblebug | Stomp, ground pound, roll, slide or dive into it |
+| Hopscotch Toad | Hops after you in big arcs. Stomp it. |
+| Flitbat | Circles, then swoops. Stomp it, or roll or long jump into it. |
+| Thornhog | All spikes: only a ground-pound shockwave works |
+| Puffshroom | Puffs spores every few seconds. Stomp it between puffs. |
+| Mossling | Hides as moss, pops up and chases. Stomp or roll. |
+| Snapper | Rooted plant that rears back and lunges. Stomp its head while it droops. |
+| Puffer | A grumpy cloud that blows you away. Stomp it from above. |
 
-## The world
+Baddies are drawn smoothly on every screen. The server runs their brains and
+each player's game animates them: waddles, flaps, jaw snaps, a "!" when they
+spot you, and a squash when they're bopped.
 
-Natural ground is Roblox smooth terrain - grassy cliffs, rolling hills, reedy
-ponds, sandy beaches sloping into the sea, painted dirt paths, snow drifts and
-glacier ice, desert dunes and sandstone spires, cracked-lava scorch marks -
-dressed with trees, bushes, logs, mushrooms, flower patches and tall grass
-tufts. Built things (towers, castles, platforms) stay chunky low-poly parts.
+## Things to collect and do
 
-* **Carrot Meadow** (hub): cottage roof, spiral Lookout Tower, the Old Oak,
-  a springy mushroom up to the Cloud Garden sky islands, the Lonely Islet.
-* **Frostbite Peaks** (north, over the causeway): ramps up a terraced
-  mountain, a long ice slide chute, a giant snowman, a freezing pond with
-  drifting ice floes.
-* **Dustbowl Canyon** (east, over the boardwalk): long-jump pillars that a
-  double jump can't clear, Eagle's Mesa, and Boulder Run.
-* **Infernal Castle** (south, needs 10 golden carrots): lava rivers and a
-  drawbridge, the Firebar Gauntlet, Crusher Hall, the rampart walk, the Lava
-  Dungeon outside the east wall, and the Keep - a lava-floored climb with
-  firebars and moving ledges. On the keep roof, the throne-room portal
-  (needs 15 golden carrots) leads to the boss.
-* **King Grumble**: a giant crowned Grumblebug. His three glowing weak
-  points are only exposed when he's dazed - bait him into charging a stone
-  pillar, or survive his ground slam (jump the fire ring). Then hop onto his
-  back and jump on a weak point. He spits fireballs once he's angry.
-* **Whisperwood** (far west, over the rope bridge from the Lonely Islet): a
-  misty old forest. Climb the shelf fungus spiralling up the giant **Elder
-  Tree**, cross the rope bridges of **Treetop Village** (one is missing
-  planks), bounce up the giant caps of **Bouncy Grove**, and hop the lily pads
-  of **the Bog** - some of them sink.
-* **Cloudtop Heights** (up the beanstalk on the meadow's west side, needs 18
-  golden carrots): floating islands far above the meadow. **Cloud Hop** east,
-  the arching **Rainbow Bridge** south (mind the gap), Captain Gust's airship
-  the **Cumulus** with a crow's nest up the mast, and the **Updraft Spire**,
-  where rising winds carry you from ledge to ledge. Falling off the clouds
-  costs a heart and puts you back where you last stood.
+* **47 golden carrots**: Meadow 12, Peaks 7, Canyon 6, Castle 8, Whisperwood 6,
+  Cloudtop 6, and 2 secret. Press **M > Carrot Log** for hints.
+* **Silver carrot hunts**: five silvers per land; finding all five makes that
+  land's golden appear.
+* **Granny's Lost Kits**: five tiny grandkits, one in every land.
+* **Time trials**: *Summit Sprint* (Peaks) and *Boulder Dash* (Canyon).
+* **Ore-carrot rocks**: smash them (roll, slide, dive, pound or stomp) for
+  carrot coins. They grow back after a few minutes.
+* **Heart crates** before the hard parts.
+* **18 stamps** (Pause > STAMPS). Put Roblox badge ids in `Config.Badges` to
+  award real badges.
+* **Fastest Bunnies**: a board by the meadow spawn with the 10 fastest 100%
+  clears.
 
-Checkpoint flags save where you respawn (your active flag glows gold). Burrow Warps (one per region) let
-you travel between regions once discovered.
+## Looks and the shop
 
-## Design notes (the invisible stuff)
+**Customise** (fur, accent colour, hat, neckwear, trail) unlocks things as
+you play:
 
-Good platformers are generous in ways players never notice. Bunny 64 does:
+* **Golden carrots** unlock most hats.
+* **Bosses** give the King's Crown, Root Crown, Storm Cloud, Shade Halo, Shade
+  fur and boss trails.
+* **Every golden carrot** gives Golden fur.
 
-* **Coyote time** - you can still jump for a split second after running off a ledge.
-* **Jump buffering** - press jump just before landing and it still counts.
-* **Variable jump height** - tap for a hop, hold for full height.
-* **Wall jump** - jump into a wall, press jump again; it also gives back your double jump.
-* **Blob shadow** - a dark disc straight under the bunny, so you always know where you'll land.
-* **Readable danger** - your last heart beats; heart crates sit before the hard parts.
-* **Iris wipes** - the classic circle transition on death, warps and loading a file.
-* **"Golden carrot get!"** - a short celebration pose every time.
-* **Contextual tips** - one-off hints the first time you reach a new idea (saved per file).
-* **Friendly faces** - eleven characters with typewriter dialogue that changes as you progress.
-* **One theme, many moods** - the whole soundtrack is built on a single leitmotif.
+**Carrot coins** come from carrots, silvers, golden carrots, bosses and
+ore-carrot rocks. They're shared by all three files and spent in
+**Pause > SHOP** on cosmetic-only items, with a live preview. Roblox Premium
+members earn 1.5x coins.
 
-## Side challenges
-
-* **Silver carrot hunts** - five silver carrots hide in each region (on roofs,
-  ledges, tower tops, even over a lava vent). Find all five and that region's
-  golden carrot appears. Positions live in `Config.SilverSets`.
-* **Granny's Lost Kits** - Granny Clover's five grandkits have wandered off,
-  one in every land. Find them all (they're tiny bunnies) and Granny has a
-  golden carrot for you.
-* **Time trials** - step on a glowing start pad and race the clock:
-  *Summit Sprint* (Peaks, 90 s to the summit) and *Boulder Dash* (Canyon, 20 s up
-  the boulder ramp). Beat the time and a golden carrot appears at the finish.
-  Tune them in `Config.Trials`.
-
-## Atmosphere
-
-Weather per region (meadow pollen, peaks snowfall, canyon dust, castle embers,
-fireflies in the woods, cloud wisps in the sky),
-a boss title card for King Grumble, a scrolling credits roll over the ending
-reprise, and a little SAVED icon whenever your progress is stored.
-
-## Goals beyond the golden carrots
-
-* **Stamps** (Pause > STAMPS) - 16 achievements, from your first golden carrot to
-  beating the King without a scratch, wall-jump chains and smashing 20 crates.
-  Add Roblox badge ids to `Config.Badges` to award real badges too.
-* **Fastest Bunnies** - a board by the meadow spawn showing the 10 fastest 100%
-  clears across every server (OrderedDataStore).
-* **Golden fur** - unlocked in Customise once a file finds every golden carrot.
-
-## Getting around
-
-* **Map** (Pause > MAP) - every island and route, golden carrots (gold = found),
-  discovered warps, your checkpoint and you.
-* **Region cards** show your golden carrot progress as you arrive.
-
-## Fun & accessibility
-
-* **Emotes** - 1 wave, 2 dance, 3 sit (gamepad: D-pad left / right / up).
-* **Photo mode** (Pause > PHOTO MODE) - free camera, HUD hidden.
-* **Assist mode** (Options) - 5 hearts and longer recovery after a hit.
-* **Tips on/off** (Options).
-* Baddies can't hurt you while you're chatting or celebrating.
+Optionally, a **Supporter Pack** game pass (exclusive looks plus 1.5x coins)
+and a **bag of coins** product can be sold for Robux. They stay "COMING SOON"
+until you set their ids (see PUBLISHING.md). Nothing in the game can be bought
+that affects gameplay.
 
 ## Friends
 
-Talk to them with F (gamepad Y): Elder Shellby and Mayor Burrows (meadow
-spawn), Granny Clover (cottage), Guard Nibbles (castle bridge), Pip (Frostbite
-Peaks), Prospector Digby (Dustbowl Canyon), Sir Ember (castle courtyard),
-Ranger Fern (Whisperwood arrival) and Professor Hoot (Treetop Village), Nimbus
-the cloud sheep and Captain Gust (Cloudtop Heights). Their lines are in
-`Config.NPCs`; each picks the last set of lines whose goal you've reached.
+Talk with F (gamepad Y): Elder Shellby, Mayor Burrows and Granny Clover
+(meadow), Pip (Peaks), Prospector Digby (Canyon), Guard Nibbles and Sir Ember
+(castle), Ranger Fern and Professor Hoot (Whisperwood), Nimbus and Captain Gust
+(Cloudtop), and one more who lives somewhere dark. Their lines live in
+`Config.NPCs` and change as you progress.
+
+## Design notes (the invisible stuff)
+
+* **Coyote time, jump buffering, variable jump height**: the controls forgive
+  you.
+* **Wall jumps** give your double jump back. So do updrafts.
+* **Blob shadow** under the bunny, so you always know where you'll land.
+* **Readable danger**: telegraphed boss attacks, a beating last heart, heart
+  crates before hard parts, a flashing warning before blink blocks vanish.
+* **Iris wipes, region title cards, "golden carrot get!" celebrations.**
+* **Contextual tips** the first time you meet a new idea (saved per file).
+* **One theme, many moods**: every song is a variation on *Bunny's Theme*.
 
 ## Admin perks
 
-Press **P** (or the **ADMIN** button) for the admin panel. Admins are the
-place owner (or the owning group's owner), anyone whose UserId is listed in
-`Config.Admins`, and everyone while testing in Studio. The server checks every
-command.
+Press **P** (or the **ADMIN** button) for the admin panel. The place owner,
+`Config.Admins` and everyone in Studio get it. It offers:
 
-* **You:** fly (WASD where the camera looks, Space up, Shift down, Ctrl fast),
-  god mode, speed x1/x2/x3, full heal
-* **Teleport:** every checkpoint, plus straight to the boss
-* **Players:** go to, bring, freeze/unfreeze, launch, heal, and *control*
-  (they follow you for 20 seconds with their inputs locked; they're told who
-  is doing it)
-* **World:** reset King Grumble, give yourself every golden carrot on the
-  current file (for testing)
-
-## Golden carrots (37)
-
-Meadow 9 (including *Carrot Collector* for 100 carrots, *Bug Buster* for
-20 bopped bugs and *Granny's Lost Kits*), Peaks 6, Canyon 5, Castle 7
-(including the King's Crown), Whisperwood 5, Cloudtop Heights 5. Each land has
-a silver hunt golden, and the Peaks and Canyon each have a time-trial golden.
-Every 10 carrots restores a heart. Press **M > Carrot Log** for hints.
-
-## Customisation
-
-Fur colour, accent colour, hats and neckwear. Hats unlock as your best file
-collects golden carrots (Bobble Beanie at 2 ... Wizard Hat at 16, Leaf Cap at
-20, Sky Pilot Cap at 26); beating
-King Grumble unlocks the King's Crown. Looks are shared across your files.
+* fly, god mode and speed;
+* teleport to any checkpoint (including the secret dungeon) or the boss;
+* bring, freeze, launch, heal or control players;
+* reset all bosses;
+* give yourself every golden carrot.
 
 ## Saving
 
-Three files (A/B/C) per player, stored with DataStoreService: session
-locking, retries, autosave every 60 s, save on leave and on server shutdown,
-and an immediate save on every golden carrot and boss win. Saves from the
-first version are moved into File A automatically.
+Three files (A/B/C) per player in DataStoreService. Saving has:
+
+* session locking and retries;
+* autosave every 60 s, plus a save on leave, on shutdown, and on every golden
+  carrot, boss win and purchase.
+
+Looks, carrot coins and shop items are shared across files.
 
 ## Getting it into Roblox
 
 1. Open **`Bunny64.rbxlx`** in Roblox Studio (File > Open from File).
 2. **File > Publish to Roblox**.
-3. **Home > Game Settings > Security > Enable Studio Access to API Services**
-   (so saving works when testing in Studio).
-4. Press **Play**. The world is built by the server when the game starts, so
-   the edit-mode viewport is empty - that's expected.
+3. **Game Settings > Security > Enable Studio Access to API Services** (for
+   saving in Studio).
+4. Press **Play**. The server builds the world at start-up, so the edit-mode
+   viewport is empty.
 
-The bunny is a custom character (`StarterPlayer.StarterCharacter`, created at
-runtime), so avatar settings don't matter.
+Then follow **PUBLISHING.md** for the questionnaire, thumbnails, passes and
+getting players.
 
 ## Working on the code
 
-| Path | Becomes | Purpose |
-| --- | --- | --- |
-| `src/shared/Config.luau` | `ReplicatedStorage.Bunny64` | All tuning: moves, goals, gates, palette, cosmetics, sounds, music |
-| `src/shared/BunnyModel.luau` | 〃 | The bunny rig, hats and neckwear |
-| `src/shared/HazardMath.luau` | 〃 | Shared firebar / crusher timing |
-| `src/server/init.server.luau` | `ServerScriptService.Bunny64Server` | Files, pickups, hearts, checkpoints, warps |
-| `src/server/World/*` | module folder | One builder per region |
-| `src/server/DataService.luau` | module | Saving |
-| `src/server/EnemyService.luau`, `BugModel.luau`, `EnemyModels.luau` | modules | All the baddies and their models |
-| `src/server/HazardService.luau` | module | Firebars, crushers, lava, boulders |
-| `src/server/BossService.luau` | module | King Grumble |
-| `src/client/*` | `StarterPlayerScripts.Bunny64Client` | Menus, HUD, moves, animation, effects |
-| `src/client/Chiptune.luau` | 〃 | The 8-bit music sequencer and songs |
-| `src/character/*` | `StarterCharacterScripts` | Empty stand-ins for Roblox's default Animate/Health scripts |
+| Path | Purpose |
+| --- | --- |
+| `src/shared/Config.luau` | All tuning: moves, stamina, goals, gates, cosmetics, shop, sounds, music |
+| `src/shared/BunnyModel.luau` | The bunny rig, hats, neckwear, trails, unlock rules |
+| `src/server/World/*` | One builder per land, plus `Revamp` (new traversal circuits) and `Secret` |
+| `src/server/World/Builder.luau` | Building helpers: terrain, ziplines, spring pads, wheels, slides, ore rocks... |
+| `src/server/EnemyService.luau`, `EnemyModels.luau`, `BugModel.luau` | Baddie brains and models |
+| `src/server/BossKit.luau` | Shared boss pieces: arenas, telegraphed strikes, shockwaves, projectiles, minions |
+| `src/server/BossService.luau`, `BossRootjaw`, `BossThunderhead`, `BossShade` | The four bosses |
+| `src/server/ShopService.luau` | Coin shop, game passes, developer products |
+| `src/server/DataService.luau` | Saving |
+| `src/client/Movement.luau`, `Animator.luau` | Moveset, stamina, ziplines, procedural animation |
+| `src/client/Baddies.luau` | Smooth baddie rendering |
+| `src/client/WorldFX.luau` | Region looks, music, hazards, gates, crumbling/blinking blocks, boss arenas |
+| `src/client/Menus.luau`, `Hud.luau` | Menus (shop, map, log...) and HUD |
+| `src/client/Chiptune.luau` | The 8-bit music engine and songs |
 
-* **Rojo**: `rojo serve` with the included `default.project.json`.
-* **Rebuild the place file**: `python3 tools/build_place.py`.
-* `python3 tools/check_luau.py` runs a full Luau syntax check (a real parser),
-  checks block structure, and flags names that are used but never declared.
-  Run it before rebuilding the place file.
+* **Rojo**: `rojo serve` with `default.project.json`.
+* **Rebuild the place**: `python3 tools/build_place.py`.
+* **Check**: `python3 tools/check_luau.py` runs a full Luau syntax check plus
+  block and undeclared-name checks. Run it before rebuilding.
 
 ## Sound and music
 
-**8-bit music is built in**, all of it variations on one original leitmotif, *Bunny's Theme*: a lullaby (title), a march (meadow), a waltz (peaks), a swung trail tune (canyon), a minor-key brood (castle), a hushed nocturne (Whisperwood), a breezy F-major lift (Cloudtop Heights), a battle version (boss) and a full reprise (ending). The engine has melody, harmony, bass, arpeggio, drum and echo channels. `src/client/Chiptune.luau` is a tiny tracker that
-plays original chip tunes for the title screen, each region and the boss,
-using one built-in blip sample at different pitches plus a noise sample for
-drums. Songs are plain text patterns you can edit (`C5 . E5 - | ...`).
-`Config.Chiptune` picks the samples and tuning. To use your own uploaded
-tracks instead, put their ids in `Config.Music` - any area with an id plays
-that track rather than the chip tune. Volume sliders are in Options.
+All music is original 8-bit, played by `src/client/Chiptune.luau`, and every
+song is a variation on one leitmotif, *Bunny's Theme*:
 
-Sound effects use sounds bundled with the Roblox client.
+| Where | Arrangement |
+| --- | --- |
+| Title | lullaby |
+| Meadow | march |
+| Peaks | waltz |
+| Canyon | trail tune |
+| Castle | minor-key brood |
+| Whisperwood | nocturne |
+| Cloudtop | breezy F major |
+| Underburrow | crawl in the dark |
+| King Grumble | battle theme |
+| Rootjaw and Thunderhead | galloping rival theme |
+| The Shade | "mirror match" |
+| Ending | reprise |
 
-## Grass
-
-The animated grass comes from terrain decoration, which the server turns on at
-start-up. If you don't see grass blades, select **Workspace > Terrain** in
-Studio and tick **Decoration**.
+Put uploaded track ids in `Config.Music` to override any of them. Sound
+effects use sounds bundled with Roblox.
 
 ## Changing the save format
 
-Saves live in the DataStore named in `Config.DataStoreName`. Carrot ids are
-based on their positions, so moving a carrot in a region builder makes it a
-"new" carrot for existing saves.
+Carrot ids are based on their positions, so moving a carrot in a builder makes
+it a "new" carrot for existing saves.
