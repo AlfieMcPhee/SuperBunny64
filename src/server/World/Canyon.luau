@@ -122,6 +122,9 @@ function Canyon.Build(B)
 
 	----------------------------------------------------------------- arrival
 	B.checkpointFlag("canyon", Vector3.new(0, 0, 12)) -- beside the boardwalk, not on it
+	B.npc("digby", 545, -24, V(-1, 0, 0.4))
+	B.crate(600, -70, 45)
+	B.crate(590, 140)
 	B.warpBurrow(Config.Warps[3])
 	B.carrotLine(V(560, 3, 30), V(640, 3, 30), 5)
 

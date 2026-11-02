@@ -19,6 +19,8 @@ B.info = {
 	carrots = {}, -- [id] = Vector3
 	goldens = {}, -- [id] = Vector3
 	enemies = {}, -- { kind = string, pos = Vector3, skin = string, range?, axis? }
+	crates = {}, -- Parts: breakable heart crates
+	npcs = {}, -- { id = string, pos = Vector3, facing = Vector3 }
 	firebars = {}, -- { pivot, length, speed, phase }
 	crushers = {}, -- { base = CFrame, size, drop, period, offset }
 	boulderSpawns = {}, -- { from = Vector3, dir = Vector3 }
@@ -461,6 +463,44 @@ function B.golden(id, pos)
 	local m = carrotModel(pos, true)
 	m:SetAttribute("CollectId", id)
 	m:SetAttribute("Kind", "golden")
+end
+
+-- A wooden heart crate sitting on the ground at (x, z). Break it (roll, slide,
+-- long jump, ground pound or stomp) for a heart; it comes back later.
+function B.crate(x, z, fromY)
+	local y = B.groundY(x, z, fromY or 60)
+	local crate = B.make("Part", {
+		Name = "HeartCrate",
+		Size = Vector3.new(4, 4, 4),
+		CFrame = CFrame.new(x, y + 2, z) * CFrame.Angles(0, B.rng:NextNumber(0, math.pi), 0),
+		Color = P.WoodLight,
+		Material = Enum.Material.WoodPlanks,
+	})
+	crate:SetAttribute("Crate", true)
+	for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right, Enum.NormalId.Top }) do
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = face
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 30
+		gui.LightInfluence = 1
+		gui.Parent = crate
+		local t = Instance.new("TextLabel")
+		t.BackgroundTransparency = 1
+		t.Size = UDim2.fromScale(1, 1)
+		t.Font = Enum.Font.SourceSansBold
+		t.Text = "♥"
+		t.TextScaled = true
+		t.TextColor3 = Color3.fromRGB(196, 64, 64)
+		t.TextStrokeTransparency = 0.4
+		t.Parent = gui
+	end
+	table.insert(B.info.crates, crate)
+	return crate
+end
+
+-- A friendly character to talk to (see client/Dialogue and Config.NPCs)
+function B.npc(id, x, z, facing)
+	table.insert(B.info.npcs, { id = id, pos = Vector3.new(x, B.groundY(x, z, 60), z), facing = facing or Vector3.new(0, 0, 1) })
 end
 
 function B.bug(pos, skin)

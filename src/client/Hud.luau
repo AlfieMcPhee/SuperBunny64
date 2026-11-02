@@ -179,9 +179,125 @@ function Hud.Init(menuCallback)
 	end
 end
 
+--------------------------------------------------------------------------------
+-- Iris wipe: the classic circle that closes to black and opens again
+--------------------------------------------------------------------------------
+
+local irisGui, irisHole, irisStroke
+local irisToken = 0
+
+local function irisSize()
+	local v = workspace.CurrentCamera.ViewportSize
+	return math.sqrt(v.X * v.X + v.Y * v.Y)
+end
+
+local function ensureIris()
+	if irisGui then
+		return
+	end
+	irisGui = Instance.new("ScreenGui")
+	irisGui.Name = "Bunny64Iris"
+	irisGui.IgnoreGuiInset = true
+	irisGui.ResetOnSpawn = false
+	irisGui.DisplayOrder = 30
+	irisGui.Enabled = false
+	irisGui.Parent = player:WaitForChild("PlayerGui")
+	irisHole = Instance.new("Frame")
+	irisHole.AnchorPoint = Vector2.new(0.5, 0.5)
+	irisHole.Position = UDim2.fromScale(0.5, 0.5)
+	irisHole.BackgroundTransparency = 1
+	UI.corner(irisHole, 0)
+	irisHole:FindFirstChildOfClass("UICorner").CornerRadius = UDim.new(0.5, 0)
+	irisStroke = Instance.new("UIStroke")
+	irisStroke.Color = Color3.new(0, 0, 0)
+	irisStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	irisStroke.Parent = irisHole
+	irisHole.Parent = irisGui
+end
+
+-- Close the iris to black over `time` seconds
+function Hud.IrisClose(time)
+	ensureIris()
+	irisToken += 1
+	local d = irisSize()
+	irisStroke.Thickness = d
+	irisGui.Enabled = true
+	if irisHole.Size.X.Offset <= 0 or time <= 0 then
+		irisHole.Size = UDim2.fromOffset(time <= 0 and 0 or d * 1.1, time <= 0 and 0 or d * 1.1)
+	end
+	if time > 0 then
+		TweenService:Create(irisHole, TweenInfo.new(time, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Size = UDim2.fromOffset(0, 0) }):Play()
+	end
+end
+
+-- Open the iris from black over `time` seconds
+function Hud.IrisOpen(time)
+	ensureIris()
+	irisToken += 1
+	local token = irisToken
+	local d = irisSize()
+	irisStroke.Thickness = d
+	irisGui.Enabled = true
+	TweenService:Create(irisHole, TweenInfo.new(time, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.fromOffset(d * 1.1, d * 1.1) }):Play()
+	task.delay(time + 0.05, function()
+		if token == irisToken then
+			irisGui.Enabled = false
+		end
+	end)
+end
+
+-- Quick close-then-open (warps)
+function Hud.IrisBlink(closeTime, holdTime, openTime)
+	Hud.IrisClose(closeTime)
+	local token = irisToken
+	task.delay(closeTime + holdTime, function()
+		if token == irisToken then
+			Hud.IrisOpen(openTime)
+		end
+	end)
+end
+
+--------------------------------------------------------------------------------
+-- Tips: one-off hints shown in a box at the bottom of the screen
+--------------------------------------------------------------------------------
+
+local tipFrame, tipText
+local tipToken = 0
+
+function Hud.Tip(text)
+	if not tipFrame then
+		local frame, shadow = UI.panel(gui, UDim2.fromOffset(560, 92), UDim2.new(0.5, 0, 1, -90))
+		tipFrame = shadow
+		UI.label(frame, { Text = "TIP", Font = UI.TITLE, TextSize = 22, TextColor3 = UI.Gold, Size = UDim2.fromOffset(60, 26), Position = UDim2.fromOffset(14, 8), TextXAlignment = Enum.TextXAlignment.Left, Stroke = 3 })
+		tipText = UI.label(frame, { Text = "", TextSize = 19, TextWrapped = true, Size = UDim2.new(1, -28, 1, -36), Position = UDim2.fromOffset(14, 30), TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Stroke = 2 })
+		local limit = Instance.new("UISizeConstraint")
+		limit.MaxSize = Vector2.new(560, 92)
+		limit.Parent = tipFrame
+	end
+	tipToken += 1
+	local token = tipToken
+	tipText.Text = text
+	tipFrame.Visible = true
+	tipFrame.Position = UDim2.new(0.5, 0, 1, 60)
+	TweenService:Create(tipFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back), { Position = UDim2.new(0.5, 0, 1, -90) }):Play()
+	task.delay(7, function()
+		if token == tipToken then
+			TweenService:Create(tipFrame, TweenInfo.new(0.35), { Position = UDim2.new(0.5, 0, 1, 80) }):Play()
+			task.delay(0.4, function()
+				if token == tipToken then
+					tipFrame.Visible = false
+				end
+			end)
+		end
+	end)
+end
+
 function Hud.SetVisible(on)
 	gui.Enabled = on
 end
+
+local lowHealth = false
+local onLowBeat = nil
 
 function Hud.SetHearts(health, max)
 	for i, h in ipairs(hearts) do
@@ -190,6 +306,29 @@ function Hud.SetHearts(health, max)
 		h.Shine.Visible = full
 		h.Visible = i <= max
 	end
+	-- last heart: it beats, so you know you're in danger
+	local low = health > 0 and health <= 1 and max > 1
+	if low and not lowHealth then
+		lowHealth = true
+		task.spawn(function()
+			while lowHealth do
+				local h = hearts[1]
+				if h then
+					Hud.Pulse(h)
+				end
+				if onLowBeat and gui.Enabled then
+					onLowBeat()
+				end
+				task.wait(1.1)
+			end
+		end)
+	elseif not low then
+		lowHealth = false
+	end
+end
+
+function Hud.OnLowHealthBeat(fn)
+	onLowBeat = fn
 end
 
 function Hud.Pulse(label)

@@ -130,6 +130,11 @@ function Castle.Build(B)
 	----------------------------------------------------------------- courtyard
 	B.block(CF(0, 1, 800), V(200, 2, 200), Color3.fromRGB(84, 78, 76), SLATE)
 	B.checkpointFlag("courtyard")
+	B.npc("ember", 30, 712, V(-0.6, 0, -1))
+	B.crate(70, 800, 10)
+	B.crate(-80, 840, 10)
+	B.crate(20, 580)
+	B.crate(-30, 648)
 	B.bug(V(0, 2, 790), "castle")
 	B.enemy("bat", V(-50, 30, 760), "castle")
 	B.enemy("bat", V(60, 40, 800), "castle")
@@ -199,6 +204,7 @@ function Castle.Build(B)
 		-- a step in the doorway up from the courtyard (floor 2) to the entry platform (4)
 		B.block(CF(0, 1.5, 820), V(16, 3, 8), dark, SLATE)
 		B.checkpointFlag("keep")
+		B.crate(6, 837, 10)
 		for _, p in ipairs({ V(-54.5, 20, 857), V(54.5, 40, 857), V(0, 20, 889.5), V(-54.5, 45, 840), V(54.5, 45, 870) }) do
 			B.torch(p)
 		end
@@ -263,6 +269,7 @@ function Castle.Build(B)
 		B.block(CF(180, 31, 800), V(100, 2, 160), Color3.fromRGB(44, 40, 42), SLATE)
 		B.sign(V(166, 0, 712), V(0, 0, -1), "THE DUNGEON", "Abandon hope, bring carrots", dark, Color3.fromRGB(230, 200, 170))
 		B.checkpointFlag("dungeon")
+		B.crate(200, 728, 10)
 
 		B.lava(CF(180, 0.6, 806), V(96, 0.8, 144))
 		B.block(CF(180, 0.75, 718), V(20, 1.5, 7), stone, SLATE) -- doorstep
@@ -332,6 +339,8 @@ function Castle.Build(B)
 		end
 		B.golden("boss", A + V(0, 5, 0))
 		B.checkpointFlag("throne")
+		B.crate(-22, 772, 206)
+		B.crate(22, 830, 206)
 		B.exitPrompt(Config.Checkpoints.throne.pos + V(10, -5.5, 0), "courtyard", "Return to courtyard")
 	end
 

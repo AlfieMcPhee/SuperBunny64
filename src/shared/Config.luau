@@ -120,6 +120,135 @@ Config.Warps = {
 	{ id = "castle", name = "INFERNAL CASTLE", pos = Vector3.new(26, 0, 575) },
 }
 
+-- One-off tips, shown the first time you come near each spot (per save file).
+-- {jump} {roll} {crouch} {menu} become the player's own key names.
+Config.Tips = {
+	{ id = "move", pos = Vector3.new(0, 4, 60), radius = 26, text = "Press {jump} to jump, and again in mid-air to double jump. Tap it for a little hop, hold it to jump higher." },
+	{ id = "talk", pos = Vector3.new(30, 4, 66), radius = 22, text = "Friendly folk have a lot to say. Walk up to them and press F (or Y) to chat." },
+	{ id = "baddie", pos = Vector3.new(40, 4, 25), radius = 22, text = "Grumblebugs are grumpy but squishy. Jump on them, or {roll} into them!" },
+	{ id = "warp", pos = Vector3.new(-24, 4, 44), radius = 14, text = "Burrow Warps whisk you between regions once you've found them." },
+	{ id = "crate", pos = Vector3.new(26, 4, 48), radius = 14, text = "Heart crates! Smash them with a roll, slide or ground pound to get a heart back." },
+	{ id = "walljump", pos = Vector3.new(-130, 25, -120), radius = 45, text = "Jump into a wall and press {jump} again to wall jump. Great for climbing towers!" },
+	{ id = "slide", pos = Vector3.new(0, 4, -250), radius = 24, text = "While running, press {crouch} to belly-slide. Jump during a slide for a long jump." },
+	{ id = "chute", pos = Vector3.new(-40, 98, -720), radius = 18, text = "Ice chutes grab you and don't let go. Steer with the stick - and enjoy the ride." },
+	{ id = "longjump", pos = Vector3.new(570, 20, -60), radius = 30, text = "Those gaps are too wide for a double jump. {roll}, then press {jump} mid-roll to long jump!" },
+	{ id = "spikes", pos = Vector3.new(690, 4, -60), radius = 30, text = "Thornhogs are all spikes. Only a ground pound shockwave works: {crouch} in mid-air near them." },
+	{ id = "lava", pos = Vector3.new(0, 5, 565), radius = 24, text = "Lava bounces you out, but it costs a heart. Checkpoint flags glow gold when they're yours." },
+	{ id = "boss", pos = Vector3.new(0, 206, 752), radius = 24, text = "King Grumble only shows his weak spots when he's dazed. Make him charge a pillar!" },
+}
+
+-- Friendly characters. Each NPC picks the LAST dialogue set whose conditions
+-- are met (goldens = golden carrots in this file, boss = King Grumble beaten).
+Config.NPCs = {
+	shellby = {
+		name = "ELDER SHELLBY", kind = "tortoise", voice = 0.55,
+		dialogue = {
+			{ lines = {
+				"Oh! A visitor. Forgive me, I don't move very fast. Or think very fast. Or... what was I saying?",
+				"Ah yes. The golden carrots! King Grumble's bugs scattered them all over the islands.",
+				"Twenty of them, I think. I've been counting for... about eleven years.",
+				"Start small. The old cottage roof, the tower, the big oak. The meadow is kind to beginners.",
+			} },
+			{ goldens = 5, lines = {
+				"Five already? Back in my day we had one carrot and we were GRATEFUL.",
+				"The causeway north goes to the Peaks, the boardwalk east goes to the Canyon.",
+				"South is the castle. The gate needs ten golden carrots. The King is very fussy about doors.",
+			} },
+			{ goldens = 10, lines = {
+				"Ten! The castle gate should open for you now.",
+				"Be careful in there, little one. Lava is hot. I learned that the slow way.",
+			} },
+			{ boss = true, lines = {
+				"You beat the King? Then the meadow is safe again. I'm going to celebrate.",
+				"...",
+				"I am celebrating. On the inside.",
+			} },
+		},
+	},
+	clover = {
+		name = "GRANNY CLOVER", kind = "granny", voice = 0.8,
+		dialogue = {
+			{ lines = {
+				"Hello, sweetpea! Mind the flowerbeds. I just planted the carrots. Well, I planted where the carrots WERE.",
+				"Something shiny landed on my roof last night. My knees aren't what they used to be.",
+				"Those crates by the wall should help. You're a bouncy one, aren't you?",
+			} },
+			{ goldens = 3, lines = {
+				"You found the one on my roof! Oh, you're a treasure.",
+				"When you get tired, come back and sit a while. The meadow will still be here.",
+			} },
+			{ boss = true, lines = {
+				"I heard the castle went quiet. Was that you? Of course it was.",
+				"I baked a carrot cake. It's mostly carrot. Some of it is cake.",
+			} },
+		},
+	},
+	pip = {
+		name = "PIP", kind = "penguin", voice = 1.35,
+		dialogue = {
+			{ lines = {
+				"HEY! HI! Welcome to the Peaks! It's cold! Isn't it great?!",
+				"The ramps go all the way up the mountain. There's a golden carrot at the very top!",
+				"Halfway up there's an ice chute. You slide ALL the way down. I've done it forty times today.",
+				"Watch out for the pond though. The ice floes drift around. And the water is... very wet.",
+			} },
+			{ goldens = 12, lines = {
+				"You again! You look like someone who's seen some things. Snowy things. Spiky things.",
+				"Did you try the snowman's hat? The ice pillars spiral up around him!",
+			} },
+		},
+	},
+	digby = {
+		name = "PROSPECTOR DIGBY", kind = "mole", voice = 0.7,
+		dialogue = {
+			{ lines = {
+				"Well butter my burrow, a surface-dweller! Welcome to Dustbowl Canyon.",
+				"See them pillars out yonder? Too far apart for any normal hop.",
+				"Trick is to ROLL first, then JUMP while you're rollin'. Long jump, they call it. I call it flyin' sideways.",
+				"And steer clear of the Thornhogs. Prickly fellers. Only a good ground pound'll sort 'em out.",
+			} },
+			{ goldens = 14, lines = {
+				"Up the long ramp there's a temple. Boulders come tumblin' down it every few seconds.",
+				"Don't fight the boulders. The boulders always win. Go around 'em.",
+			} },
+		},
+	},
+	nibbles = {
+		name = "GUARD NIBBLES", kind = "mouse", voice = 1.15,
+		dialogue = {
+			{ lines = {
+				"HALT! Who goes there? Oh. A bunny. Hello.",
+				"This is the King's castle. Nobody gets through the gate without ten golden carrots.",
+				"That's the rule. I didn't make the rule. I just stand here. I'm very good at standing.",
+			} },
+			{ goldens = 10, lines = {
+				"Ten golden carrots?! Well... rules are rules. In you go.",
+				"Between you and me, the King's been grumpy for years. Maybe he just needs someone to stand up to him.",
+				"His weak spots only glow when he's dizzy. You didn't hear that from me.",
+			} },
+			{ boss = true, lines = {
+				"The King says he's 'reflecting on his choices'. He asked for a cup of tea.",
+				"I think you might have actually helped him. Weird, right?",
+			} },
+		},
+	},
+	ember = {
+		name = "SIR EMBER", kind = "knightbug", voice = 0.6,
+		dialogue = {
+			{ lines = {
+				"Greetings, small fluffy intruder. I am Sir Ember, Knight of the Courtyard.",
+				"I am supposed to stop you. But my shift ended an hour ago.",
+				"The firebars to the west, the crushers to the east, the keep straight ahead. Each hides a golden carrot.",
+				"The keep is the tallest climb. At the top, a portal to the throne room. Fifteen golden carrots to enter.",
+			} },
+			{ boss = true, lines = {
+				"You defeated His Majesty. I suppose I should be upset.",
+				"I am not upset. I am going on holiday.",
+			} },
+		},
+	},
+}
+
 -- Customisation ----------------------------------------------------------------------
 local rgb = Color3.fromRGB
 Config.FurColors = {
@@ -183,6 +312,10 @@ Config.Sounds = {
 	Burn = { id = "rbxasset://sounds/action_falling.mp3", volume = 0.6 },
 	Boss = { id = "rbxasset://sounds/action_get_up.mp3", volume = 0.9 },
 	Screech = { id = "rbxasset://sounds/swoosh.wav", volume = 0.4 },
+	Talk = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.22 },
+	Crate = { id = "rbxasset://sounds/action_get_up.mp3", volume = 0.6 },
+	Heart = { id = "rbxasset://sounds/electronicpingshort.wav", volume = 0.5 },
+	Heartbeat = { id = "rbxasset://sounds/action_get_up.mp3", volume = 0.35 },
 }
 -- Put uploaded music ids here, e.g. "rbxassetid://1234567890". Empty = silence.
 Config.Music = {
@@ -204,6 +337,7 @@ Config.Chiptune = {
 	Lead = { id = "rbxasset://sounds/electronicpingshort.wav", baseNote = 84, volume = 0.3 },
 	Bass = { id = "rbxasset://sounds/electronicpingshort.wav", baseNote = 72, volume = 0.5 },
 	Noise = { id = "rbxasset://sounds/swoosh.wav", volume = 0.3 },
+	Arp = { volume = 0.13 }, -- arpeggios use the Lead sample, softly
 	Drums = {
 		k = { speed = 0.22, gate = 0.09, volume = 0.6 },
 		s = { speed = 2.4, gate = 0.07, volume = 0.28 },

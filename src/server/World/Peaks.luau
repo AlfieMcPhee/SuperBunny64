@@ -198,6 +198,9 @@ function Peaks.Build(B)
 
 	----------------------------------------------------------------- arrival, warp and checkpoint
 	B.checkpointFlag("peaks")
+	B.npc("pip", -30, -530, V(0.6, 0, 1))
+	B.crate(16, -515)
+	B.crate(cx - 33, cz + 4, 99)
 	B.warpBurrow(Config.Warps[2])
 	B.carrotLine(V(-20, 3, -540), V(20, 3, -540), 5)
 

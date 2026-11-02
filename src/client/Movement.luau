@@ -8,6 +8,12 @@
 	  Slide           Crouch (C / Ctrl / E / B / CROUCH button) while running.
 	                  Ice chutes start a slide automatically; steer with the stick.
 	  Ground pound    Crouch in the air
+	  Wall jump       jump while pressed against a wall in mid-air
+
+	Game-feel helpers (the invisible stuff good platformers do):
+	  coyote time     you can still jump for a moment after running off a ledge
+	  jump buffer     pressing jump just before landing jumps as soon as you land
+	  variable jump   let go of jump early for a short hop, hold for full height
 ]]
 
 local Players = game:GetService("Players")
@@ -42,6 +48,15 @@ local lastBounce = 0
 local airborneSince = nil
 local sentMove = nil
 local flying = false -- admin fly mode (client/AdminPanel) takes over movement
+local jumpedSinceGround = false
+local jumpRising = false
+local bufferUntil = 0
+local lastVy = 0
+local nextDust = 0
+local celebrateUntil = 0
+local COYOTE_TIME = 0.13
+local BUFFER_TIME = 0.15
+local DUST = Color3.fromRGB(206, 196, 176)
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
@@ -62,7 +77,7 @@ local function setMove(name)
 	move = name
 	moveStart = os.clock()
 	if lv then
-		lv.Enabled = (name == "roll" or name == "longjump" or name == "slide")
+		lv.Enabled = (name == "roll" or name == "longjump" or name == "slide" or name == "walljump")
 	end
 	if name == "" then
 		sendMove(os.clock() - flipAt < 0.5 and "flip" or "")
@@ -215,19 +230,75 @@ local function crouch()
 	end
 end
 
+-- A wall right in front of us (or where the stick points)?
+local function findWall()
+	local dirs = { facingDir() }
+	local md = humanoid.MoveDirection
+	if md.Magnitude > 0.1 then
+		table.insert(dirs, Vector3.new(md.X, 0, md.Z).Unit)
+	end
+	for _, d in ipairs(dirs) do
+		for _, h in ipairs({ 0, 1.2 }) do
+			local hit = workspace:Raycast(root.Position + Vector3.new(0, h, 0), d * 2.8, rayParams)
+			if hit and math.abs(hit.Normal.Y) < 0.35 and not hit.Instance:GetAttribute("Lava") then
+				return hit
+			end
+		end
+	end
+	return nil
+end
+
+local function wallJump(hit)
+	local n = Vector3.new(hit.Normal.X, 0, hit.Normal.Z).Unit
+	moveDir = n
+	moveSpeed = 40
+	setMove("walljump")
+	usedDouble = false -- a wall jump gives you your double jump back
+	jumpRising = false
+	root.CFrame = CFrame.lookAt(root.Position, root.Position + n)
+	root.AssemblyLinearVelocity = n * moveSpeed + Vector3.new(0, 60, 0)
+	setPlane(n * moveSpeed)
+	flipAt = os.clock()
+	Effects.Play("Stomp", 1.6)
+	Effects.Burst(hit.Position, DUST, 6, 3, 0.5, 2)
+end
+
 local function tryJumpMove()
-	if flying or not enabled or not root then
+	if flying or not enabled or not root or os.clock() < celebrateUntil then
 		return
 	end
-	if move == "roll" or (move == "slide" and os.clock() - moveStart > 0.08) then
+	local now = os.clock()
+	if move == "roll" or (move == "slide" and now - moveStart > 0.08) then
 		startLongJump(moveSpeed + 10)
 		return
 	end
-	if move ~= "" or usedDouble or not inAir() or os.clock() - lastGrounded < 0.15 then
+	-- coyote time: walked off a ledge a moment ago and haven't jumped yet
+	if move == "" and not grounded() and not jumpedSinceGround and now - lastGrounded < COYOTE_TIME then
+		jumpedSinceGround = true
+		jumpRising = true
+		local v = root.AssemblyLinearVelocity
+		root.AssemblyLinearVelocity = Vector3.new(v.X, Config.JumpPower, v.Z)
+		humanoid:ChangeState(HST.Jumping)
+		Effects.Play("Jump", 1.05)
+		return
+	end
+	if (move == "" or move == "longjump") and inAir() and now - lastGrounded > 0.12 then
+		local wall = findWall()
+		if wall then
+			wallJump(wall)
+			return
+		end
+	end
+	if move ~= "" or usedDouble or not inAir() or now - lastGrounded < 0.15 then
+		-- remember the press: if we land in the next moment, jump right away
+		if not grounded() then
+			bufferUntil = now + BUFFER_TIME
+		end
 		return
 	end
 	usedDouble = true
-	flipAt = os.clock()
+	jumpRising = true
+	flipAt = now
 	sendMove("flip")
 	local v = root.AssemblyLinearVelocity
 	root.AssemblyLinearVelocity = Vector3.new(v.X, Config.DoubleJumpPower, v.Z)
@@ -301,12 +372,31 @@ local function onCharacter(char)
 	lv.Parent = root
 	holdUntilGround(0.5)
 
+	jumpedSinceGround = false
+	jumpRising = false
+	celebrateUntil = 0
 	humanoid.StateChanged:Connect(function(_, new)
 		if new == HST.Landed or new == HST.Running then
 			usedDouble = false
+			jumpedSinceGround = false
+			jumpRising = false
 			lastGrounded = os.clock()
+			if new == HST.Landed and lastVy < -55 then
+				Effects.Ring(root.Position - Vector3.new(0, 2.6, 0), DUST, 5, 10, 0.3)
+			end
+			-- jump buffer: jump was pressed just before touching down
+			if os.clock() < bufferUntil and enabled and move == "" then
+				bufferUntil = 0
+				task.defer(function()
+					if humanoid and humanoid.Parent then
+						humanoid:ChangeState(HST.Jumping)
+					end
+				end)
+			end
 		elseif new == HST.Jumping then
 			lastGrounded = os.clock()
+			jumpedSinceGround = true
+			jumpRising = true
 			if move == "" then
 				Effects.Play("Jump", 1 + math.random() * 0.1)
 			end
@@ -335,6 +425,51 @@ function Movement.SetFlying(on)
 	end
 end
 
+-- Golden-carrot celebration: a little cheer, controls paused for a moment
+function Movement.Celebrate(duration)
+	if not root or flying then
+		return
+	end
+	if move ~= "" then
+		setMove("")
+	end
+	celebrateUntil = os.clock() + duration
+	sendMove("cheer")
+	if controls and enabled then
+		controls:Disable()
+	end
+	if grounded() then
+		root.AssemblyLinearVelocity = Vector3.new(0, root.AssemblyLinearVelocity.Y, 0)
+	end
+	task.delay(duration, function()
+		if os.clock() >= celebrateUntil - 0.01 then
+			sendMove("")
+			if controls and enabled then
+				controls:Enable()
+			end
+		end
+	end)
+end
+
+-- Is the player holding jump? (humanoid.Jump mirrors the jump input on every device)
+local jumpCodes = { Enum.KeyCode.Space, Enum.KeyCode.ButtonA }
+local function jumpHeld()
+	if humanoid and humanoid.Jump then
+		return true
+	end
+	for _, code in ipairs(jumpCodes) do
+		local isPad = string.sub(code.Name, 1, 6) == "Button" or string.sub(code.Name, 1, 4) == "DPad"
+		if isPad then
+			if UserInputService:IsGamepadButtonDown(Enum.UserInputType.Gamepad1, code) then
+				return true
+			end
+		elseif UserInputService:IsKeyDown(code) then
+			return true
+		end
+	end
+	return false
+end
+
 function Movement.GetControls()
 	return controls
 end
@@ -346,7 +481,7 @@ end
 -- For the animator: what is the local bunny doing right now?
 function Movement.State()
 	return {
-		move = flying and "fly" or move,
+		move = flying and "fly" or (os.clock() < celebrateUntil and "cheer" or move),
 		moveStart = moveStart,
 		flipAt = flipAt,
 		speed = moveSpeed,
@@ -389,6 +524,23 @@ local function step(dt)
 		airborneSince = now
 	end
 
+	local vel = root.AssemblyLinearVelocity
+	-- variable jump height: letting go early cuts the jump short
+	if jumpRising then
+		if vel.Y <= 0 then
+			jumpRising = false
+		elseif move == "" and vel.Y > 16 and not jumpHeld() then
+			root.AssemblyLinearVelocity = Vector3.new(vel.X, vel.Y * 0.45, vel.Z)
+			jumpRising = false
+		end
+	end
+	-- running dust
+	if onGround and move == "" and now > nextDust and Vector3.new(vel.X, 0, vel.Z).Magnitude > 20 then
+		nextDust = now + 0.16
+		Effects.Burst(root.Position - Vector3.new(0, 2.5, 0), DUST, 2, 2, 0.45, 0.8)
+	end
+	lastVy = vel.Y
+
 	-- landed on a bounce pad?
 	if root.AssemblyLinearVelocity.Y < 5 then
 		local under = floorHit()
@@ -407,7 +559,13 @@ local function step(dt)
 		end
 	end
 
-	if move == "roll" then
+	if move == "walljump" then
+		local t = now - moveStart
+		setPlane(moveDir * moveSpeed)
+		if t > 0.3 or (onGround and t > 0.1) then
+			setMove("")
+		end
+	elseif move == "roll" then
 		local t = now - moveStart
 		moveSpeed = Config.RollSpeed * (1 - 0.35 * t / Config.RollTime)
 		setPlane(moveDir * moveSpeed)
@@ -550,6 +708,7 @@ function Movement.ApplyControls(controls)
 
 	-- Space / A always jump (Roblox handles those); a custom jump key is added on top
 	local jumpKeys = {}
+	jumpCodes = { Enum.KeyCode.Space, Enum.KeyCode.ButtonA, binds.jump[1], binds.jump[2] }
 	if binds.jump[1] ~= Enum.KeyCode.Space then
 		table.insert(jumpKeys, binds.jump[1])
 	end

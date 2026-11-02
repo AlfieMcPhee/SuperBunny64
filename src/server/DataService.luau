@@ -52,6 +52,7 @@ function DataService.NewSlot()
 		checkpoint = "meadow",
 		warps = { meadow = true },
 		bossDefeated = false,
+		tips = {},
 		created = os.time(),
 	}
 end

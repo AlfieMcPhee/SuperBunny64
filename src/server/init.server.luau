@@ -37,6 +37,8 @@ local noop = function() end
 local EnemyService = optional("EnemyService", { Start = noop, MarkPounding = noop, Shockwave = noop })
 local HazardService = optional("HazardService", { Start = noop, Burn = noop })
 local BossService = optional("BossService", { Start = noop, Reset = noop })
+local CrateService = optional("CrateService", { Start = noop, Shockwave = noop })
+local NPCService = optional("NPCService", { Start = noop })
 local AdminService = optional("AdminService", { Start = noop, IsAdmin = function()
 	return false
 end })
@@ -135,6 +137,7 @@ local function snapshot(player, event)
 			checkpoint = slot.checkpoint,
 			warps = slot.warps,
 			bossDefeated = slot.bossDefeated,
+			tips = slot.tips or {},
 		}
 	end
 	return snap
@@ -449,7 +452,7 @@ SetOptions.OnServerEvent:Connect(function(player, options)
 	end
 end)
 
-local VALID_MOVES = { [""] = true, roll = true, slide = true, longjump = true, pound = true, flip = true, fly = true }
+local VALID_MOVES = { [""] = true, roll = true, slide = true, longjump = true, pound = true, flip = true, fly = true, walljump = true, cheer = true }
 SetMove.OnServerEvent:Connect(function(player, move)
 	local char = player.Character
 	if char and type(move) == "string" and VALID_MOVES[move] then
@@ -468,6 +471,7 @@ Pound.OnServerEvent:Connect(function(player, action, pos)
 	elseif action == "land" and typeof(pos) == "Vector3" and (pos - root.Position).Magnitude < 15 then
 		EnemyService.MarkPounding(player, 0.15)
 		EnemyService.Shockwave(player, pos)
+		CrateService.Shockwave(player, pos)
 		Effect:FireAllClients("pound", pos)
 	end
 end)
@@ -571,6 +575,33 @@ safeStart("BossService", BossService.Start, info, {
 })
 
 -- Admin perks ------------------------------------------------------------------------------------
+safeStart("CrateService", CrateService.Start, info, {
+	heal = function(player)
+		heal(player, 1)
+		Effect:FireClient(player, "heart", Vector3.zero)
+	end,
+	effect = function(kind, pos)
+		Effect:FireAllClients(kind, pos)
+	end,
+	bounce = function(player, vel)
+		Bounce:FireClient(player, vel, true, "stomp")
+	end,
+})
+safeStart("NPCService", NPCService.Start, info)
+
+-- Tips: remember which one-off hints this file has already shown
+local tipIds = {}
+for _, t in ipairs(Config.Tips) do
+	tipIds[t.id] = true
+end
+remote("RemoteEvent", "TipSeen").OnServerEvent:Connect(function(player, id)
+	local slot = DataService.ActiveSlot(player)
+	if slot and type(id) == "string" and tipIds[id] then
+		slot.tips = slot.tips or {}
+		slot.tips[id] = true
+	end
+end)
+
 safeStart("AdminService", AdminService.Start, {
 	remotes = remotes,
 	info = info,

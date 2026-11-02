@@ -61,6 +61,29 @@ tufts. Built things (towers, castles, platforms) stay chunky low-poly parts.
 Checkpoint flags save where you respawn (your active flag glows gold). Burrow Warps (one per region) let
 you travel between regions once discovered.
 
+## Design notes (the invisible stuff)
+
+Good platformers are generous in ways players never notice. Bunny 64 does:
+
+* **Coyote time** - you can still jump for a split second after running off a ledge.
+* **Jump buffering** - press jump just before landing and it still counts.
+* **Variable jump height** - tap for a hop, hold for full height.
+* **Wall jump** - jump into a wall, press jump again; it also gives back your double jump.
+* **Blob shadow** - a dark disc straight under the bunny, so you always know where you'll land.
+* **Readable danger** - your last heart beats; heart crates sit before the hard parts.
+* **Iris wipes** - the classic circle transition on death, warps and loading a file.
+* **"Golden carrot get!"** - a short celebration pose every time.
+* **Contextual tips** - one-off hints the first time you reach a new idea (saved per file).
+* **Friendly faces** - six characters with typewriter dialogue that changes as you progress.
+* **One theme, many moods** - the whole soundtrack is built on a single leitmotif.
+
+## Friends
+
+Talk to them with F (gamepad Y): Elder Shellby (meadow spawn), Granny Clover
+(cottage), Guard Nibbles (castle bridge), Pip (Frostbite Peaks), Prospector Digby
+(Dustbowl Canyon) and Sir Ember (castle courtyard). Their lines are in
+`Config.NPCs`; each picks the last set of lines whose goal you've reached.
+
 ## Admin perks
 
 Press **P** (or the **ADMIN** button) for the admin panel. Admins are the
@@ -133,7 +156,7 @@ runtime), so avatar settings don't matter.
 
 ## Sound and music
 
-**8-bit music is built in.** `src/client/Chiptune.luau` is a tiny tracker that
+**8-bit music is built in**, all of it variations on one original leitmotif, *Bunny's Theme*: a lullaby (title), a march (meadow), a waltz (peaks), a swung trail tune (canyon), a minor-key brood (castle), a battle version (boss) and a full reprise (ending). The engine has melody, harmony, bass, arpeggio, drum and echo channels. `src/client/Chiptune.luau` is a tiny tracker that
 plays original chip tunes for the title screen, each region and the boss,
 using one built-in blip sample at different pitches plus a noise sample for
 drums. Songs are plain text patterns you can edit (`C5 . E5 - | ...`).

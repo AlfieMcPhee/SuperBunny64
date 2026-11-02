@@ -812,6 +812,7 @@ function Menus.ShowEnding(s)
 	clear()
 	gui.Enabled = true
 	deps.Movement.SetEnabled(false)
+	deps.Effects.SetMusic("ending") -- "Home Again": the full reprise of Bunny's Theme
 	UI.backdrop(layer, 0.2)
 	UI.title(layer, "CONGRATULATIONS!", 76, UDim2.new(0.5, 0, 0, 40), Vector2.new(0.5, 0))
 	bunnyViewport(layer, UDim2.fromOffset(260, 260), UDim2.fromScale(0.5, 0.42), snap.menu.custom)
@@ -822,7 +823,11 @@ function Menus.ShowEnding(s)
 		Font = UI.TITLE, TextSize = 26, TextColor3 = UI.Gold, Size = UDim2.new(1, 0, 0, 34), Position = UDim2.fromOffset(0, 96),
 	})
 	local keep = UI.item(panel, "KEEP EXPLORING", { Size = UDim2.fromOffset(300, 44), Position = UDim2.new(0.5, -150, 1, -58) })
-	UI.SetNav({ { button = keep, select = Menus.Close } }, Menus.Close)
+	local function finish()
+		deps.WorldFX.ResetRegion() -- back to the area's own music and lighting
+		Menus.Close()
+	end
+	UI.SetNav({ { button = keep, select = finish } }, finish)
 end
 
 --------------------------------------------------------------------------------

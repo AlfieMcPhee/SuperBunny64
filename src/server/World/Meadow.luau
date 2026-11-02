@@ -369,6 +369,15 @@ function Meadow.Build(B)
 		B.sign(V(16, 0, 214), V(0, 0, -1), "INFERNAL CASTLE", "10 golden carrots open the gate")
 	end
 
+	----------------------------------------------------------------- friends & heart crates
+	B.npc("shellby", 30, 66, V(-1, 0, 0.2))
+	B.npc("clover", -54, -24, V(0, 0, 1))
+	B.npc("nibbles", 8, 518, V(-1, 0, -0.3))
+	B.crate(26, 48)
+	B.crate(-26, 74)
+	B.crate(-98, -100)
+	B.crate(-44, -22)
+
 	----------------------------------------------------------------- other baddies
 	for _, p in ipairs({ V(-80, 0, 70), V(60, 0, 50), V(-150, 0, 20), V(160, 0, 60) }) do
 		B.enemy("toad", p, "meadow", 26)

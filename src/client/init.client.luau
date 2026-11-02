@@ -19,6 +19,8 @@ local Animator = require(script:WaitForChild("Animator"))
 local Collectibles = require(script:WaitForChild("Collectibles"))
 local WorldFX = require(script:WaitForChild("WorldFX"))
 local AdminPanel = require(script:WaitForChild("AdminPanel"))
+local Shadows = require(script:WaitForChild("Shadows"))
+local Dialogue = require(script:WaitForChild("Dialogue"))
 
 local player = Players.LocalPlayer
 
@@ -41,7 +43,7 @@ workspace.CurrentCamera.FieldOfView = 65
 local remotes = {}
 for _, name in ipairs({
 	"GetProfile", "SelectSlot", "EraseSlot", "Customise", "QuitToTitle", "SetOptions", "Collect",
-	"Update", "Pound", "Bounce", "Effect", "SetMove", "WarpMenu", "Warp", "AdminCommand", "AdminNotice",
+	"Update", "Pound", "Bounce", "Effect", "SetMove", "WarpMenu", "Warp", "AdminCommand", "AdminNotice", "TipSeen",
 }) do
 	remotes[name] = Remotes:WaitForChild(name)
 end
@@ -96,6 +98,10 @@ local function handleEvent(s, event)
 			text ..= "\nNEW LOOK UNLOCKED: " .. event.unlocked
 		end
 		Hud.Toast(text, 4, GOLD)
+		-- the "golden carrot get!" moment: a little cheer before you carry on
+		if Menus.Screen() == nil then
+			Movement.Celebrate(1.6)
+		end
 		if s.slot.goldenCount == Config.CastleGate then
 			task.delay(4.2, function()
 				Hud.Toast("THE CASTLE GATE HAS OPENED...", 3.5, Color3.fromRGB(240, 150, 110))
@@ -175,8 +181,15 @@ remotes.Effect.OnClientEvent:Connect(function(kind, pos, extra)
 		Effects.Play("Boss", 0.4)
 		Effects.Shake(2, 2.4)
 	elseif kind == "warp" then
+		Hud.IrisBlink(0.2, 0.15, 0.5)
 		Effects.Play("Boing", 1.2)
 		Effects.Burst(pos, Config.Palette.Dirt, 14, 6, 0.7, 6)
+	elseif kind == "crate" then
+		Effects.Play("Crate", 1.3)
+		Effects.Burst(pos, Config.Palette.WoodLight, 14, 7, 0.8, 7)
+	elseif kind == "heart" then
+		Effects.Play("Heart", 1.6)
+		Hud.Toast("+1 HEART", 1.2, Color3.fromRGB(240, 140, 140))
 	elseif kind == "locked" then
 		Hud.Toast(string.format("YOU NEED %d GOLDEN CARROTS\nTO FACE THE KING", pos), 3, Color3.fromRGB(240, 150, 110))
 	end
@@ -194,6 +207,9 @@ local function watchHealth(character)
 		Hud.SetHearts(h, humanoid.MaxHealth)
 		if h <= 0 and last > 0 then
 			Hud.Toast("OUCH! BACK TO THE LAST CHECKPOINT...", 3)
+			task.delay(1.2, function()
+				Hud.IrisClose(0.9)
+			end)
 		end
 		last = h
 	end)
@@ -202,6 +218,46 @@ if player.Character then
 	task.spawn(watchHealth, player.Character)
 end
 player.CharacterAdded:Connect(watchHealth)
+
+-- open the iris again whenever a fresh bunny appears (after dying, or loading a file)
+player.CharacterAdded:Connect(function()
+	task.delay(0.9, function()
+		Hud.IrisOpen(0.8)
+	end)
+end)
+
+Hud.OnLowHealthBeat(function()
+	Effects.Play("Heartbeat", 0.55)
+end)
+
+-- One-off tips near the places they matter
+task.spawn(function()
+	local shown = {}
+	while true do
+		task.wait(0.5)
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if root and snap and snap.slot and Menus.Screen() == nil and not Dialogue.IsTalking() then
+			local seen = snap.slot.tips or {}
+			for _, tip in ipairs(Config.Tips) do
+				if not seen[tip.id] and not shown[tip.id] and (root.Position - tip.pos).Magnitude < tip.radius then
+					shown[tip.id] = true
+					seen[tip.id] = true
+					local c = Menus.CurrentControls()
+					local k = Menus.PrettyKey
+					local text = tip.text
+					text = string.gsub(text, "{jump}", k(c.jump.key))
+					text = string.gsub(text, "{roll}", k(c.roll.key))
+					text = string.gsub(text, "{crouch}", k(c.crouch.key))
+					text = string.gsub(text, "{menu}", k(c.menu.key))
+					Hud.Tip(text)
+					remotes.TipSeen:FireServer(tip.id)
+					break
+				end
+			end
+		end
+	end
+end)
 
 Movement.OnLoading = function()
 	Hud.Toast("LOADING THE WORLD...", 2)
@@ -251,6 +307,15 @@ AdminPanel.Init({
 	Effects = Effects,
 	Menus = Menus,
 })
+Dialogue.Init({
+	Movement = Movement,
+	Effects = Effects,
+	Menus = Menus,
+	GetSnapshot = function()
+		return snap
+	end,
+})
+task.spawn(Shadows.Init)
 Effects.SetMusic("title")
 
 task.spawn(function()

@@ -94,6 +94,14 @@ local function poseFor(rig, char, dt, now, isLocal)
 		p.lArm, p.rArm = A(0, 0, -1.6), A(0, 0, 1.6)
 		p.lLeg, p.rLeg = A(0.3, 0, -0.2), A(0.3, 0, 0.2)
 		earTarget = -0.4
+	elseif move == "cheer" then
+		-- golden carrot get! bounce on the spot with both paws in the air
+		local hop = math.abs(math.sin(t * 9))
+		p.root = CFrame.new(0, hop * 0.7, 0) * A(0.1, math.sin(t * 4.5) * 0.3, 0)
+		p.lArm, p.rArm = A(0, 0, -2.75 + hop * 0.2), A(0, 0, 2.75 - hop * 0.2)
+		p.lLeg, p.rLeg = A(0.3 * hop, 0, -0.1), A(0.3 * hop, 0, 0.1)
+		p.neck = A(0.35, 0, 0)
+		earTarget = 1.0 - hop
 	elseif move == "roll" then
 		local spin = moveAge * 17
 		extra = CFrame.new(0, -0.7, 0) * A(-spin, 0, 0)
