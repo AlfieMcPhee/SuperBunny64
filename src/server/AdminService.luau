@@ -101,7 +101,7 @@ function COMMANDS.heal(admin, targetId)
 	if not target then
 		return false, "Player not found"
 	end
-	ctx.heal(target, Config.MaxHearts)
+	ctx.heal(target, 99)
 	if target ~= admin then
 		notify(target, "AN ADMIN HEALED YOU")
 	end

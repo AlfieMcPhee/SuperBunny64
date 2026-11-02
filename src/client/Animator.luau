@@ -94,6 +94,32 @@ local function poseFor(rig, char, dt, now, isLocal)
 		p.lArm, p.rArm = A(0, 0, -1.6), A(0, 0, 1.6)
 		p.lLeg, p.rLeg = A(0.3, 0, -0.2), A(0.3, 0, 0.2)
 		earTarget = -0.4
+	elseif move == "wave" then
+		p.rArm = A(0, 0, 2.6 + math.sin(t * 12) * 0.35)
+		p.lArm = A(0, 0, -0.2)
+		p.neck = A(0.05, -0.15, math.sin(t * 3) * 0.08)
+		p.root = A(0, 0, -0.06)
+		earTarget = 0.1
+	elseif move == "dance" then
+		local beat = t * 7
+		p.root = CFrame.new(0, math.abs(math.sin(beat)) * 0.35, 0) * A(0, math.sin(beat * 0.5) * 0.5, math.sin(beat) * 0.15)
+		p.lArm = A(0, 0, -1.6 - math.sin(beat) * 0.9)
+		p.rArm = A(0, 0, 1.6 - math.sin(beat) * 0.9)
+		p.lLeg = A(math.max(0, math.sin(beat)) * 0.7, 0, 0)
+		p.rLeg = A(math.max(0, -math.sin(beat)) * 0.7, 0, 0)
+		p.neck = A(0, 0, math.sin(beat) * 0.2)
+		earTarget = 0.6 + math.sin(beat) * 0.6
+	elseif move == "sit" then
+		p.root = CFrame.new(0, -1.15, 0) * A(-0.05, 0, 0)
+		p.lLeg, p.rLeg = A(1.5, 0, -0.15), A(1.5, 0, 0.15)
+		p.lArm, p.rArm = A(0.6, 0, -0.2), A(0.6, 0, 0.2)
+		p.neck = A(-0.05, math.sin(t * 0.5) * 0.3, 0)
+		earTarget = -0.2 + math.sin(t * 1.3) * 0.1
+	elseif move == "talk" then
+		p.neck = A(0.05 + math.abs(math.sin(t * 9)) * 0.08, 0, math.sin(t * 2) * 0.05)
+		p.lArm = A(0, 0, -0.25 - math.abs(math.sin(t * 4)) * 0.3)
+		p.rArm = A(0, 0, 0.2)
+		earTarget = 0.2
 	elseif move == "cheer" then
 		-- golden carrot get! bounce on the spot with both paws in the air
 		local hop = math.abs(math.sin(t * 9))

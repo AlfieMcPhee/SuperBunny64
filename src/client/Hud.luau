@@ -103,7 +103,7 @@ function Hud.Init(menuCallback)
 	layout.FillDirection = Enum.FillDirection.Horizontal
 	layout.Padding = UDim.new(0, 2)
 	layout.Parent = heartRow
-	for i = 1, Config.MaxHearts do
+	for i = 1, math.max(Config.MaxHearts, Config.AssistHearts) do
 		local h = UI.label(heartRow, {
 			Text = "♥", Font = Enum.Font.SourceSansBold, TextSize = 58, Size = UDim2.fromOffset(46, 52),
 			TextColor3 = Color3.fromRGB(214, 70, 70), Stroke = 4,

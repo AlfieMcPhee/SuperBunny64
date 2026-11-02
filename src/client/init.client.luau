@@ -21,6 +21,7 @@ local WorldFX = require(script:WaitForChild("WorldFX"))
 local AdminPanel = require(script:WaitForChild("AdminPanel"))
 local Shadows = require(script:WaitForChild("Shadows"))
 local Dialogue = require(script:WaitForChild("Dialogue"))
+local PhotoMode = require(script:WaitForChild("PhotoMode"))
 
 local player = Players.LocalPlayer
 
@@ -43,9 +44,13 @@ workspace.CurrentCamera.FieldOfView = 65
 local remotes = {}
 for _, name in ipairs({
 	"GetProfile", "SelectSlot", "EraseSlot", "Customise", "QuitToTitle", "SetOptions", "Collect",
-	"Update", "Pound", "Bounce", "Effect", "SetMove", "WarpMenu", "Warp", "AdminCommand", "AdminNotice", "TipSeen",
+	"Update", "Pound", "Bounce", "Effect", "SetMove", "WarpMenu", "Warp", "TipSeen", "Talked",
 }) do
 	remotes[name] = Remotes:WaitForChild(name)
+end
+-- optional extras: if a server system is switched off, the game still runs without them
+for _, name in ipairs({ "AdminCommand", "AdminNotice" }) do
+	remotes[name] = Remotes:WaitForChild(name, 10)
 end
 
 local goldenNames, checkpointNames, warpNames = {}, {}, {}
@@ -72,6 +77,7 @@ local function applySnapshot(s)
 		Hud.SetProgress(s.slot, s.canSave)
 		WorldFX.SetGoldenCount(s.slot.goldenCount)
 		WorldFX.SetCheckpoint(s.slot.checkpoint)
+		WorldFX.SetSlot(s.slot)
 	else
 		WorldFX.SetGoldenCount(0)
 	end
@@ -121,6 +127,18 @@ local function handleEvent(s, event)
 	elseif kind == "warpfound" then
 		Effects.Play("MenuSelect", 1.4)
 		Hud.Toast("BURROW WARP FOUND:\n" .. (warpNames[event.id] or ""), 2.5, GOLD)
+	elseif kind == "stamp" then
+		local name = event.id
+		for _, st in ipairs(Config.Stamps) do
+			if st.id == event.id then
+				name = st.name
+			end
+		end
+		-- wait for any golden-carrot toast to finish first
+		task.delay(3.8, function()
+			Effects.Jingle()
+			Hud.Toast("STAMP GET!\n" .. name, 3, Color3.fromRGB(150, 210, 255))
+		end)
 	elseif kind == "bossdown" then
 		Effects.Jingle()
 		task.delay(0.5, Effects.Jingle)
@@ -237,7 +255,8 @@ task.spawn(function()
 		task.wait(0.5)
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart")
-		if root and snap and snap.slot and Menus.Screen() == nil and not Dialogue.IsTalking() then
+		local tipsOn = not (snap and snap.menu.options and snap.menu.options.tips == false)
+		if tipsOn and root and snap and snap.slot and Menus.Screen() == nil and not Dialogue.IsTalking() then
 			local seen = snap.slot.tips or {}
 			for _, tip in ipairs(Config.Tips) do
 				if not seen[tip.id] and not shown[tip.id] and (root.Position - tip.pos).Magnitude < tip.radius then
@@ -274,6 +293,11 @@ task.spawn(WorldFX.Init, Effects, Hud)
 Hud.WatchBoss(WorldFX.InArena)
 
 Menus.Init({
+	GoldenPositions = Collectibles.GoldenPositions,
+	PhotoMode = PhotoMode,
+	SetOverlaysVisible = function(on)
+		AdminPanel.SetVisible(on)
+	end,
 	Effects = Effects,
 	Remotes = remotes,
 	Movement = Movement,
@@ -308,6 +332,7 @@ AdminPanel.Init({
 	Menus = Menus,
 })
 Dialogue.Init({
+	Remotes = remotes,
 	Movement = Movement,
 	Effects = Effects,
 	Menus = Menus,

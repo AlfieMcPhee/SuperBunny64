@@ -77,6 +77,29 @@ Good platformers are generous in ways players never notice. Bunny 64 does:
 * **Friendly faces** - six characters with typewriter dialogue that changes as you progress.
 * **One theme, many moods** - the whole soundtrack is built on a single leitmotif.
 
+## Goals beyond the golden carrots
+
+* **Stamps** (Pause > STAMPS) - 13 achievements, from your first golden carrot to
+  beating the King without a scratch, wall-jump chains and smashing 20 crates.
+  Add Roblox badge ids to `Config.Badges` to award real badges too.
+* **Fastest Bunnies** - a board by the meadow spawn showing the 10 fastest 100%
+  clears across every server (OrderedDataStore).
+* **Golden fur** - unlocked in Customise once a file finds all 20 golden carrots.
+
+## Getting around
+
+* **Map** (Pause > MAP) - every island and route, golden carrots (gold = found),
+  discovered warps, your checkpoint and you.
+* **Region cards** show your golden carrot progress as you arrive.
+
+## Fun & accessibility
+
+* **Emotes** - 1 wave, 2 dance, 3 sit (gamepad: D-pad left / right / up).
+* **Photo mode** (Pause > PHOTO MODE) - free camera, HUD hidden.
+* **Assist mode** (Options) - 5 hearts and longer recovery after a hit.
+* **Tips on/off** (Options).
+* Baddies can't hurt you while you're chatting or celebrating.
+
 ## Friends
 
 Talk to them with F (gamepad Y): Elder Shellby (meadow spawn), Granny Clover

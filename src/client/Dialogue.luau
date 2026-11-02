@@ -92,6 +92,10 @@ function Dialogue.Talk(id)
 	talking = true
 	talkStart = os.clock()
 	deps.Movement.SetEnabled(false)
+	deps.Movement.SetTalking(true)
+	if deps.Remotes and deps.Remotes.Talked then
+		deps.Remotes.Talked:FireServer(id)
+	end
 	gui.Enabled = true
 	nameLabel.Text = "* " .. spec.name
 	box.Position = UDim2.new(0.5, 0, 1, 60)
@@ -132,6 +136,7 @@ function Dialogue.Talk(id)
 	end
 	talking = false
 	gui.Enabled = false
+	deps.Movement.SetTalking(false)
 	if deps.Menus.Screen() == nil then
 		deps.Movement.SetEnabled(true)
 	end

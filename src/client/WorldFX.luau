@@ -25,6 +25,12 @@ local flags = {}
 local activeCheckpoint = nil
 local goldenCount = 0
 local currentRegion = nil
+local slotRef = nil
+
+-- Region title cards show how many golden carrots you've found there
+function WorldFX.SetSlot(slot)
+	slotRef = slot
+end
 local inArena = false
 
 -- Region looks -------------------------------------------------------------------
@@ -187,7 +193,16 @@ function WorldFX.Init(effects, hud)
 			applyLook(region)
 			for _, r in ipairs(Config.Regions) do
 				if r.id == region then
-					Hud.RegionBanner(r.name)
+					local got, total = 0, 0
+					for _, g in ipairs(Config.Goldens) do
+						if g.region == region then
+							total += 1
+							if slotRef and slotRef.goldens[g.id] then
+								got += 1
+							end
+						end
+					end
+					Hud.RegionBanner(string.format("%s  %d/%d", r.name, got, total))
 				end
 			end
 			if not inArena then

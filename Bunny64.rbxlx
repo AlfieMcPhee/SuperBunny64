@@ -426,6 +426,7 @@ Config.SlideFriction = 26      -- speed lost per second on flat ground
 Config.ChuteSpeed = 78         -- top speed on ice chutes
 
 Config.MaxHearts = 3
+Config.AssistHearts = 5        -- hearts in Assist Mode (Options)
 Config.HealEveryCarrots = 10   -- every N carrots restores a heart
 Config.WaterLevel = -6
 
@@ -509,6 +510,34 @@ Config.Warps = {
 	{ id = "peaks", name = "FROSTBITE PEAKS", pos = Vector3.new(24, 0, -530) },
 	{ id = "canyon", name = "DUSTBOWL CANYON", pos = Vector3.new(540, 0, 24) },
 	{ id = "castle", name = "INFERNAL CASTLE", pos = Vector3.new(26, 0, 575) },
+}
+
+-- Stamps: in-game achievements (Pause > STAMPS). Put a Roblox badge id in
+-- Config.Badges to also award a real badge for any of them.
+Config.Stamps = {
+	{ id = "golden1", name = "SHINY!", desc = "Find your first golden carrot." },
+	{ id = "golden10", name = "HALFWAY HOP", desc = "Find 10 golden carrots." },
+	{ id = "golden20", name = "CARROT CHAMPION", desc = "Find all 20 golden carrots." },
+	{ id = "carrots", name = "CRUNCH TIME", desc = "Collect every single carrot." },
+	{ id = "regions", name = "SIGHTSEER", desc = "Visit all four regions." },
+	{ id = "friends", name = "SOCIAL BUNNY", desc = "Chat with all six friends." },
+	{ id = "bops50", name = "BUG SQUASHER", desc = "Bop 50 baddies." },
+	{ id = "crates", name = "CRATE EXPECTATIONS", desc = "Smash 20 heart crates." },
+	{ id = "longjump", name = "FLYING SIDEWAYS", desc = "Long jump 25 times." },
+	{ id = "walljump", name = "BOING BOING BOING", desc = "Wall jump 3 times in a row." },
+	{ id = "boss", name = "CROWN JEWEL", desc = "Defeat King Grumble." },
+	{ id = "bossnohit", name = "UNTOUCHABLE", desc = "Defeat King Grumble without getting hurt." },
+	{ id = "speedy", name = "SPEEDY BUNNY", desc = "Find all 20 golden carrots in under 2 hours." },
+}
+Config.Badges = {
+	-- golden20 = 1234567890,
+}
+
+-- Emotes (keys 1-3, or the gamepad D-pad) - just for fun
+Config.Emotes = {
+	{ id = "wave", name = "WAVE", key = "One", pad = "DPadLeft" },
+	{ id = "dance", name = "DANCE", key = "Two", pad = "DPadRight" },
+	{ id = "sit", name = "SIT", key = "Three", pad = "DPadUp" },
 }
 
 -- One-off tips, shown the first time you come near each spot (per save file).
@@ -651,6 +680,8 @@ Config.FurColors = {
 	{ name = "HONEY", fur = rgb(196, 152, 84), cream = rgb(236, 218, 176) },
 	{ name = "ROSE", fur = rgb(190, 140, 140), cream = rgb(236, 214, 204) },
 	{ name = "MOSS", fur = rgb(120, 128, 92), cream = rgb(214, 210, 180) },
+	-- post-game reward
+	{ name = "GOLDEN", fur = rgb(214, 172, 72), cream = rgb(244, 226, 170), need = 20 },
 }
 Config.AccentColors = {
 	{ name = "CRIMSON", color = rgb(140, 50, 48) },
@@ -845,7 +876,7 @@ function HazardMath.SegmentDistance(p, a, b)
 end
 
 return HazardMath
-]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX00000019"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX00000018"><Properties><string name="Name">Bunny64Server</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX0000001A"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX00000019"><Properties><string name="Name">Bunny64Server</string><ProtectedString name="Source"><![CDATA[--[[
 	Bunny 64 - server entry point.
 	Builds the world, runs save files, pickups, hearts, hazards, checkpoints,
 	warps, enemies, the boss and customisation.
@@ -886,6 +917,7 @@ local HazardService = optional("HazardService", { Start = noop, Burn = noop })
 local BossService = optional("BossService", { Start = noop, Reset = noop })
 local CrateService = optional("CrateService", { Start = noop, Shockwave = noop })
 local NPCService = optional("NPCService", { Start = noop })
+local Leaderboard = optional("Leaderboard", { Start = noop, RecordClear = noop })
 local AdminService = optional("AdminService", { Start = noop, IsAdmin = function()
 	return false
 end })
@@ -985,6 +1017,7 @@ local function snapshot(player, event)
 			warps = slot.warps,
 			bossDefeated = slot.bossDefeated,
 			tips = slot.tips or {},
+			stamps = slot.stamps or {},
 		}
 	end
 	return snap
@@ -1011,6 +1044,50 @@ local function heal(player, amount)
 	end
 end
 
+-- Assist Mode gives more hearts and longer recovery after a hit
+local function assistOn(player)
+	local profile = DataService.Get(player)
+	return profile ~= nil and profile.data.options.assist == true
+end
+local function maxHearts(player)
+	return assistOn(player) and Config.AssistHearts or Config.MaxHearts
+end
+
+-- Stamps (achievements) ------------------------------------------------------------
+local BadgeService = game:GetService("BadgeService")
+local stampDefs = {}
+for _, st in ipairs(Config.Stamps) do
+	stampDefs[st.id] = st
+end
+local function awardStamp(player, id)
+	local slot = DataService.ActiveSlot(player)
+	if not slot or not stampDefs[id] then
+		return
+	end
+	slot.stamps = slot.stamps or {}
+	if slot.stamps[id] then
+		return
+	end
+	slot.stamps[id] = true
+	push(player, { kind = "stamp", id = id })
+	local badge = Config.Badges[id]
+	if type(badge) == "number" and badge > 0 then
+		task.spawn(function()
+			pcall(function()
+				if not BadgeService:UserHasBadgeAsync(player.UserId, badge) then
+					BadgeService:AwardBadge(player.UserId, badge)
+				end
+			end)
+		end)
+	end
+end
+
+local ARENA = Vector3.new(0, 200, 800)
+local function inArena(pos)
+	return math.abs(pos.Y - ARENA.Y) < 40 and (Vector3.new(pos.X, 0, pos.Z) - Vector3.new(ARENA.X, 0, ARENA.Z)).Magnitude < 70
+end
+local bossHit = {} -- [Player] = true if hurt during the current boss fight
+
 local function hurt(player, fromPos, velocity, ignoreInvuln)
 	local root, hum = getRoot(player)
 	local st = state[player]
@@ -1020,11 +1097,18 @@ local function hurt(player, fromPos, velocity, ignoreInvuln)
 	if player.Character:GetAttribute("God") then
 		return false -- admin god mode
 	end
+	local moveNow = player.Character:GetAttribute("Move")
+	if moveNow == "talk" or moveNow == "cheer" then
+		return false -- never punish a player whose controls are locked
+	end
 	if not ignoreInvuln and os.clock() < st.invulnUntil then
 		return false
 	end
-	st.invulnUntil = os.clock() + 1.5
+	st.invulnUntil = os.clock() + (assistOn(player) and 2.5 or 1.5)
 	hum:TakeDamage(1)
+	if inArena(root.Position) then
+		bossHit[player] = true
+	end
 	if not velocity then
 		local away = Vector3.new(root.Position.X - fromPos.X, 0, root.Position.Z - fromPos.Z)
 		if away.Magnitude < 0.1 then
@@ -1100,8 +1184,8 @@ local function onCharacter(player, character)
 	if regen and regen:IsA("Script") then
 		regen:Destroy()
 	end
-	humanoid.MaxHealth = Config.MaxHearts
-	humanoid.Health = Config.MaxHearts
+	humanoid.MaxHealth = maxHearts(player)
+	humanoid.Health = humanoid.MaxHealth
 	humanoid.WalkSpeed = Config.WalkSpeed
 	humanoid.UseJumpPower = true
 	humanoid.JumpPower = Config.JumpPower
@@ -1129,6 +1213,9 @@ local function onBopped(player)
 		return
 	end
 	slot.bugs += 1
+	if slot.bugs >= 50 then
+		awardStamp(player, "bops50")
+	end
 	local event = { kind = "bop" }
 	if slot.bugs == Config.BugBusterGoal then
 		event = { kind = "unlock", id = "buster" }
@@ -1161,6 +1248,9 @@ Collect.OnServerEvent:Connect(function(player, id)
 		if slot.carrotCount == Config.CollectorGoal then
 			event = { kind = "unlock", id = "collector", heal = event.heal }
 		end
+		if slot.carrotCount >= TOTAL_CARROTS then
+			task.defer(awardStamp, player, "carrots")
+		end
 		push(player, event)
 		return
 	end
@@ -1180,8 +1270,26 @@ Collect.OnServerEvent:Connect(function(player, id)
 		end
 		local before = DataService.Progress(player)
 		slot.goldens[id] = true
-		heal(player, Config.MaxHearts)
+		heal(player, 99)
 		local done = checkCompletion(player, slot)
+		local n = count(slot.goldens)
+		task.defer(function()
+			if n >= 1 then
+				awardStamp(player, "golden1")
+			end
+			if n >= 10 then
+				awardStamp(player, "golden10")
+			end
+			if n >= #Config.Goldens then
+				awardStamp(player, "golden20")
+				if DataService.GetPlayTime(player) < 2 * 3600 then
+					awardStamp(player, "speedy")
+				end
+			end
+		end)
+		if done then
+			Leaderboard.RecordClear(player, slot.completedTime)
+		end
 		local after = DataService.Progress(player)
 		local event = { kind = done and "complete" or "golden", id = id }
 		-- tell the player about newly unlocked hats
@@ -1252,6 +1360,10 @@ Customise.OnServerInvoke = function(player, custom)
 	if not BunnyModel.IsUnlocked(Config.Necks, clean.neck, progress) then
 		clean.neck = profile.data.custom.neck
 	end
+	local fur = Config.FurColors[clean.fur]
+	if fur and fur.need and progress.goldens < fur.need then
+		clean.fur = profile.data.custom.fur
+	end
 	profile.data.custom = clean
 	if player.Character then
 		BunnyModel.Apply(player.Character, clean)
@@ -1274,6 +1386,17 @@ SetOptions.OnServerEvent:Connect(function(player, options)
 	end
 	if type(options.shake) == "boolean" then
 		o.shake = options.shake
+	end
+	if type(options.tips) == "boolean" then
+		o.tips = options.tips
+	end
+	if type(options.assist) == "boolean" and options.assist ~= o.assist then
+		o.assist = options.assist
+		local _, hum = getRoot(player)
+		if hum and hum.Health > 0 then
+			hum.MaxHealth = maxHearts(player)
+			hum.Health = math.min(hum.Health + (o.assist and 2 or 0), hum.MaxHealth)
+		end
 	end
 	if type(options.controls) == "table" then
 		local function validKey(name)
@@ -1299,12 +1422,33 @@ SetOptions.OnServerEvent:Connect(function(player, options)
 	end
 end)
 
-local VALID_MOVES = { [""] = true, roll = true, slide = true, longjump = true, pound = true, flip = true, fly = true, walljump = true, cheer = true }
+local VALID_MOVES = {
+	[""] = true, roll = true, slide = true, longjump = true, pound = true, flip = true, fly = true,
+	walljump = true, cheer = true, talk = true, wave = true, dance = true, sit = true,
+}
 SetMove.OnServerEvent:Connect(function(player, move)
 	local char = player.Character
 	if char and type(move) == "string" and VALID_MOVES[move] then
 		char:SetAttribute("Move", move)
 		char:SetAttribute("MoveAt", workspace:GetServerTimeNow())
+		local slot = DataService.ActiveSlot(player)
+		local st = state[player]
+		if slot and st then
+			slot.stats = slot.stats or { crates = 0, longjumps = 0 }
+			if move == "longjump" then
+				slot.stats.longjumps = (slot.stats.longjumps or 0) + 1
+				if slot.stats.longjumps >= 25 then
+					awardStamp(player, "longjump")
+				end
+			elseif move == "walljump" then
+				local now = os.clock()
+				st.wallChain = (now - (st.lastWall or 0) < 2.5) and (st.wallChain or 0) + 1 or 1
+				st.lastWall = now
+				if st.wallChain >= 3 then
+					awardStamp(player, "walljump")
+				end
+			end
+		end
 	end
 end)
 
@@ -1401,6 +1545,9 @@ safeStart("EnemyService", EnemyService.Start, info, {
 
 safeStart("BossService", BossService.Start, info, {
 	effect = function(kind, pos, extra)
+		if kind == "bossroar" then
+			table.clear(bossHit) -- a new fight starts clean
+		end
 		Effect:FireAllClients(kind, pos, extra)
 	end,
 	hurt = function(player, fromPos)
@@ -1414,6 +1561,10 @@ safeStart("BossService", BossService.Start, info, {
 			local slot = DataService.ActiveSlot(player)
 			if slot then
 				slot.bossDefeated = true
+				awardStamp(player, "boss")
+				if not bossHit[player] then
+					awardStamp(player, "bossnohit")
+				end
 				push(player, { kind = "bossdown" })
 				task.spawn(DataService.Save, player, false)
 			end
@@ -1426,6 +1577,14 @@ safeStart("CrateService", CrateService.Start, info, {
 	heal = function(player)
 		heal(player, 1)
 		Effect:FireClient(player, "heart", Vector3.zero)
+		local slot = DataService.ActiveSlot(player)
+		if slot then
+			slot.stats = slot.stats or { crates = 0, longjumps = 0 }
+			slot.stats.crates = (slot.stats.crates or 0) + 1
+			if slot.stats.crates >= 20 then
+				awardStamp(player, "crates")
+			end
+		end
 	end,
 	effect = function(kind, pos)
 		Effect:FireAllClients(kind, pos)
@@ -1435,12 +1594,31 @@ safeStart("CrateService", CrateService.Start, info, {
 	end,
 })
 safeStart("NPCService", NPCService.Start, info)
+safeStart("Leaderboard", Leaderboard.Start, info)
 
 -- Tips: remember which one-off hints this file has already shown
 local tipIds = {}
 for _, t in ipairs(Config.Tips) do
 	tipIds[t.id] = true
 end
+-- Chatting with friends (for the SOCIAL BUNNY stamp)
+local npcCount = 0
+for _ in pairs(Config.NPCs) do
+	npcCount += 1
+end
+remote("RemoteEvent", "Talked").OnServerEvent:Connect(function(player, id)
+	local slot = DataService.ActiveSlot(player)
+	if slot and type(id) == "string" and Config.NPCs[id] then
+		slot.friends = slot.friends or {}
+		if not slot.friends[id] then
+			slot.friends[id] = true
+			if count(slot.friends) >= npcCount then
+				awardStamp(player, "friends")
+			end
+		end
+	end
+end)
+
 remote("RemoteEvent", "TipSeen").OnServerEvent:Connect(function(player, id)
 	local slot = DataService.ActiveSlot(player)
 	if slot and type(id) == "string" and tipIds[id] then
@@ -1526,6 +1704,23 @@ RunService.Heartbeat:Connect(function(dt)
 			elseif hit and not hit.Instance:GetAttribute("Moving") and hit.Instance.Anchored
 				and hit.Instance:GetAttribute("Bounce") == nil and hit.Instance:GetAttribute("Slide") == nil then
 				st.safe = CFrame.new(hit.Position + Vector3.new(0, 3, 0)) * (root.CFrame - root.CFrame.Position)
+			end
+
+			-- regions visited (for the SIGHTSEER stamp)
+			local region = "meadow"
+			if pos.Z > 470 and math.abs(pos.X) < 320 then
+				region = "castle"
+			elseif pos.Z < -470 then
+				region = "peaks"
+			elseif pos.X > 460 then
+				region = "canyon"
+			end
+			slot.regions = slot.regions or {}
+			if not slot.regions[region] then
+				slot.regions[region] = true
+				if count(slot.regions) >= #Config.Regions then
+					awardStamp(player, "regions")
+				end
 			end
 
 			for id, cp in pairs(Config.Checkpoints) do
@@ -1648,7 +1843,7 @@ function COMMANDS.heal(admin, targetId)
 	if not target then
 		return false, "Player not found"
 	end
-	ctx.heal(target, Config.MaxHearts)
+	ctx.heal(target, 99)
 	if target ~= admin then
 		notify(target, "AN ADMIN HEALED YOU")
 	end
@@ -2508,6 +2703,10 @@ function DataService.NewSlot()
 		warps = { meadow = true },
 		bossDefeated = false,
 		tips = {},
+		stamps = {},
+		stats = { crates = 0, longjumps = 0 },
+		regions = {},
+		friends = {},
 		created = os.time(),
 	}
 end
@@ -2517,7 +2716,7 @@ local function defaultData()
 		version = SCHEMA_VERSION,
 		slots = {},
 		custom = table.clone(Config.DefaultCustom),
-		options = { sfx = 8, music = 6, shake = true },
+		options = { sfx = 8, music = 6, shake = true, tips = true, assist = false },
 	}
 end
 
@@ -3610,7 +3809,160 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 return HazardService
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000010"><Properties><string name="Name">NPCService</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000010"><Properties><string name="Name">Leaderboard</string><ProtectedString name="Source"><![CDATA[--[[
+	Leaderboard - the "FASTEST BUNNIES" board by the meadow spawn.
+
+	When a file finds all 20 golden carrots, its clear time is stored in an
+	OrderedDataStore (keeping each player's best). The board shows the top 10
+	across every server and refreshes every couple of minutes.
+	Without DataStore access (e.g. Studio with API access off) the board just
+	says so.
+]]
+
+local DataStoreService = game:GetService("DataStoreService")
+local Players = game:GetService("Players")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+local P = Config.Palette
+
+local Leaderboard = {}
+
+local store
+local rows = {}
+local status
+
+local function fmt(seconds)
+	seconds = math.floor(seconds)
+	local h = math.floor(seconds / 3600)
+	local m = math.floor((seconds % 3600) / 60)
+	local s = seconds % 60
+	if h > 0 then
+		return string.format("%d:%02d:%02d", h, m, s)
+	end
+	return string.format("%d:%02d", m, s)
+end
+
+local function build()
+	local pos = Vector3.new(-34, 0, 60)
+	local model = Instance.new("Model")
+	model.Name = "FastestBunnies"
+	local function block(cf, size, color, material)
+		local p = Instance.new("Part")
+		p.Anchored = true
+		p.CFrame = cf
+		p.Size = size
+		p.Color = color
+		p.Material = material or Enum.Material.Wood
+		p.TopSurface = Enum.SurfaceType.Smooth
+		p.BottomSurface = Enum.SurfaceType.Smooth
+		p.Parent = model
+		return p
+	end
+	-- the board faces the spawn (+X)
+	local face = CFrame.lookAt(pos + Vector3.new(0, 7, 0), pos + Vector3.new(10, 7, 0))
+	for _, dz in ipairs({ -5.5, 5.5 }) do
+		block(CFrame.new(pos + Vector3.new(0, 5, dz)), Vector3.new(0.9, 10, 0.9), P.Wood)
+	end
+	local board = block(face * CFrame.new(0, 0.5, 0), Vector3.new(11, 9, 0.6), P.WoodLight)
+	block(face * CFrame.new(0, 5.3, 0.1), Vector3.new(12, 1, 1.2), P.Roof, Enum.Material.Slate)
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 40
+	gui.LightInfluence = 1
+	gui.Parent = board
+	local function label(text, y, h, size, color, align)
+		local t = Instance.new("TextLabel")
+		t.BackgroundTransparency = 1
+		t.Size = UDim2.new(1, -40, 0, h)
+		t.Position = UDim2.fromOffset(20, y)
+		t.Font = Enum.Font.Antique
+		t.Text = text
+		t.TextSize = size
+		t.TextColor3 = color or Color3.fromRGB(50, 34, 24)
+		t.TextXAlignment = align or Enum.TextXAlignment.Center
+		t.Parent = gui
+		return t
+	end
+	label("FASTEST BUNNIES", 10, 50, 44)
+	label("all 20 golden carrots", 56, 26, 22, Color3.fromRGB(110, 76, 50))
+	for i = 1, 10 do
+		rows[i] = label("", 84 + (i - 1) * 25, 24, 21, nil, Enum.TextXAlignment.Left)
+	end
+	status = label("", 334, 22, 16, Color3.fromRGB(110, 76, 50))
+	model.Parent = workspace
+end
+
+local function refresh()
+	if not store then
+		status.Text = "(times appear once the game is published)"
+		return
+	end
+	local ok, pages = pcall(function()
+		return store:GetSortedAsync(true, 10)
+	end)
+	if not ok then
+		status.Text = "(couldn't reach the leaderboard)"
+		return
+	end
+	local entries = pages:GetCurrentPage()
+	for i = 1, 10 do
+		local e = entries[i]
+		if e then
+			local name = "a bunny"
+			local okName, result = pcall(function()
+				return Players:GetNameFromUserIdAsync(tonumber(e.key))
+			end)
+			if okName and result then
+				name = result
+			end
+			rows[i].Text = string.format("%2d.  %-18s %s", i, name, fmt(e.value))
+		else
+			rows[i].Text = i == 1 and "    nobody yet - will it be you?" or ""
+		end
+	end
+	status.Text = "updated " .. os.date("!%H:%M") .. " UTC"
+end
+
+function Leaderboard.Start()
+	local ok, result = pcall(function()
+		return DataStoreService:GetOrderedDataStore("Bunny64_ClearTimes_v1")
+	end)
+	if ok then
+		store = result
+	end
+	build()
+	task.spawn(function()
+		while true do
+			pcall(refresh)
+			task.wait(120)
+		end
+	end)
+end
+
+-- Keep each player's best (lowest) clear time
+function Leaderboard.RecordClear(player, seconds)
+	if not store or type(seconds) ~= "number" then
+		return
+	end
+	task.spawn(function()
+		pcall(function()
+			store:UpdateAsync(tostring(player.UserId), function(old)
+				local t = math.max(1, math.floor(seconds))
+				if old and old <= t then
+					return nil
+				end
+				return t
+			end)
+		end)
+		task.wait(2)
+		pcall(refresh)
+	end)
+end
+
+return Leaderboard
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000011"><Properties><string name="Name">NPCService</string><ProtectedString name="Source"><![CDATA[--[[
 	NPCService - builds the friendly characters and their "Talk" prompts.
 	What they say lives in Config.NPCs and is shown by client/Dialogue.
 ]]
@@ -3797,7 +4149,7 @@ function NPCService.Start(info)
 end
 
 return NPCService
-]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX00000016"><Properties><string name="Name">World</string></Properties><Item class="ModuleScript" referent="RBX00000011"><Properties><string name="Name">Builder</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX00000017"><Properties><string name="Name">World</string></Properties><Item class="ModuleScript" referent="RBX00000012"><Properties><string name="Name">Builder</string><ProtectedString name="Source"><![CDATA[--[[
 	Builder - shared helpers for constructing the world out of chunky parts,
 	plus the registry of collectibles, enemies, hazards and checkpoints that
 	the rest of the server reads.
@@ -4716,7 +5068,7 @@ function B.warpBurrow(def)
 end
 
 return B
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000012"><Properties><string name="Name">Canyon</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000013"><Properties><string name="Name">Canyon</string><ProtectedString name="Source"><![CDATA[--[[
 	Dustbowl Canyon - a sun-baked mesa island east of the meadow.
 	  * Canyon Leap: pillars too far apart for a double jump; roll + jump to long jump
 	  * Eagle's Mesa: a tall mesa ringed with ledges
@@ -4901,7 +5253,7 @@ function Canyon.Build(B)
 end
 
 return Canyon
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000013"><Properties><string name="Name">Castle</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000014"><Properties><string name="Name">Castle</string><ProtectedString name="Source"><![CDATA[--[[
 	Infernal Castle - a volcanic island south of the meadow. The hard part.
 
 	  Approach      lava rivers, cinderbugs, a drawbridge over the lava moat
@@ -5261,7 +5613,7 @@ function Castle.Build(B)
 end
 
 return Castle
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000014"><Properties><string name="Name">Meadow</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000015"><Properties><string name="Name">Meadow</string><ProtectedString name="Source"><![CDATA[--[[
 	Carrot Meadow - the hub island, plus the routes out to the other regions:
 	a grassy causeway north to Frostbite Peaks, a boardwalk east to Dustbowl
 	Canyon and a long stone bridge south to the Infernal Castle.
@@ -5742,7 +6094,7 @@ function Meadow.Build(B)
 end
 
 return Meadow
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000015"><Properties><string name="Name">Peaks</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000016"><Properties><string name="Name">Peaks</string><ProtectedString name="Source"><![CDATA[--[[
 	Frostbite Peaks - a snowy island north of the meadow.
 	  * A terraced mountain with winding ramps up to the summit
 	  * A long ice slide chute spiralling down the outside of the mountain
@@ -6001,7 +6353,7 @@ function Peaks.Build(B)
 end
 
 return Peaks
-]]></ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX00000017"><Properties><string name="Name">WorldBuilder</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX00000018"><Properties><string name="Name">WorldBuilder</string><ProtectedString name="Source"><![CDATA[--[[
 	WorldBuilder - builds the whole world at server start.
 
 	  Carrot Meadow (hub)      centre            World/Meadow
@@ -6121,7 +6473,7 @@ function WorldBuilder.Build()
 end
 
 return WorldBuilder
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX0000002B"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="EnableMouseLockOption">false</bool></Properties><Item class="StarterPlayerScripts" referent="RBX00000027"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX00000026"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX0000002D"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="EnableMouseLockOption">false</bool></Properties><Item class="StarterPlayerScripts" referent="RBX00000029"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX00000028"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
 	Bunny 64 - client entry point. Wires together menus, HUD, movement,
 	animation, collectibles and world effects, and reacts to server events.
 ]]
@@ -6144,6 +6496,7 @@ local WorldFX = require(script:WaitForChild("WorldFX"))
 local AdminPanel = require(script:WaitForChild("AdminPanel"))
 local Shadows = require(script:WaitForChild("Shadows"))
 local Dialogue = require(script:WaitForChild("Dialogue"))
+local PhotoMode = require(script:WaitForChild("PhotoMode"))
 
 local player = Players.LocalPlayer
 
@@ -6166,9 +6519,13 @@ workspace.CurrentCamera.FieldOfView = 65
 local remotes = {}
 for _, name in ipairs({
 	"GetProfile", "SelectSlot", "EraseSlot", "Customise", "QuitToTitle", "SetOptions", "Collect",
-	"Update", "Pound", "Bounce", "Effect", "SetMove", "WarpMenu", "Warp", "AdminCommand", "AdminNotice", "TipSeen",
+	"Update", "Pound", "Bounce", "Effect", "SetMove", "WarpMenu", "Warp", "TipSeen", "Talked",
 }) do
 	remotes[name] = Remotes:WaitForChild(name)
+end
+-- optional extras: if a server system is switched off, the game still runs without them
+for _, name in ipairs({ "AdminCommand", "AdminNotice" }) do
+	remotes[name] = Remotes:WaitForChild(name, 10)
 end
 
 local goldenNames, checkpointNames, warpNames = {}, {}, {}
@@ -6195,6 +6552,7 @@ local function applySnapshot(s)
 		Hud.SetProgress(s.slot, s.canSave)
 		WorldFX.SetGoldenCount(s.slot.goldenCount)
 		WorldFX.SetCheckpoint(s.slot.checkpoint)
+		WorldFX.SetSlot(s.slot)
 	else
 		WorldFX.SetGoldenCount(0)
 	end
@@ -6244,6 +6602,18 @@ local function handleEvent(s, event)
 	elseif kind == "warpfound" then
 		Effects.Play("MenuSelect", 1.4)
 		Hud.Toast("BURROW WARP FOUND:\n" .. (warpNames[event.id] or ""), 2.5, GOLD)
+	elseif kind == "stamp" then
+		local name = event.id
+		for _, st in ipairs(Config.Stamps) do
+			if st.id == event.id then
+				name = st.name
+			end
+		end
+		-- wait for any golden-carrot toast to finish first
+		task.delay(3.8, function()
+			Effects.Jingle()
+			Hud.Toast("STAMP GET!\n" .. name, 3, Color3.fromRGB(150, 210, 255))
+		end)
 	elseif kind == "bossdown" then
 		Effects.Jingle()
 		task.delay(0.5, Effects.Jingle)
@@ -6360,7 +6730,8 @@ task.spawn(function()
 		task.wait(0.5)
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart")
-		if root and snap and snap.slot and Menus.Screen() == nil and not Dialogue.IsTalking() then
+		local tipsOn = not (snap and snap.menu.options and snap.menu.options.tips == false)
+		if tipsOn and root and snap and snap.slot and Menus.Screen() == nil and not Dialogue.IsTalking() then
 			local seen = snap.slot.tips or {}
 			for _, tip in ipairs(Config.Tips) do
 				if not seen[tip.id] and not shown[tip.id] and (root.Position - tip.pos).Magnitude < tip.radius then
@@ -6397,6 +6768,11 @@ task.spawn(WorldFX.Init, Effects, Hud)
 Hud.WatchBoss(WorldFX.InArena)
 
 Menus.Init({
+	GoldenPositions = Collectibles.GoldenPositions,
+	PhotoMode = PhotoMode,
+	SetOverlaysVisible = function(on)
+		AdminPanel.SetVisible(on)
+	end,
 	Effects = Effects,
 	Remotes = remotes,
 	Movement = Movement,
@@ -6431,6 +6807,7 @@ AdminPanel.Init({
 	Menus = Menus,
 })
 Dialogue.Init({
+	Remotes = remotes,
 	Movement = Movement,
 	Effects = Effects,
 	Menus = Menus,
@@ -6457,7 +6834,7 @@ task.spawn(function()
 		applySnapshot(s)
 	end
 end)
-]]></ProtectedString></Properties><Item class="ModuleScript" referent="RBX0000001A"><Properties><string name="Name">AdminPanel</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties><Item class="ModuleScript" referent="RBX0000001B"><Properties><string name="Name">AdminPanel</string><ProtectedString name="Source"><![CDATA[--[[
 	AdminPanel - the admin perks menu (press P, or the ADMIN button).
 	Only shows for admins; the server checks every command anyway.
 
@@ -6852,7 +7229,7 @@ function AdminPanel.Init(dependencies)
 end
 
 return AdminPanel
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001B"><Properties><string name="Name">Animator</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001C"><Properties><string name="Name">Animator</string><ProtectedString name="Source"><![CDATA[--[[
 	Animator - procedural animation for every bunny in the server.
 
 	No animation assets: each frame we compute a pose from the bunny's
@@ -6948,6 +7325,32 @@ local function poseFor(rig, char, dt, now, isLocal)
 		p.lArm, p.rArm = A(0, 0, -1.6), A(0, 0, 1.6)
 		p.lLeg, p.rLeg = A(0.3, 0, -0.2), A(0.3, 0, 0.2)
 		earTarget = -0.4
+	elseif move == "wave" then
+		p.rArm = A(0, 0, 2.6 + math.sin(t * 12) * 0.35)
+		p.lArm = A(0, 0, -0.2)
+		p.neck = A(0.05, -0.15, math.sin(t * 3) * 0.08)
+		p.root = A(0, 0, -0.06)
+		earTarget = 0.1
+	elseif move == "dance" then
+		local beat = t * 7
+		p.root = CFrame.new(0, math.abs(math.sin(beat)) * 0.35, 0) * A(0, math.sin(beat * 0.5) * 0.5, math.sin(beat) * 0.15)
+		p.lArm = A(0, 0, -1.6 - math.sin(beat) * 0.9)
+		p.rArm = A(0, 0, 1.6 - math.sin(beat) * 0.9)
+		p.lLeg = A(math.max(0, math.sin(beat)) * 0.7, 0, 0)
+		p.rLeg = A(math.max(0, -math.sin(beat)) * 0.7, 0, 0)
+		p.neck = A(0, 0, math.sin(beat) * 0.2)
+		earTarget = 0.6 + math.sin(beat) * 0.6
+	elseif move == "sit" then
+		p.root = CFrame.new(0, -1.15, 0) * A(-0.05, 0, 0)
+		p.lLeg, p.rLeg = A(1.5, 0, -0.15), A(1.5, 0, 0.15)
+		p.lArm, p.rArm = A(0.6, 0, -0.2), A(0.6, 0, 0.2)
+		p.neck = A(-0.05, math.sin(t * 0.5) * 0.3, 0)
+		earTarget = -0.2 + math.sin(t * 1.3) * 0.1
+	elseif move == "talk" then
+		p.neck = A(0.05 + math.abs(math.sin(t * 9)) * 0.08, 0, math.sin(t * 2) * 0.05)
+		p.lArm = A(0, 0, -0.25 - math.abs(math.sin(t * 4)) * 0.3)
+		p.rArm = A(0, 0, 0.2)
+		earTarget = 0.2
 	elseif move == "cheer" then
 		-- golden carrot get! bounce on the spot with both paws in the air
 		local hop = math.abs(math.sin(t * 9))
@@ -7079,7 +7482,7 @@ function Animator.Init(movement)
 end
 
 return Animator
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001C"><Properties><string name="Name">Chiptune</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001D"><Properties><string name="Name">Chiptune</string><ProtectedString name="Source"><![CDATA[--[[
 	Chiptune - Bunny 64's 8-bit music engine and soundtrack.
 
 	Roblox can't synthesise sound, so this little "tracker" plays one short
@@ -7509,7 +7912,7 @@ function Chiptune.Has(name)
 end
 
 return Chiptune
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001D"><Properties><string name="Name">Collectibles</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001E"><Properties><string name="Name">Collectibles</string><ProtectedString name="Source"><![CDATA[--[[
 	Collectibles - spins the carrots, hides the ones this file already has,
 	and asks the server to collect carrots the bunny touches.
 	Each player has their own carrots, so pickups are client-side visuals
@@ -7593,6 +7996,17 @@ local function register(model)
 	apply(model, item)
 end
 
+-- Where every golden carrot is (for the map)
+function Collectibles.GoldenPositions()
+	local out = {}
+	for _, item in pairs(items) do
+		if item.kind == "golden" then
+			out[item.id] = item.pivot.Position
+		end
+	end
+	return out
+end
+
 function Collectibles.Sync(slotSnap)
 	slot = slotSnap
 	if not folder then
@@ -7649,7 +8063,7 @@ function Collectibles.Init(effects, remotes)
 end
 
 return Collectibles
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001E"><Properties><string name="Name">Dialogue</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001F"><Properties><string name="Name">Dialogue</string><ProtectedString name="Source"><![CDATA[--[[
 	Dialogue - talk to friendly characters.
 
 	A chunky text box types each line out letter by letter, with a little
@@ -7743,6 +8157,10 @@ function Dialogue.Talk(id)
 	talking = true
 	talkStart = os.clock()
 	deps.Movement.SetEnabled(false)
+	deps.Movement.SetTalking(true)
+	if deps.Remotes and deps.Remotes.Talked then
+		deps.Remotes.Talked:FireServer(id)
+	end
 	gui.Enabled = true
 	nameLabel.Text = "* " .. spec.name
 	box.Position = UDim2.new(0.5, 0, 1, 60)
@@ -7783,6 +8201,7 @@ function Dialogue.Talk(id)
 	end
 	talking = false
 	gui.Enabled = false
+	deps.Movement.SetTalking(false)
 	if deps.Menus.Screen() == nil then
 		deps.Movement.SetEnabled(true)
 	end
@@ -7819,7 +8238,7 @@ function Dialogue.Init(dependencies)
 end
 
 return Dialogue
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001F"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000020"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
 	Effects - local sounds, music, chunky block particles and camera shake.
 ]]
 
@@ -8017,7 +8436,7 @@ RunService:BindToRenderStep("Bunny64Shake", Enum.RenderPriority.Camera.Value + 1
 end)
 
 return Effects
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000020"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000021"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
 	Hud - in-game overlay: hearts, golden carrot and carrot counters,
 	region title cards, toasts, the boss health bar and the MENU button.
 ]]
@@ -8122,7 +8541,7 @@ function Hud.Init(menuCallback)
 	layout.FillDirection = Enum.FillDirection.Horizontal
 	layout.Padding = UDim.new(0, 2)
 	layout.Parent = heartRow
-	for i = 1, Config.MaxHearts do
+	for i = 1, math.max(Config.MaxHearts, Config.AssistHearts) do
 		local h = UI.label(heartRow, {
 			Text = "♥", Font = Enum.Font.SourceSansBold, TextSize = 58, Size = UDim2.fromOffset(46, 52),
 			TextColor3 = Color3.fromRGB(214, 70, 70), Stroke = 4,
@@ -8429,7 +8848,7 @@ function Hud.WatchBoss(inArenaFn)
 end
 
 return Hud
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000021"><Properties><string name="Name">Menus</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000022"><Properties><string name="Name">Menus</string><ProtectedString name="Source"><![CDATA[--[[
 	Menus - every full-screen menu:
 	  Title (PRESS START) -> File Select (File A/B/C, erase) -> game
 	  Customise (fur, accent colour, hat, neckwear with a live 3D preview)
@@ -8785,7 +9204,12 @@ function showCustomise(back)
 					text = item.boss and (item.name .. " (BEAT THE KING)") or string.format("%s (%d GOLDEN)", item.name, item.need)
 				end
 			else
-				text = d.list[custom[d.key]].name
+				local item = d.list[custom[d.key]]
+				text = item.name
+				if item.need and (progress.goldens or 0) < item.need then
+					locked = true
+					text = string.format("%s (%d GOLDEN)", item.name, item.need)
+				end
 			end
 			r.button.Text = "<  " .. text .. "  >"
 			r.locked = locked
@@ -8855,7 +9279,7 @@ function showOptions(back)
 	clear()
 	UI.backdrop(layer, snap.slot and 0.3 or 0.05)
 	UI.title(layer, "OPTIONS", 60, UDim2.new(0.5, 0, 0, 24), Vector2.new(0.5, 0))
-	local panel = UI.panel(layer, UDim2.fromOffset(520, 380), UDim2.fromScale(0.5, 0.53))
+	local panel = UI.panel(layer, UDim2.fromOffset(560, 500), UDim2.fromScale(0.5, 0.56))
 	local list = Instance.new("Frame")
 	list.BackgroundTransparency = 1
 	list.Size = UDim2.new(1, -40, 1, -40)
@@ -8869,10 +9293,14 @@ function showOptions(back)
 	local sfx = UI.item(list, "", { LayoutOrder = 1 })
 	local music = UI.item(list, "", { LayoutOrder = 2 })
 	local shake = UI.item(list, "", { LayoutOrder = 3 })
+	local tipsRow = UI.item(list, "", { LayoutOrder = 4 })
+	local assistRow = UI.item(list, "", { LayoutOrder = 5 })
 	local function refresh()
 		sfx.Text = "SOUND  < " .. bar(o.sfx) .. " >"
 		music.Text = "MUSIC  < " .. bar(o.music) .. " >"
 		shake.Text = "SCREEN SHAKE  < " .. (o.shake and "ON" or "OFF") .. " >"
+		tipsRow.Text = "TIPS  < " .. (o.tips ~= false and "ON" or "OFF") .. " >"
+		assistRow.Text = "ASSIST MODE  < " .. (o.assist and "ON - 5 HEARTS" or "OFF") .. " >"
 		deps.Effects.SetOptions(o)
 	end
 	refresh()
@@ -8880,13 +9308,15 @@ function showOptions(back)
 		deps.Remotes.SetOptions:FireServer(o)
 		back()
 	end
-	local controlsButton = UI.item(list, "CONTROLS", { LayoutOrder = 4 })
-	local backButton = UI.item(list, "BACK", { LayoutOrder = 6 })
-	UI.label(list, { Text = "8-bit music is built in. Add uploaded track ids in Config.Music to replace it.", TextSize = 14, TextWrapped = true, LayoutOrder = 5, Size = UDim2.new(1, 0, 0, 34), Stroke = 2, TextTransparency = 0.3 })
+	local controlsButton = UI.item(list, "CONTROLS", { LayoutOrder = 6 })
+	local backButton = UI.item(list, "BACK", { LayoutOrder = 8 })
+	UI.label(list, { Text = "8-bit music is built in. Add uploaded track ids in Config.Music to replace it.", TextSize = 14, TextWrapped = true, LayoutOrder = 7, Size = UDim2.new(1, 0, 0, 34), Stroke = 2, TextTransparency = 0.3 })
 	UI.SetNav({
 		{ button = sfx, left = function() o.sfx = math.max(0, o.sfx - 1); refresh() end, right = function() o.sfx = math.min(10, o.sfx + 1); refresh() end, select = function() o.sfx = (o.sfx + 1) % 11; refresh() end },
 		{ button = music, left = function() o.music = math.max(0, o.music - 1); refresh() end, right = function() o.music = math.min(10, o.music + 1); refresh() end, select = function() o.music = (o.music + 1) % 11; refresh() end },
 		{ button = shake, left = function() o.shake = not o.shake; refresh() end, right = function() o.shake = not o.shake; refresh() end, select = function() o.shake = not o.shake; refresh() end },
+		{ button = tipsRow, left = function() o.tips = o.tips == false; refresh() end, right = function() o.tips = o.tips == false; refresh() end, select = function() o.tips = o.tips == false; refresh() end },
+		{ button = assistRow, left = function() o.assist = not o.assist; refresh() end, right = function() o.assist = not o.assist; refresh() end, select = function() o.assist = not o.assist; refresh() end },
 		{ button = controlsButton, select = function()
 			deps.Remotes.SetOptions:FireServer(o)
 			Menus.ShowControls(function()
@@ -9129,6 +9559,202 @@ local function showLog(back)
 end
 
 --------------------------------------------------------------------------------
+-- Map
+--------------------------------------------------------------------------------
+
+-- The world from above: islands, routes, golden carrots (gold = found),
+-- discovered warps, checkpoints and you.
+local MAP_ISLANDS = {
+	{ x = 0, z = 0, r = 246, color = Color3.fromRGB(104, 136, 72), name = "CARROT MEADOW" },
+	{ x = 0, z = -720, r = 246, color = Color3.fromRGB(214, 220, 226), name = "FROSTBITE PEAKS" },
+	{ x = 720, z = 0, r = 226, color = Color3.fromRGB(184, 134, 92), name = "DUSTBOWL CANYON" },
+	{ x = 0, z = 800, r = 276, color = Color3.fromRGB(78, 64, 64), name = "INFERNAL CASTLE" },
+	{ x = -330, z = 40, r = 48, color = Color3.fromRGB(104, 136, 72) },
+}
+local MAP_ROUTES = { -- straight links between islands: { x1, z1, x2, z2, width }
+	{ 0, -222, 0, -522, 44 }, { 222, 0, 522, 0, 14 }, { 0, 222, 0, 552, 24 },
+}
+local MAP_MIN = Vector2.new(-420, -1000)
+local MAP_MAX = Vector2.new(980, 1100)
+
+function Menus.ShowMap(back)
+	screen = "map"
+	clear()
+	UI.backdrop(layer, 0.25)
+	UI.title(layer, "MAP", 56, UDim2.new(0.5, 0, 0, 14), Vector2.new(0.5, 0))
+	local panel = UI.panel(layer, UDim2.fromOffset(560, 560), UDim2.fromScale(0.5, 0.56))
+	local canvas = Instance.new("Frame")
+	canvas.BackgroundColor3 = Color3.fromRGB(46, 84, 100) -- the sea
+	canvas.BorderSizePixel = 0
+	canvas.Size = UDim2.new(1, -30, 1, -80)
+	canvas.Position = UDim2.fromOffset(15, 15)
+	canvas.ClipsDescendants = true
+	UI.corner(canvas, 10)
+	canvas.Parent = panel
+	local W, H = 530, 480
+	local span = MAP_MAX - MAP_MIN
+	local scale = math.min(W / span.X, H / span.Y)
+	local offX = (W - span.X * scale) / 2
+	local offY = (H - span.Y * scale) / 2
+	local function toMap(x, z)
+		return UDim2.fromOffset(offX + (x - MAP_MIN.X) * scale, offY + (z - MAP_MIN.Y) * scale)
+	end
+	for _, r in ipairs(MAP_ROUTES) do
+		local a, b = Vector2.new(r[1], r[2]), Vector2.new(r[3], r[4])
+		local mid = (a + b) / 2
+		local f = Instance.new("Frame")
+		f.AnchorPoint = Vector2.new(0.5, 0.5)
+		f.Position = toMap(mid.X, mid.Y)
+		local len = (b - a).Magnitude * scale
+		local w = math.max(3, r[5] * scale)
+		f.Size = (a.X == b.X) and UDim2.fromOffset(w, len) or UDim2.fromOffset(len, w)
+		f.BackgroundColor3 = Color3.fromRGB(150, 124, 92)
+		f.BorderSizePixel = 0
+		f.Parent = canvas
+	end
+	for _, isl in ipairs(MAP_ISLANDS) do
+		local f = Instance.new("Frame")
+		f.AnchorPoint = Vector2.new(0.5, 0.5)
+		f.Position = toMap(isl.x, isl.z)
+		f.Size = UDim2.fromOffset(isl.r * 2 * scale, isl.r * 2 * scale)
+		f.BackgroundColor3 = isl.color
+		f.BorderSizePixel = 0
+		UI.corner(f, 999)
+		UI.stroke(f, 2, Color3.fromRGB(220, 206, 160), Enum.ApplyStrokeMode.Border)
+		f.Parent = canvas
+		if isl.name then
+			local got, total = 0, 0
+			for _, g in ipairs(Config.Goldens) do
+				local region = ({ ["CARROT MEADOW"] = "meadow", ["FROSTBITE PEAKS"] = "peaks", ["DUSTBOWL CANYON"] = "canyon", ["INFERNAL CASTLE"] = "castle" })[isl.name]
+				if g.region == region then
+					total += 1
+					if snap.slot and snap.slot.goldens[g.id] then
+						got += 1
+					end
+				end
+			end
+			UI.label(canvas, {
+				Text = string.format("%s  %d/%d", isl.name, got, total), TextSize = 13, AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = toMap(isl.x, isl.z - isl.r * 0.55), Size = UDim2.fromOffset(200, 16), Stroke = 2,
+			})
+		end
+	end
+	local function dot(pos, size, color, shape)
+		local f = Instance.new("Frame")
+		f.AnchorPoint = Vector2.new(0.5, 0.5)
+		f.Position = toMap(pos.X, pos.Z)
+		f.Size = UDim2.fromOffset(size, size)
+		f.BackgroundColor3 = color
+		f.BorderSizePixel = 0
+		if shape ~= "square" then
+			UI.corner(f, 999)
+		end
+		UI.stroke(f, 1.5, UI.Ink, Enum.ApplyStrokeMode.Border)
+		f.Parent = canvas
+		return f
+	end
+	-- golden carrots
+	for id, pos in pairs(deps.GoldenPositions()) do
+		local got = snap.slot and snap.slot.goldens[id]
+		dot(pos, got and 9 or 7, got and UI.Gold or Color3.fromRGB(150, 150, 160))
+	end
+	-- warps & checkpoints
+	for _, w in ipairs(Config.Warps) do
+		if snap.slot and snap.slot.warps and snap.slot.warps[w.id] then
+			dot(w.pos, 8, Color3.fromRGB(110, 80, 54), "square")
+		end
+	end
+	local cp = snap.slot and Config.Checkpoints[snap.slot.checkpoint]
+	if cp then
+		dot(cp.pos, 8, Color3.fromRGB(226, 182, 74), "square").Rotation = 45
+	end
+	-- you
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if root then
+		local you = dot(root.Position, 13, Color3.fromRGB(240, 120, 110))
+		task.spawn(function()
+			while you.Parent do
+				you.BackgroundTransparency = (math.floor(os.clock() * 3) % 2 == 0) and 0 or 0.5
+				task.wait(0.1)
+			end
+		end)
+	end
+	UI.label(panel, {
+		Text = "GOLD = FOUND   GREY = STILL OUT THERE   SQUARE = WARP   DIAMOND = CHECKPOINT   RED = YOU",
+		TextSize = 12, TextWrapped = true, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -40), Size = UDim2.new(1, -20, 0, 26), Stroke = 2,
+	})
+	local backButton = UI.item(panel, "BACK", { Size = UDim2.fromOffset(200, 34), AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -4) })
+	UI.SetNav({ { button = backButton, select = back } }, back)
+end
+
+--------------------------------------------------------------------------------
+-- Stamps
+--------------------------------------------------------------------------------
+
+function Menus.ShowStamps(back)
+	screen = "stamps"
+	clear()
+	UI.backdrop(layer, 0.3)
+	local got = 0
+	local have = (snap.slot and snap.slot.stamps) or {}
+	for _, st in ipairs(Config.Stamps) do
+		if have[st.id] then
+			got += 1
+		end
+	end
+	UI.title(layer, string.format("STAMPS  %d/%d", got, #Config.Stamps), 50, UDim2.new(0.5, 0, 0, 16), Vector2.new(0.5, 0))
+	local panel = UI.panel(layer, UDim2.fromOffset(660, 480), UDim2.fromScale(0.5, 0.56))
+	local grid = Instance.new("ScrollingFrame")
+	grid.BackgroundTransparency = 1
+	grid.BorderSizePixel = 0
+	grid.Size = UDim2.new(1, -24, 1, -64)
+	grid.Position = UDim2.fromOffset(12, 12)
+	grid.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	grid.CanvasSize = UDim2.new()
+	grid.ScrollBarThickness = 6
+	grid.ScrollBarImageColor3 = UI.Gold
+	grid.Parent = panel
+	local layout = Instance.new("UIGridLayout")
+	layout.CellSize = UDim2.new(0.5, -6, 0, 66)
+	layout.CellPadding = UDim2.fromOffset(6, 6)
+	layout.Parent = grid
+	for _, st in ipairs(Config.Stamps) do
+		local on = have[st.id]
+		local card = Instance.new("Frame")
+		card.BackgroundColor3 = on and Color3.fromRGB(96, 80, 40) or Color3.fromRGB(40, 40, 64)
+		card.BorderSizePixel = 0
+		UI.corner(card, 8)
+		UI.stroke(card, 2, on and UI.Gold or Color3.fromRGB(80, 80, 110), Enum.ApplyStrokeMode.Border)
+		card.Parent = grid
+		UI.label(card, { Text = on and st.name or "? ? ?", Font = UI.TITLE, TextSize = 19, TextColor3 = on and UI.Gold or Color3.fromRGB(170, 170, 190), Size = UDim2.new(1, -16, 0, 24), Position = UDim2.fromOffset(8, 6), TextXAlignment = Enum.TextXAlignment.Left, Stroke = 2 })
+		UI.label(card, { Text = st.desc, TextSize = 14, TextWrapped = true, Size = UDim2.new(1, -16, 0, 32), Position = UDim2.fromOffset(8, 30), TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Stroke = 2, TextTransparency = on and 0 or 0.3 })
+	end
+	local backButton = UI.item(panel, "BACK", { Size = UDim2.fromOffset(200, 36), AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -8) })
+	UI.SetNav({ { button = backButton, select = back } }, back)
+end
+
+--------------------------------------------------------------------------------
+-- Photo mode
+--------------------------------------------------------------------------------
+
+function Menus.StartPhoto(back)
+	screen = "photo"
+	clear()
+	deps.Hud.SetVisible(false)
+	deps.SetOverlaysVisible(false)
+	UI.label(layer, {
+		Text = "PHOTO MODE   WASD / stick: move   hold right mouse / right stick: look   Q E: down / up   Shift: fast   BACKSPACE / B: done",
+		TextSize = 14, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -8), Size = UDim2.new(1, 0, 0, 18), Stroke = 2, TextTransparency = 0.25,
+	})
+	deps.PhotoMode.Start(function()
+		deps.Hud.SetVisible(true)
+		deps.SetOverlaysVisible(true)
+		back()
+	end)
+end
+
+--------------------------------------------------------------------------------
 -- Pause, warp, ending
 --------------------------------------------------------------------------------
 
@@ -9164,25 +9790,31 @@ local function showPause()
 			TextSize = 20, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 120), Size = UDim2.new(1, 0, 0, 24), Stroke = 2,
 		})
 	end
-	local panel = UI.panel(layer, UDim2.fromOffset(460, 330), UDim2.fromScale(0.5, 0.56))
+	local panel = UI.panel(layer, UDim2.fromOffset(460, 470), UDim2.fromScale(0.5, 0.6))
 	local list = Instance.new("Frame")
 	list.BackgroundTransparency = 1
 	list.Size = UDim2.new(1, -30, 1, -30)
 	list.Position = UDim2.fromOffset(15, 15)
 	list.Parent = panel
-	UI.list(list, 8)
+	UI.list(list, 4)
 	local resume = UI.item(list, "RESUME", { LayoutOrder = 1 })
-	local log = UI.item(list, "CARROT LOG", { LayoutOrder = 2 })
-	local custom = UI.item(list, "CUSTOMISE", { LayoutOrder = 3 })
-	local options = UI.item(list, "OPTIONS", { LayoutOrder = 4 })
-	local quit = UI.item(list, "SAVE & QUIT", { LayoutOrder = 5 })
+	local map = UI.item(list, "MAP", { LayoutOrder = 2 })
+	local log = UI.item(list, "CARROT LOG", { LayoutOrder = 3 })
+	local stamps = UI.item(list, "STAMPS", { LayoutOrder = 4 })
+	local custom = UI.item(list, "CUSTOMISE", { LayoutOrder = 5 })
+	local photo = UI.item(list, "PHOTO MODE", { LayoutOrder = 6 })
+	local options = UI.item(list, "OPTIONS", { LayoutOrder = 7 })
+	local quit = UI.item(list, "SAVE & QUIT", { LayoutOrder = 8 })
 	local backToPause = function()
 		showPause()
 	end
 	UI.SetNav({
 		{ button = resume, select = Menus.Close },
+		{ button = map, select = function() Menus.ShowMap(backToPause) end },
 		{ button = log, select = function() showLog(backToPause) end },
+		{ button = stamps, select = function() Menus.ShowStamps(backToPause) end },
 		{ button = custom, select = function() showCustomise(backToPause) end },
+		{ button = photo, select = function() Menus.StartPhoto(backToPause) end },
 		{ button = options, select = function() showOptions(backToPause) end },
 		{ button = quit, select = function()
 			confirm("SAVE AND QUIT TO THE TITLE SCREEN?", function()
@@ -9361,7 +9993,7 @@ function Menus.Init(dependencies)
 end
 
 return Menus
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000022"><Properties><string name="Name">Movement</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000023"><Properties><string name="Name">Movement</string><ProtectedString name="Source"><![CDATA[--[[
 	Movement - the bunny's moveset on top of Roblox's humanoid.
 
 	  Jump            Space / A / jump button
@@ -9417,6 +10049,8 @@ local bufferUntil = 0
 local lastVy = 0
 local nextDust = 0
 local celebrateUntil = 0
+local emote, emoteStart = nil, 0 -- wave / dance / sit
+local talking = false
 local COYOTE_TIME = 0.13
 local BUFFER_TIME = 0.15
 local DUST = Color3.fromRGB(206, 196, 176)
@@ -9713,6 +10347,8 @@ end
 local function onCharacter(char)
 	character = char
 	flying = false
+	emote = nil
+	talking = false
 	humanoid = char:WaitForChild("Humanoid")
 	root = char:WaitForChild("HumanoidRootPart")
 	move = ""
@@ -9788,6 +10424,37 @@ function Movement.SetFlying(on)
 	end
 end
 
+-- Emotes: wave, dance or sit until you move (wave ends on its own)
+function Movement.Emote(id)
+	if not enabled or flying or not root or move ~= "" or not grounded() then
+		return
+	end
+	if emote == id then
+		emote = nil
+		sendMove("")
+		return
+	end
+	emote = id
+	emoteStart = os.clock()
+	sendMove(id)
+end
+
+local function endEmote()
+	if emote then
+		emote = nil
+		sendMove("")
+	end
+end
+
+-- While chatting with a friend: shown to others, and baddies leave you alone
+function Movement.SetTalking(on)
+	talking = on
+	endEmote()
+	if root then
+		sendMove(on and "talk" or "")
+	end
+end
+
 -- Golden-carrot celebration: a little cheer, controls paused for a moment
 function Movement.Celebrate(duration)
 	if not root or flying then
@@ -9844,7 +10511,11 @@ end
 -- For the animator: what is the local bunny doing right now?
 function Movement.State()
 	return {
-		move = flying and "fly" or (os.clock() < celebrateUntil and "cheer" or move),
+		move = flying and "fly"
+			or (os.clock() < celebrateUntil and "cheer")
+			or (talking and "talk")
+			or (move == "" and emote)
+			or move,
 		moveStart = moveStart,
 		flipAt = flipAt,
 		speed = moveSpeed,
@@ -9888,6 +10559,12 @@ local function step(dt)
 	end
 
 	local vel = root.AssemblyLinearVelocity
+	if emote then
+		local moving = humanoid.MoveDirection.Magnitude > 0.1 or not onGround or move ~= ""
+		if moving or (emote == "wave" and now - emoteStart > 2.6) then
+			endEmote()
+		end
+	end
 	-- variable jump height: letting go early cuts the jump short
 	if jumpRising then
 		if vel.Y <= 0 then
@@ -10069,6 +10746,26 @@ function Movement.ApplyControls(controls)
 	ContextActionService:SetTitle("Bunny64Crouch", "CROUCH")
 	ContextActionService:SetPosition("Bunny64Crouch", UDim2.new(1, -170, 1, -170))
 
+	ContextActionService:UnbindAction("Bunny64Emote")
+	local emoteKeys, emoteOf = {}, {}
+	for _, e in ipairs(Config.Emotes) do
+		for _, name in ipairs({ e.key, e.pad }) do
+			local ok, code = pcall(function()
+				return Enum.KeyCode[name]
+			end)
+			if ok and code then
+				table.insert(emoteKeys, code)
+				emoteOf[code] = e.id
+			end
+		end
+	end
+	ContextActionService:BindAction("Bunny64Emote", function(_, inputState, input)
+		if inputState == Enum.UserInputState.Begin and emoteOf[input.KeyCode] then
+			Movement.Emote(emoteOf[input.KeyCode])
+		end
+		return Enum.ContextActionResult.Pass
+	end, false, table.unpack(emoteKeys))
+
 	-- Space / A always jump (Roblox handles those); a custom jump key is added on top
 	local jumpKeys = {}
 	jumpCodes = { Enum.KeyCode.Space, Enum.KeyCode.ButtonA, binds.jump[1], binds.jump[2] }
@@ -10152,7 +10849,135 @@ function Movement.Init(effects, remotes)
 end
 
 return Movement
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000023"><Properties><string name="Name">Shadows</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000024"><Properties><string name="Name">PhotoMode</string><ProtectedString name="Source"><![CDATA[--[[
+	PhotoMode - a free camera for screenshots (Pause > PHOTO MODE).
+
+	  WASD / left stick       fly
+	  hold right mouse / right stick   look around
+	  Q / E (or LB / RB)      down / up
+	  Shift (or LT)           faster
+	  Backspace / B           back to the pause menu
+	The camera stays within 120 studs of the bunny so it can't roam the map.
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local PhotoMode = {}
+
+local active = false
+
+function PhotoMode.Start(onExit)
+	if active then
+		return
+	end
+	active = true
+	local cam = workspace.CurrentCamera
+	local startCF = cam.CFrame
+	local pos = startCF.Position
+	local _, yaw, _ = startCF:ToOrientation()
+	local pitch = math.asin(math.clamp(startCF.LookVector.Y, -1, 1))
+	local anchor = pos
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if root then
+		anchor = root.Position
+	end
+	cam.CameraType = Enum.CameraType.Scriptable
+
+	local conns = {}
+	local function stop()
+		if not active then
+			return
+		end
+		active = false
+		for _, c in ipairs(conns) do
+			c:Disconnect()
+		end
+		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+		cam.CameraType = Enum.CameraType.Custom
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if hum then
+			cam.CameraSubject = hum
+		end
+		onExit()
+	end
+
+	table.insert(conns, UserInputService.InputBegan:Connect(function(input)
+		if input.KeyCode == Enum.KeyCode.Backspace or input.KeyCode == Enum.KeyCode.ButtonB or input.KeyCode == Enum.KeyCode.M then
+			stop()
+		end
+	end))
+	table.insert(conns, UserInputService.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+			yaw -= input.Delta.X * 0.004
+			pitch = math.clamp(pitch - input.Delta.Y * 0.004, -1.45, 1.45)
+		end
+	end))
+
+	local pad = Enum.UserInputType.Gamepad1
+	table.insert(conns, RunService.RenderStepped:Connect(function(dt)
+		-- look
+		UserInputService.MouseBehavior = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+			and Enum.MouseBehavior.LockCurrentPosition or Enum.MouseBehavior.Default
+		local move = Vector3.zero
+		local up = 0
+		local fast = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift)
+		for _, state in ipairs(UserInputService:GetGamepadState(pad)) do
+			if state.KeyCode == Enum.KeyCode.Thumbstick1 and state.Position.Magnitude > 0.15 then
+				move += Vector3.new(state.Position.X, 0, -state.Position.Y)
+			elseif state.KeyCode == Enum.KeyCode.Thumbstick2 and state.Position.Magnitude > 0.15 then
+				yaw -= state.Position.X * dt * 2.2
+				pitch = math.clamp(pitch + state.Position.Y * dt * 1.6, -1.45, 1.45)
+			elseif state.KeyCode == Enum.KeyCode.ButtonL1 and state.UserInputState == Enum.UserInputState.Begin then
+				up -= 1
+			elseif state.KeyCode == Enum.KeyCode.ButtonR1 and state.UserInputState == Enum.UserInputState.Begin then
+				up += 1
+			elseif state.KeyCode == Enum.KeyCode.ButtonL2 and state.Position.Z > 0.5 then
+				fast = true
+			end
+		end
+		if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+			move += Vector3.new(0, 0, -1)
+		end
+		if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+			move += Vector3.new(0, 0, 1)
+		end
+		if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+			move += Vector3.new(-1, 0, 0)
+		end
+		if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+			move += Vector3.new(1, 0, 0)
+		end
+		if UserInputService:IsKeyDown(Enum.KeyCode.E) then
+			up += 1
+		end
+		if UserInputService:IsKeyDown(Enum.KeyCode.Q) then
+			up -= 1
+		end
+		local rot = CFrame.fromOrientation(pitch, yaw, 0)
+		local speed = fast and 70 or 25
+		local delta = rot:VectorToWorldSpace(move) + Vector3.new(0, up, 0)
+		if delta.Magnitude > 0.01 then
+			pos += delta.Unit * speed * dt
+		end
+		-- stay near the bunny
+		local off = pos - anchor
+		if off.Magnitude > 120 then
+			pos = anchor + off.Unit * 120
+		end
+		cam.CFrame = CFrame.new(pos) * rot
+	end))
+end
+
+function PhotoMode.IsActive()
+	return active
+end
+
+return PhotoMode
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000025"><Properties><string name="Name">Shadows</string><ProtectedString name="Source"><![CDATA[--[[
 	Shadows - a round "blob" shadow straight under every bunny.
 
 	In a 3D platformer the sun's shadow is rarely directly beneath you, so
@@ -10229,7 +11054,7 @@ function Shadows.Init()
 end
 
 return Shadows
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000024"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000026"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--[[
 	UI - shared building blocks for Bunny 64's late-90s console look:
 	chunky beveled panels with gold trim, gradient title lettering, a bouncing
 	carrot cursor, and menu navigation that works with keyboard, gamepad,
@@ -10621,7 +11446,7 @@ function UI.list(parent, padding)
 end
 
 return UI
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000025"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--[[
 	WorldFX - client-side world behaviour:
 	  * animates firebars and crushers from the shared server clock
 	  * opens golden-carrot gates for players who have enough golden carrots
@@ -10648,6 +11473,12 @@ local flags = {}
 local activeCheckpoint = nil
 local goldenCount = 0
 local currentRegion = nil
+local slotRef = nil
+
+-- Region title cards show how many golden carrots you've found there
+function WorldFX.SetSlot(slot)
+	slotRef = slot
+end
 local inArena = false
 
 -- Region looks -------------------------------------------------------------------
@@ -10810,7 +11641,16 @@ function WorldFX.Init(effects, hud)
 			applyLook(region)
 			for _, r in ipairs(Config.Regions) do
 				if r.id == region then
-					Hud.RegionBanner(r.name)
+					local got, total = 0, 0
+					for _, g in ipairs(Config.Goldens) do
+						if g.region == region then
+							total += 1
+							if slotRef and slotRef.goldens[g.id] then
+								got += 1
+							end
+						end
+					end
+					Hud.RegionBanner(string.format("%s  %d/%d", r.name, got, total))
 				end
 			end
 			if not inArena then
@@ -10860,8 +11700,8 @@ function WorldFX.Region()
 end
 
 return WorldFX
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterCharacterScripts" referent="RBX0000002A"><Properties><string name="Name">StarterCharacterScripts</string></Properties><Item class="LocalScript" referent="RBX00000028"><Properties><string name="Name">Animate</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default "Animate" script.
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterCharacterScripts" referent="RBX0000002C"><Properties><string name="Name">StarterCharacterScripts</string></Properties><Item class="LocalScript" referent="RBX0000002A"><Properties><string name="Name">Animate</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default "Animate" script.
 -- The bunny is animated procedurally by StarterPlayerScripts.Bunny64Client.Animator.
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX00000029"><Properties><string name="Name">Health</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default health regeneration.
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX0000002B"><Properties><string name="Name">Health</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default health regeneration.
 -- In Bunny 64 hearts only come back from carrots and golden carrots.
 ]]></ProtectedString><token name="RunContext">0</token></Properties></Item></Item></Item></roblox>

@@ -53,6 +53,10 @@ function DataService.NewSlot()
 		warps = { meadow = true },
 		bossDefeated = false,
 		tips = {},
+		stamps = {},
+		stats = { crates = 0, longjumps = 0 },
+		regions = {},
+		friends = {},
 		created = os.time(),
 	}
 end
@@ -62,7 +66,7 @@ local function defaultData()
 		version = SCHEMA_VERSION,
 		slots = {},
 		custom = table.clone(Config.DefaultCustom),
-		options = { sfx = 8, music = 6, shake = true },
+		options = { sfx = 8, music = 6, shake = true, tips = true, assist = false },
 	}
 end
 

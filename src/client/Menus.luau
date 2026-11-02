@@ -354,7 +354,12 @@ function showCustomise(back)
 					text = item.boss and (item.name .. " (BEAT THE KING)") or string.format("%s (%d GOLDEN)", item.name, item.need)
 				end
 			else
-				text = d.list[custom[d.key]].name
+				local item = d.list[custom[d.key]]
+				text = item.name
+				if item.need and (progress.goldens or 0) < item.need then
+					locked = true
+					text = string.format("%s (%d GOLDEN)", item.name, item.need)
+				end
 			end
 			r.button.Text = "<  " .. text .. "  >"
 			r.locked = locked
@@ -424,7 +429,7 @@ function showOptions(back)
 	clear()
 	UI.backdrop(layer, snap.slot and 0.3 or 0.05)
 	UI.title(layer, "OPTIONS", 60, UDim2.new(0.5, 0, 0, 24), Vector2.new(0.5, 0))
-	local panel = UI.panel(layer, UDim2.fromOffset(520, 380), UDim2.fromScale(0.5, 0.53))
+	local panel = UI.panel(layer, UDim2.fromOffset(560, 500), UDim2.fromScale(0.5, 0.56))
 	local list = Instance.new("Frame")
 	list.BackgroundTransparency = 1
 	list.Size = UDim2.new(1, -40, 1, -40)
@@ -438,10 +443,14 @@ function showOptions(back)
 	local sfx = UI.item(list, "", { LayoutOrder = 1 })
 	local music = UI.item(list, "", { LayoutOrder = 2 })
 	local shake = UI.item(list, "", { LayoutOrder = 3 })
+	local tipsRow = UI.item(list, "", { LayoutOrder = 4 })
+	local assistRow = UI.item(list, "", { LayoutOrder = 5 })
 	local function refresh()
 		sfx.Text = "SOUND  < " .. bar(o.sfx) .. " >"
 		music.Text = "MUSIC  < " .. bar(o.music) .. " >"
 		shake.Text = "SCREEN SHAKE  < " .. (o.shake and "ON" or "OFF") .. " >"
+		tipsRow.Text = "TIPS  < " .. (o.tips ~= false and "ON" or "OFF") .. " >"
+		assistRow.Text = "ASSIST MODE  < " .. (o.assist and "ON - 5 HEARTS" or "OFF") .. " >"
 		deps.Effects.SetOptions(o)
 	end
 	refresh()
@@ -449,13 +458,15 @@ function showOptions(back)
 		deps.Remotes.SetOptions:FireServer(o)
 		back()
 	end
-	local controlsButton = UI.item(list, "CONTROLS", { LayoutOrder = 4 })
-	local backButton = UI.item(list, "BACK", { LayoutOrder = 6 })
-	UI.label(list, { Text = "8-bit music is built in. Add uploaded track ids in Config.Music to replace it.", TextSize = 14, TextWrapped = true, LayoutOrder = 5, Size = UDim2.new(1, 0, 0, 34), Stroke = 2, TextTransparency = 0.3 })
+	local controlsButton = UI.item(list, "CONTROLS", { LayoutOrder = 6 })
+	local backButton = UI.item(list, "BACK", { LayoutOrder = 8 })
+	UI.label(list, { Text = "8-bit music is built in. Add uploaded track ids in Config.Music to replace it.", TextSize = 14, TextWrapped = true, LayoutOrder = 7, Size = UDim2.new(1, 0, 0, 34), Stroke = 2, TextTransparency = 0.3 })
 	UI.SetNav({
 		{ button = sfx, left = function() o.sfx = math.max(0, o.sfx - 1); refresh() end, right = function() o.sfx = math.min(10, o.sfx + 1); refresh() end, select = function() o.sfx = (o.sfx + 1) % 11; refresh() end },
 		{ button = music, left = function() o.music = math.max(0, o.music - 1); refresh() end, right = function() o.music = math.min(10, o.music + 1); refresh() end, select = function() o.music = (o.music + 1) % 11; refresh() end },
 		{ button = shake, left = function() o.shake = not o.shake; refresh() end, right = function() o.shake = not o.shake; refresh() end, select = function() o.shake = not o.shake; refresh() end },
+		{ button = tipsRow, left = function() o.tips = o.tips == false; refresh() end, right = function() o.tips = o.tips == false; refresh() end, select = function() o.tips = o.tips == false; refresh() end },
+		{ button = assistRow, left = function() o.assist = not o.assist; refresh() end, right = function() o.assist = not o.assist; refresh() end, select = function() o.assist = not o.assist; refresh() end },
 		{ button = controlsButton, select = function()
 			deps.Remotes.SetOptions:FireServer(o)
 			Menus.ShowControls(function()
@@ -698,6 +709,202 @@ local function showLog(back)
 end
 
 --------------------------------------------------------------------------------
+-- Map
+--------------------------------------------------------------------------------
+
+-- The world from above: islands, routes, golden carrots (gold = found),
+-- discovered warps, checkpoints and you.
+local MAP_ISLANDS = {
+	{ x = 0, z = 0, r = 246, color = Color3.fromRGB(104, 136, 72), name = "CARROT MEADOW" },
+	{ x = 0, z = -720, r = 246, color = Color3.fromRGB(214, 220, 226), name = "FROSTBITE PEAKS" },
+	{ x = 720, z = 0, r = 226, color = Color3.fromRGB(184, 134, 92), name = "DUSTBOWL CANYON" },
+	{ x = 0, z = 800, r = 276, color = Color3.fromRGB(78, 64, 64), name = "INFERNAL CASTLE" },
+	{ x = -330, z = 40, r = 48, color = Color3.fromRGB(104, 136, 72) },
+}
+local MAP_ROUTES = { -- straight links between islands: { x1, z1, x2, z2, width }
+	{ 0, -222, 0, -522, 44 }, { 222, 0, 522, 0, 14 }, { 0, 222, 0, 552, 24 },
+}
+local MAP_MIN = Vector2.new(-420, -1000)
+local MAP_MAX = Vector2.new(980, 1100)
+
+function Menus.ShowMap(back)
+	screen = "map"
+	clear()
+	UI.backdrop(layer, 0.25)
+	UI.title(layer, "MAP", 56, UDim2.new(0.5, 0, 0, 14), Vector2.new(0.5, 0))
+	local panel = UI.panel(layer, UDim2.fromOffset(560, 560), UDim2.fromScale(0.5, 0.56))
+	local canvas = Instance.new("Frame")
+	canvas.BackgroundColor3 = Color3.fromRGB(46, 84, 100) -- the sea
+	canvas.BorderSizePixel = 0
+	canvas.Size = UDim2.new(1, -30, 1, -80)
+	canvas.Position = UDim2.fromOffset(15, 15)
+	canvas.ClipsDescendants = true
+	UI.corner(canvas, 10)
+	canvas.Parent = panel
+	local W, H = 530, 480
+	local span = MAP_MAX - MAP_MIN
+	local scale = math.min(W / span.X, H / span.Y)
+	local offX = (W - span.X * scale) / 2
+	local offY = (H - span.Y * scale) / 2
+	local function toMap(x, z)
+		return UDim2.fromOffset(offX + (x - MAP_MIN.X) * scale, offY + (z - MAP_MIN.Y) * scale)
+	end
+	for _, r in ipairs(MAP_ROUTES) do
+		local a, b = Vector2.new(r[1], r[2]), Vector2.new(r[3], r[4])
+		local mid = (a + b) / 2
+		local f = Instance.new("Frame")
+		f.AnchorPoint = Vector2.new(0.5, 0.5)
+		f.Position = toMap(mid.X, mid.Y)
+		local len = (b - a).Magnitude * scale
+		local w = math.max(3, r[5] * scale)
+		f.Size = (a.X == b.X) and UDim2.fromOffset(w, len) or UDim2.fromOffset(len, w)
+		f.BackgroundColor3 = Color3.fromRGB(150, 124, 92)
+		f.BorderSizePixel = 0
+		f.Parent = canvas
+	end
+	for _, isl in ipairs(MAP_ISLANDS) do
+		local f = Instance.new("Frame")
+		f.AnchorPoint = Vector2.new(0.5, 0.5)
+		f.Position = toMap(isl.x, isl.z)
+		f.Size = UDim2.fromOffset(isl.r * 2 * scale, isl.r * 2 * scale)
+		f.BackgroundColor3 = isl.color
+		f.BorderSizePixel = 0
+		UI.corner(f, 999)
+		UI.stroke(f, 2, Color3.fromRGB(220, 206, 160), Enum.ApplyStrokeMode.Border)
+		f.Parent = canvas
+		if isl.name then
+			local got, total = 0, 0
+			for _, g in ipairs(Config.Goldens) do
+				local region = ({ ["CARROT MEADOW"] = "meadow", ["FROSTBITE PEAKS"] = "peaks", ["DUSTBOWL CANYON"] = "canyon", ["INFERNAL CASTLE"] = "castle" })[isl.name]
+				if g.region == region then
+					total += 1
+					if snap.slot and snap.slot.goldens[g.id] then
+						got += 1
+					end
+				end
+			end
+			UI.label(canvas, {
+				Text = string.format("%s  %d/%d", isl.name, got, total), TextSize = 13, AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = toMap(isl.x, isl.z - isl.r * 0.55), Size = UDim2.fromOffset(200, 16), Stroke = 2,
+			})
+		end
+	end
+	local function dot(pos, size, color, shape)
+		local f = Instance.new("Frame")
+		f.AnchorPoint = Vector2.new(0.5, 0.5)
+		f.Position = toMap(pos.X, pos.Z)
+		f.Size = UDim2.fromOffset(size, size)
+		f.BackgroundColor3 = color
+		f.BorderSizePixel = 0
+		if shape ~= "square" then
+			UI.corner(f, 999)
+		end
+		UI.stroke(f, 1.5, UI.Ink, Enum.ApplyStrokeMode.Border)
+		f.Parent = canvas
+		return f
+	end
+	-- golden carrots
+	for id, pos in pairs(deps.GoldenPositions()) do
+		local got = snap.slot and snap.slot.goldens[id]
+		dot(pos, got and 9 or 7, got and UI.Gold or Color3.fromRGB(150, 150, 160))
+	end
+	-- warps & checkpoints
+	for _, w in ipairs(Config.Warps) do
+		if snap.slot and snap.slot.warps and snap.slot.warps[w.id] then
+			dot(w.pos, 8, Color3.fromRGB(110, 80, 54), "square")
+		end
+	end
+	local cp = snap.slot and Config.Checkpoints[snap.slot.checkpoint]
+	if cp then
+		dot(cp.pos, 8, Color3.fromRGB(226, 182, 74), "square").Rotation = 45
+	end
+	-- you
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if root then
+		local you = dot(root.Position, 13, Color3.fromRGB(240, 120, 110))
+		task.spawn(function()
+			while you.Parent do
+				you.BackgroundTransparency = (math.floor(os.clock() * 3) % 2 == 0) and 0 or 0.5
+				task.wait(0.1)
+			end
+		end)
+	end
+	UI.label(panel, {
+		Text = "GOLD = FOUND   GREY = STILL OUT THERE   SQUARE = WARP   DIAMOND = CHECKPOINT   RED = YOU",
+		TextSize = 12, TextWrapped = true, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -40), Size = UDim2.new(1, -20, 0, 26), Stroke = 2,
+	})
+	local backButton = UI.item(panel, "BACK", { Size = UDim2.fromOffset(200, 34), AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -4) })
+	UI.SetNav({ { button = backButton, select = back } }, back)
+end
+
+--------------------------------------------------------------------------------
+-- Stamps
+--------------------------------------------------------------------------------
+
+function Menus.ShowStamps(back)
+	screen = "stamps"
+	clear()
+	UI.backdrop(layer, 0.3)
+	local got = 0
+	local have = (snap.slot and snap.slot.stamps) or {}
+	for _, st in ipairs(Config.Stamps) do
+		if have[st.id] then
+			got += 1
+		end
+	end
+	UI.title(layer, string.format("STAMPS  %d/%d", got, #Config.Stamps), 50, UDim2.new(0.5, 0, 0, 16), Vector2.new(0.5, 0))
+	local panel = UI.panel(layer, UDim2.fromOffset(660, 480), UDim2.fromScale(0.5, 0.56))
+	local grid = Instance.new("ScrollingFrame")
+	grid.BackgroundTransparency = 1
+	grid.BorderSizePixel = 0
+	grid.Size = UDim2.new(1, -24, 1, -64)
+	grid.Position = UDim2.fromOffset(12, 12)
+	grid.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	grid.CanvasSize = UDim2.new()
+	grid.ScrollBarThickness = 6
+	grid.ScrollBarImageColor3 = UI.Gold
+	grid.Parent = panel
+	local layout = Instance.new("UIGridLayout")
+	layout.CellSize = UDim2.new(0.5, -6, 0, 66)
+	layout.CellPadding = UDim2.fromOffset(6, 6)
+	layout.Parent = grid
+	for _, st in ipairs(Config.Stamps) do
+		local on = have[st.id]
+		local card = Instance.new("Frame")
+		card.BackgroundColor3 = on and Color3.fromRGB(96, 80, 40) or Color3.fromRGB(40, 40, 64)
+		card.BorderSizePixel = 0
+		UI.corner(card, 8)
+		UI.stroke(card, 2, on and UI.Gold or Color3.fromRGB(80, 80, 110), Enum.ApplyStrokeMode.Border)
+		card.Parent = grid
+		UI.label(card, { Text = on and st.name or "? ? ?", Font = UI.TITLE, TextSize = 19, TextColor3 = on and UI.Gold or Color3.fromRGB(170, 170, 190), Size = UDim2.new(1, -16, 0, 24), Position = UDim2.fromOffset(8, 6), TextXAlignment = Enum.TextXAlignment.Left, Stroke = 2 })
+		UI.label(card, { Text = st.desc, TextSize = 14, TextWrapped = true, Size = UDim2.new(1, -16, 0, 32), Position = UDim2.fromOffset(8, 30), TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Stroke = 2, TextTransparency = on and 0 or 0.3 })
+	end
+	local backButton = UI.item(panel, "BACK", { Size = UDim2.fromOffset(200, 36), AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -8) })
+	UI.SetNav({ { button = backButton, select = back } }, back)
+end
+
+--------------------------------------------------------------------------------
+-- Photo mode
+--------------------------------------------------------------------------------
+
+function Menus.StartPhoto(back)
+	screen = "photo"
+	clear()
+	deps.Hud.SetVisible(false)
+	deps.SetOverlaysVisible(false)
+	UI.label(layer, {
+		Text = "PHOTO MODE   WASD / stick: move   hold right mouse / right stick: look   Q E: down / up   Shift: fast   BACKSPACE / B: done",
+		TextSize = 14, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -8), Size = UDim2.new(1, 0, 0, 18), Stroke = 2, TextTransparency = 0.25,
+	})
+	deps.PhotoMode.Start(function()
+		deps.Hud.SetVisible(true)
+		deps.SetOverlaysVisible(true)
+		back()
+	end)
+end
+
+--------------------------------------------------------------------------------
 -- Pause, warp, ending
 --------------------------------------------------------------------------------
 
@@ -733,25 +940,31 @@ local function showPause()
 			TextSize = 20, AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 120), Size = UDim2.new(1, 0, 0, 24), Stroke = 2,
 		})
 	end
-	local panel = UI.panel(layer, UDim2.fromOffset(460, 330), UDim2.fromScale(0.5, 0.56))
+	local panel = UI.panel(layer, UDim2.fromOffset(460, 470), UDim2.fromScale(0.5, 0.6))
 	local list = Instance.new("Frame")
 	list.BackgroundTransparency = 1
 	list.Size = UDim2.new(1, -30, 1, -30)
 	list.Position = UDim2.fromOffset(15, 15)
 	list.Parent = panel
-	UI.list(list, 8)
+	UI.list(list, 4)
 	local resume = UI.item(list, "RESUME", { LayoutOrder = 1 })
-	local log = UI.item(list, "CARROT LOG", { LayoutOrder = 2 })
-	local custom = UI.item(list, "CUSTOMISE", { LayoutOrder = 3 })
-	local options = UI.item(list, "OPTIONS", { LayoutOrder = 4 })
-	local quit = UI.item(list, "SAVE & QUIT", { LayoutOrder = 5 })
+	local map = UI.item(list, "MAP", { LayoutOrder = 2 })
+	local log = UI.item(list, "CARROT LOG", { LayoutOrder = 3 })
+	local stamps = UI.item(list, "STAMPS", { LayoutOrder = 4 })
+	local custom = UI.item(list, "CUSTOMISE", { LayoutOrder = 5 })
+	local photo = UI.item(list, "PHOTO MODE", { LayoutOrder = 6 })
+	local options = UI.item(list, "OPTIONS", { LayoutOrder = 7 })
+	local quit = UI.item(list, "SAVE & QUIT", { LayoutOrder = 8 })
 	local backToPause = function()
 		showPause()
 	end
 	UI.SetNav({
 		{ button = resume, select = Menus.Close },
+		{ button = map, select = function() Menus.ShowMap(backToPause) end },
 		{ button = log, select = function() showLog(backToPause) end },
+		{ button = stamps, select = function() Menus.ShowStamps(backToPause) end },
 		{ button = custom, select = function() showCustomise(backToPause) end },
+		{ button = photo, select = function() Menus.StartPhoto(backToPause) end },
 		{ button = options, select = function() showOptions(backToPause) end },
 		{ button = quit, select = function()
 			confirm("SAVE AND QUIT TO THE TITLE SCREEN?", function()

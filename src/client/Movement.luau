@@ -54,6 +54,8 @@ local bufferUntil = 0
 local lastVy = 0
 local nextDust = 0
 local celebrateUntil = 0
+local emote, emoteStart = nil, 0 -- wave / dance / sit
+local talking = false
 local COYOTE_TIME = 0.13
 local BUFFER_TIME = 0.15
 local DUST = Color3.fromRGB(206, 196, 176)
@@ -350,6 +352,8 @@ end
 local function onCharacter(char)
 	character = char
 	flying = false
+	emote = nil
+	talking = false
 	humanoid = char:WaitForChild("Humanoid")
 	root = char:WaitForChild("HumanoidRootPart")
 	move = ""
@@ -425,6 +429,37 @@ function Movement.SetFlying(on)
 	end
 end
 
+-- Emotes: wave, dance or sit until you move (wave ends on its own)
+function Movement.Emote(id)
+	if not enabled or flying or not root or move ~= "" or not grounded() then
+		return
+	end
+	if emote == id then
+		emote = nil
+		sendMove("")
+		return
+	end
+	emote = id
+	emoteStart = os.clock()
+	sendMove(id)
+end
+
+local function endEmote()
+	if emote then
+		emote = nil
+		sendMove("")
+	end
+end
+
+-- While chatting with a friend: shown to others, and baddies leave you alone
+function Movement.SetTalking(on)
+	talking = on
+	endEmote()
+	if root then
+		sendMove(on and "talk" or "")
+	end
+end
+
 -- Golden-carrot celebration: a little cheer, controls paused for a moment
 function Movement.Celebrate(duration)
 	if not root or flying then
@@ -481,7 +516,11 @@ end
 -- For the animator: what is the local bunny doing right now?
 function Movement.State()
 	return {
-		move = flying and "fly" or (os.clock() < celebrateUntil and "cheer" or move),
+		move = flying and "fly"
+			or (os.clock() < celebrateUntil and "cheer")
+			or (talking and "talk")
+			or (move == "" and emote)
+			or move,
 		moveStart = moveStart,
 		flipAt = flipAt,
 		speed = moveSpeed,
@@ -525,6 +564,12 @@ local function step(dt)
 	end
 
 	local vel = root.AssemblyLinearVelocity
+	if emote then
+		local moving = humanoid.MoveDirection.Magnitude > 0.1 or not onGround or move ~= ""
+		if moving or (emote == "wave" and now - emoteStart > 2.6) then
+			endEmote()
+		end
+	end
 	-- variable jump height: letting go early cuts the jump short
 	if jumpRising then
 		if vel.Y <= 0 then
@@ -705,6 +750,26 @@ function Movement.ApplyControls(controls)
 	end, true, binds.crouch[1], binds.crouch[2])
 	ContextActionService:SetTitle("Bunny64Crouch", "CROUCH")
 	ContextActionService:SetPosition("Bunny64Crouch", UDim2.new(1, -170, 1, -170))
+
+	ContextActionService:UnbindAction("Bunny64Emote")
+	local emoteKeys, emoteOf = {}, {}
+	for _, e in ipairs(Config.Emotes) do
+		for _, name in ipairs({ e.key, e.pad }) do
+			local ok, code = pcall(function()
+				return Enum.KeyCode[name]
+			end)
+			if ok and code then
+				table.insert(emoteKeys, code)
+				emoteOf[code] = e.id
+			end
+		end
+	end
+	ContextActionService:BindAction("Bunny64Emote", function(_, inputState, input)
+		if inputState == Enum.UserInputState.Begin and emoteOf[input.KeyCode] then
+			Movement.Emote(emoteOf[input.KeyCode])
+		end
+		return Enum.ContextActionResult.Pass
+	end, false, table.unpack(emoteKeys))
 
 	-- Space / A always jump (Roblox handles those); a custom jump key is added on top
 	local jumpKeys = {}

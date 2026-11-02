@@ -82,6 +82,17 @@ local function register(model)
 	apply(model, item)
 end
 
+-- Where every golden carrot is (for the map)
+function Collectibles.GoldenPositions()
+	local out = {}
+	for _, item in pairs(items) do
+		if item.kind == "golden" then
+			out[item.id] = item.pivot.Position
+		end
+	end
+	return out
+end
+
 function Collectibles.Sync(slotSnap)
 	slot = slotSnap
 	if not folder then

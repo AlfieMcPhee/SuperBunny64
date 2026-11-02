@@ -39,6 +39,7 @@ local HazardService = optional("HazardService", { Start = noop, Burn = noop })
 local BossService = optional("BossService", { Start = noop, Reset = noop })
 local CrateService = optional("CrateService", { Start = noop, Shockwave = noop })
 local NPCService = optional("NPCService", { Start = noop })
+local Leaderboard = optional("Leaderboard", { Start = noop, RecordClear = noop })
 local AdminService = optional("AdminService", { Start = noop, IsAdmin = function()
 	return false
 end })
@@ -138,6 +139,7 @@ local function snapshot(player, event)
 			warps = slot.warps,
 			bossDefeated = slot.bossDefeated,
 			tips = slot.tips or {},
+			stamps = slot.stamps or {},
 		}
 	end
 	return snap
@@ -164,6 +166,50 @@ local function heal(player, amount)
 	end
 end
 
+-- Assist Mode gives more hearts and longer recovery after a hit
+local function assistOn(player)
+	local profile = DataService.Get(player)
+	return profile ~= nil and profile.data.options.assist == true
+end
+local function maxHearts(player)
+	return assistOn(player) and Config.AssistHearts or Config.MaxHearts
+end
+
+-- Stamps (achievements) ------------------------------------------------------------
+local BadgeService = game:GetService("BadgeService")
+local stampDefs = {}
+for _, st in ipairs(Config.Stamps) do
+	stampDefs[st.id] = st
+end
+local function awardStamp(player, id)
+	local slot = DataService.ActiveSlot(player)
+	if not slot or not stampDefs[id] then
+		return
+	end
+	slot.stamps = slot.stamps or {}
+	if slot.stamps[id] then
+		return
+	end
+	slot.stamps[id] = true
+	push(player, { kind = "stamp", id = id })
+	local badge = Config.Badges[id]
+	if type(badge) == "number" and badge > 0 then
+		task.spawn(function()
+			pcall(function()
+				if not BadgeService:UserHasBadgeAsync(player.UserId, badge) then
+					BadgeService:AwardBadge(player.UserId, badge)
+				end
+			end)
+		end)
+	end
+end
+
+local ARENA = Vector3.new(0, 200, 800)
+local function inArena(pos)
+	return math.abs(pos.Y - ARENA.Y) < 40 and (Vector3.new(pos.X, 0, pos.Z) - Vector3.new(ARENA.X, 0, ARENA.Z)).Magnitude < 70
+end
+local bossHit = {} -- [Player] = true if hurt during the current boss fight
+
 local function hurt(player, fromPos, velocity, ignoreInvuln)
 	local root, hum = getRoot(player)
 	local st = state[player]
@@ -173,11 +219,18 @@ local function hurt(player, fromPos, velocity, ignoreInvuln)
 	if player.Character:GetAttribute("God") then
 		return false -- admin god mode
 	end
+	local moveNow = player.Character:GetAttribute("Move")
+	if moveNow == "talk" or moveNow == "cheer" then
+		return false -- never punish a player whose controls are locked
+	end
 	if not ignoreInvuln and os.clock() < st.invulnUntil then
 		return false
 	end
-	st.invulnUntil = os.clock() + 1.5
+	st.invulnUntil = os.clock() + (assistOn(player) and 2.5 or 1.5)
 	hum:TakeDamage(1)
+	if inArena(root.Position) then
+		bossHit[player] = true
+	end
 	if not velocity then
 		local away = Vector3.new(root.Position.X - fromPos.X, 0, root.Position.Z - fromPos.Z)
 		if away.Magnitude < 0.1 then
@@ -253,8 +306,8 @@ local function onCharacter(player, character)
 	if regen and regen:IsA("Script") then
 		regen:Destroy()
 	end
-	humanoid.MaxHealth = Config.MaxHearts
-	humanoid.Health = Config.MaxHearts
+	humanoid.MaxHealth = maxHearts(player)
+	humanoid.Health = humanoid.MaxHealth
 	humanoid.WalkSpeed = Config.WalkSpeed
 	humanoid.UseJumpPower = true
 	humanoid.JumpPower = Config.JumpPower
@@ -282,6 +335,9 @@ local function onBopped(player)
 		return
 	end
 	slot.bugs += 1
+	if slot.bugs >= 50 then
+		awardStamp(player, "bops50")
+	end
 	local event = { kind = "bop" }
 	if slot.bugs == Config.BugBusterGoal then
 		event = { kind = "unlock", id = "buster" }
@@ -314,6 +370,9 @@ Collect.OnServerEvent:Connect(function(player, id)
 		if slot.carrotCount == Config.CollectorGoal then
 			event = { kind = "unlock", id = "collector", heal = event.heal }
 		end
+		if slot.carrotCount >= TOTAL_CARROTS then
+			task.defer(awardStamp, player, "carrots")
+		end
 		push(player, event)
 		return
 	end
@@ -333,8 +392,26 @@ Collect.OnServerEvent:Connect(function(player, id)
 		end
 		local before = DataService.Progress(player)
 		slot.goldens[id] = true
-		heal(player, Config.MaxHearts)
+		heal(player, 99)
 		local done = checkCompletion(player, slot)
+		local n = count(slot.goldens)
+		task.defer(function()
+			if n >= 1 then
+				awardStamp(player, "golden1")
+			end
+			if n >= 10 then
+				awardStamp(player, "golden10")
+			end
+			if n >= #Config.Goldens then
+				awardStamp(player, "golden20")
+				if DataService.GetPlayTime(player) < 2 * 3600 then
+					awardStamp(player, "speedy")
+				end
+			end
+		end)
+		if done then
+			Leaderboard.RecordClear(player, slot.completedTime)
+		end
 		local after = DataService.Progress(player)
 		local event = { kind = done and "complete" or "golden", id = id }
 		-- tell the player about newly unlocked hats
@@ -405,6 +482,10 @@ Customise.OnServerInvoke = function(player, custom)
 	if not BunnyModel.IsUnlocked(Config.Necks, clean.neck, progress) then
 		clean.neck = profile.data.custom.neck
 	end
+	local fur = Config.FurColors[clean.fur]
+	if fur and fur.need and progress.goldens < fur.need then
+		clean.fur = profile.data.custom.fur
+	end
 	profile.data.custom = clean
 	if player.Character then
 		BunnyModel.Apply(player.Character, clean)
@@ -427,6 +508,17 @@ SetOptions.OnServerEvent:Connect(function(player, options)
 	end
 	if type(options.shake) == "boolean" then
 		o.shake = options.shake
+	end
+	if type(options.tips) == "boolean" then
+		o.tips = options.tips
+	end
+	if type(options.assist) == "boolean" and options.assist ~= o.assist then
+		o.assist = options.assist
+		local _, hum = getRoot(player)
+		if hum and hum.Health > 0 then
+			hum.MaxHealth = maxHearts(player)
+			hum.Health = math.min(hum.Health + (o.assist and 2 or 0), hum.MaxHealth)
+		end
 	end
 	if type(options.controls) == "table" then
 		local function validKey(name)
@@ -452,12 +544,33 @@ SetOptions.OnServerEvent:Connect(function(player, options)
 	end
 end)
 
-local VALID_MOVES = { [""] = true, roll = true, slide = true, longjump = true, pound = true, flip = true, fly = true, walljump = true, cheer = true }
+local VALID_MOVES = {
+	[""] = true, roll = true, slide = true, longjump = true, pound = true, flip = true, fly = true,
+	walljump = true, cheer = true, talk = true, wave = true, dance = true, sit = true,
+}
 SetMove.OnServerEvent:Connect(function(player, move)
 	local char = player.Character
 	if char and type(move) == "string" and VALID_MOVES[move] then
 		char:SetAttribute("Move", move)
 		char:SetAttribute("MoveAt", workspace:GetServerTimeNow())
+		local slot = DataService.ActiveSlot(player)
+		local st = state[player]
+		if slot and st then
+			slot.stats = slot.stats or { crates = 0, longjumps = 0 }
+			if move == "longjump" then
+				slot.stats.longjumps = (slot.stats.longjumps or 0) + 1
+				if slot.stats.longjumps >= 25 then
+					awardStamp(player, "longjump")
+				end
+			elseif move == "walljump" then
+				local now = os.clock()
+				st.wallChain = (now - (st.lastWall or 0) < 2.5) and (st.wallChain or 0) + 1 or 1
+				st.lastWall = now
+				if st.wallChain >= 3 then
+					awardStamp(player, "walljump")
+				end
+			end
+		end
 	end
 end)
 
@@ -554,6 +667,9 @@ safeStart("EnemyService", EnemyService.Start, info, {
 
 safeStart("BossService", BossService.Start, info, {
 	effect = function(kind, pos, extra)
+		if kind == "bossroar" then
+			table.clear(bossHit) -- a new fight starts clean
+		end
 		Effect:FireAllClients(kind, pos, extra)
 	end,
 	hurt = function(player, fromPos)
@@ -567,6 +683,10 @@ safeStart("BossService", BossService.Start, info, {
 			local slot = DataService.ActiveSlot(player)
 			if slot then
 				slot.bossDefeated = true
+				awardStamp(player, "boss")
+				if not bossHit[player] then
+					awardStamp(player, "bossnohit")
+				end
 				push(player, { kind = "bossdown" })
 				task.spawn(DataService.Save, player, false)
 			end
@@ -579,6 +699,14 @@ safeStart("CrateService", CrateService.Start, info, {
 	heal = function(player)
 		heal(player, 1)
 		Effect:FireClient(player, "heart", Vector3.zero)
+		local slot = DataService.ActiveSlot(player)
+		if slot then
+			slot.stats = slot.stats or { crates = 0, longjumps = 0 }
+			slot.stats.crates = (slot.stats.crates or 0) + 1
+			if slot.stats.crates >= 20 then
+				awardStamp(player, "crates")
+			end
+		end
 	end,
 	effect = function(kind, pos)
 		Effect:FireAllClients(kind, pos)
@@ -588,12 +716,31 @@ safeStart("CrateService", CrateService.Start, info, {
 	end,
 })
 safeStart("NPCService", NPCService.Start, info)
+safeStart("Leaderboard", Leaderboard.Start, info)
 
 -- Tips: remember which one-off hints this file has already shown
 local tipIds = {}
 for _, t in ipairs(Config.Tips) do
 	tipIds[t.id] = true
 end
+-- Chatting with friends (for the SOCIAL BUNNY stamp)
+local npcCount = 0
+for _ in pairs(Config.NPCs) do
+	npcCount += 1
+end
+remote("RemoteEvent", "Talked").OnServerEvent:Connect(function(player, id)
+	local slot = DataService.ActiveSlot(player)
+	if slot and type(id) == "string" and Config.NPCs[id] then
+		slot.friends = slot.friends or {}
+		if not slot.friends[id] then
+			slot.friends[id] = true
+			if count(slot.friends) >= npcCount then
+				awardStamp(player, "friends")
+			end
+		end
+	end
+end)
+
 remote("RemoteEvent", "TipSeen").OnServerEvent:Connect(function(player, id)
 	local slot = DataService.ActiveSlot(player)
 	if slot and type(id) == "string" and tipIds[id] then
@@ -679,6 +826,23 @@ RunService.Heartbeat:Connect(function(dt)
 			elseif hit and not hit.Instance:GetAttribute("Moving") and hit.Instance.Anchored
 				and hit.Instance:GetAttribute("Bounce") == nil and hit.Instance:GetAttribute("Slide") == nil then
 				st.safe = CFrame.new(hit.Position + Vector3.new(0, 3, 0)) * (root.CFrame - root.CFrame.Position)
+			end
+
+			-- regions visited (for the SIGHTSEER stamp)
+			local region = "meadow"
+			if pos.Z > 470 and math.abs(pos.X) < 320 then
+				region = "castle"
+			elseif pos.Z < -470 then
+				region = "peaks"
+			elseif pos.X > 460 then
+				region = "canyon"
+			end
+			slot.regions = slot.regions or {}
+			if not slot.regions[region] then
+				slot.regions[region] = true
+				if count(slot.regions) >= #Config.Regions then
+					awardStamp(player, "regions")
+				end
 			end
 
 			for id, cp in pairs(Config.Checkpoints) do

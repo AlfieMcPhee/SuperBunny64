@@ -35,6 +35,7 @@ Config.SlideFriction = 26      -- speed lost per second on flat ground
 Config.ChuteSpeed = 78         -- top speed on ice chutes
 
 Config.MaxHearts = 3
+Config.AssistHearts = 5        -- hearts in Assist Mode (Options)
 Config.HealEveryCarrots = 10   -- every N carrots restores a heart
 Config.WaterLevel = -6
 
@@ -118,6 +119,34 @@ Config.Warps = {
 	{ id = "peaks", name = "FROSTBITE PEAKS", pos = Vector3.new(24, 0, -530) },
 	{ id = "canyon", name = "DUSTBOWL CANYON", pos = Vector3.new(540, 0, 24) },
 	{ id = "castle", name = "INFERNAL CASTLE", pos = Vector3.new(26, 0, 575) },
+}
+
+-- Stamps: in-game achievements (Pause > STAMPS). Put a Roblox badge id in
+-- Config.Badges to also award a real badge for any of them.
+Config.Stamps = {
+	{ id = "golden1", name = "SHINY!", desc = "Find your first golden carrot." },
+	{ id = "golden10", name = "HALFWAY HOP", desc = "Find 10 golden carrots." },
+	{ id = "golden20", name = "CARROT CHAMPION", desc = "Find all 20 golden carrots." },
+	{ id = "carrots", name = "CRUNCH TIME", desc = "Collect every single carrot." },
+	{ id = "regions", name = "SIGHTSEER", desc = "Visit all four regions." },
+	{ id = "friends", name = "SOCIAL BUNNY", desc = "Chat with all six friends." },
+	{ id = "bops50", name = "BUG SQUASHER", desc = "Bop 50 baddies." },
+	{ id = "crates", name = "CRATE EXPECTATIONS", desc = "Smash 20 heart crates." },
+	{ id = "longjump", name = "FLYING SIDEWAYS", desc = "Long jump 25 times." },
+	{ id = "walljump", name = "BOING BOING BOING", desc = "Wall jump 3 times in a row." },
+	{ id = "boss", name = "CROWN JEWEL", desc = "Defeat King Grumble." },
+	{ id = "bossnohit", name = "UNTOUCHABLE", desc = "Defeat King Grumble without getting hurt." },
+	{ id = "speedy", name = "SPEEDY BUNNY", desc = "Find all 20 golden carrots in under 2 hours." },
+}
+Config.Badges = {
+	-- golden20 = 1234567890,
+}
+
+-- Emotes (keys 1-3, or the gamepad D-pad) - just for fun
+Config.Emotes = {
+	{ id = "wave", name = "WAVE", key = "One", pad = "DPadLeft" },
+	{ id = "dance", name = "DANCE", key = "Two", pad = "DPadRight" },
+	{ id = "sit", name = "SIT", key = "Three", pad = "DPadUp" },
 }
 
 -- One-off tips, shown the first time you come near each spot (per save file).
@@ -260,6 +289,8 @@ Config.FurColors = {
 	{ name = "HONEY", fur = rgb(196, 152, 84), cream = rgb(236, 218, 176) },
 	{ name = "ROSE", fur = rgb(190, 140, 140), cream = rgb(236, 214, 204) },
 	{ name = "MOSS", fur = rgb(120, 128, 92), cream = rgb(214, 210, 180) },
+	-- post-game reward
+	{ name = "GOLDEN", fur = rgb(214, 172, 72), cream = rgb(244, 226, 170), need = 20 },
 }
 Config.AccentColors = {
 	{ name = "CRIMSON", color = rgb(140, 50, 48) },
