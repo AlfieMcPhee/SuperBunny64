@@ -7,6 +7,7 @@
 local RunService = game:GetService("RunService")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
 local Config = require(Shared:WaitForChild("Config"))
+local BunnyModel = require(Shared:WaitForChild("BunnyModel"))
 
 local P = Config.Palette
 local SMOOTH = Enum.Material.SmoothPlastic
@@ -40,6 +41,7 @@ function B.Init(root)
 	B.decor = folder("Decor")
 	B.collect = folder("Collectibles")
 	B.hazards = folder("Hazards")
+	B.winds = folder("Winds")
 	B.info.solidFolder = B.solid
 	B.info.collectFolder = B.collect
 	B.info.hazardFolder = B.hazards
@@ -440,9 +442,9 @@ end
 
 -- A line of carrots between two points
 -- A carrot hovering 3 studs above whatever ground is at (x, z)
-function B.carrotOnGround(x, z, nominalY)
+function B.carrotOnGround(x, z, nominalY, fromY)
 	-- cast from just above head height so floating platforms overhead don't count
-	B.carrot(Vector3.new(x, nominalY or 3, z), Vector3.new(x, B.groundY(x, z, 60) + 3, z))
+	B.carrot(Vector3.new(x, nominalY or 3, z), Vector3.new(x, B.groundY(x, z, fromY or 60) + 3, z))
 end
 
 function B.carrotLine(a, b, n)
@@ -463,6 +465,27 @@ function B.silver(setId, index, pos)
 	local id = string.format("s_%s_%d", setId, index)
 	B.info.silvers = B.info.silvers or {}
 	B.info.silvers[id] = { pos = pos, set = setId }
+	local set = Config.SilverSets[setId]
+	if set and set.style == "kit" then
+		-- a lost grandkit: a tiny bunny in its own colours
+		local kit = BunnyModel.BuildPreview({ fur = (index % 7) + 1, accent = (index * 3) % 8 + 1, hat = "none", neck = "bow" })
+		kit.Name = "LostKit"
+		kit:ScaleTo(0.45)
+		kit:PivotTo(CFrame.new(pos))
+		for _, d in ipairs(kit:GetDescendants()) do
+			if d:IsA("BasePart") then
+				d.CanCollide = false
+				d.CanQuery = false
+				d.CanTouch = false
+			end
+		end
+		kit:SetAttribute("CollectId", id)
+		kit:SetAttribute("Kind", "silver")
+		kit:SetAttribute("SilverSet", setId)
+		kit.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+		kit.Parent = B.collect
+		return
+	end
 	local m = carrotModel(pos, false, true)
 	m:SetAttribute("CollectId", id)
 	m:SetAttribute("Kind", "silver")
@@ -472,6 +495,36 @@ function B.silver(setId, index, pos)
 	light.Range = 10
 	light.Brightness = 1
 	light.Parent = m.PrimaryPart
+end
+
+-- A column of wind. `force` is a velocity: upward = an updraft that lifts you,
+-- sideways = a gust that pushes you along. Invisible, with drifting streaks.
+function B.wind(cf, size, force)
+	local p = B.make("Part", {
+		Name = "Wind",
+		CFrame = cf,
+		Size = size,
+		Transparency = 1,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		CastShadow = false,
+	}, B.winds)
+	p:SetAttribute("Wind", force)
+	local e = Instance.new("ParticleEmitter")
+	e.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	e.Shape = Enum.ParticleEmitterShape.Box
+	e.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+	e.Rate = math.clamp(size.X * size.Z / 12, 6, 40)
+	e.Lifetime = NumberRange.new(1.2, 2)
+	e.Speed = NumberRange.new(force.Magnitude * 0.4, force.Magnitude * 0.6)
+	e.EmissionDirection = force.Y > math.abs(force.X) + math.abs(force.Z) and Enum.NormalId.Top or Enum.NormalId.Front
+	e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(1, 1.6) })
+	e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.3, 0.75), NumberSequenceKeypoint.new(1, 1) })
+	e.Color = ColorSequence.new(Color3.fromRGB(240, 246, 255))
+	e.LightEmission = 0.3
+	e.Parent = p
+	return p
 end
 
 -- A glowing start pad for a time trial
@@ -540,8 +593,8 @@ function B.crate(x, z, fromY)
 end
 
 -- A friendly character to talk to (see client/Dialogue and Config.NPCs)
-function B.npc(id, x, z, facing)
-	table.insert(B.info.npcs, { id = id, pos = Vector3.new(x, B.groundY(x, z, 60), z), facing = facing or Vector3.new(0, 0, 1) })
+function B.npc(id, x, z, facing, fromY)
+	table.insert(B.info.npcs, { id = id, pos = Vector3.new(x, B.groundY(x, z, fromY or 60), z), facing = facing or Vector3.new(0, 0, 1) })
 end
 
 function B.bug(pos, skin)

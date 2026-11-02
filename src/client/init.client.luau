@@ -114,6 +114,11 @@ local function handleEvent(s, event)
 				Hud.Toast("THE CASTLE GATE HAS OPENED...", 3.5, Color3.fromRGB(240, 150, 110))
 			end)
 		end
+		if s.slot.goldenCount == Config.SkyGate then
+			task.delay(4.2, function()
+				Hud.Toast("OUT WEST IN THE MEADOW,\nTHE OLD BEANSTALK STIRS...", 3.5, Color3.fromRGB(170, 220, 150))
+			end)
+		end
 	elseif kind == "complete" then
 		Effects.Jingle()
 		task.delay(0.6, Effects.Jingle)
@@ -128,6 +133,13 @@ local function handleEvent(s, event)
 	elseif kind == "warpfound" then
 		Effects.Play("MenuSelect", 1.4)
 		Hud.Toast("BURROW WARP FOUND:\n" .. (warpNames[event.id] or ""), 2.5, GOLD)
+	elseif kind == "silver" and event.set == "kits" then
+		Effects.Jingle()
+		if event.got >= event.total then
+			Hud.Toast(string.format("GRANDKIT FOUND %d/%d\nALL HOME! GO SEE GRANNY CLOVER...", event.got, event.total), 4, GOLD)
+		else
+			Hud.Toast(string.format("GRANDKIT FOUND %d/%d\nIT HOPS OFF HOME TO GRANNY", event.got, event.total), 3, Color3.fromRGB(240, 200, 180))
+		end
 	elseif kind == "silver" then
 		if event.got >= event.total then
 			Effects.Jingle()
@@ -247,7 +259,15 @@ remotes.Effect.OnClientEvent:Connect(function(kind, pos, extra)
 		Effects.Play("Heart", 1.6)
 		Hud.Toast("+1 HEART", 1.2, Color3.fromRGB(240, 140, 140))
 	elseif kind == "locked" then
-		Hud.Toast(string.format("YOU NEED %d GOLDEN CARROTS\nTO FACE THE KING", pos), 3, Color3.fromRGB(240, 150, 110))
+		local why = extra == "beanstalk" and "TO CLIMB THE BEANSTALK" or "TO FACE THE KING"
+		Hud.Toast(string.format("YOU NEED %d GOLDEN CARROTS\n%s", pos, why), 3, Color3.fromRGB(240, 150, 110))
+	elseif kind == "gust" then
+		Effects.Burst(pos + (extra or Vector3.zero) * 3, Color3.fromRGB(236, 240, 248), 14, 14, 1.2, 1)
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if root and (root.Position - pos).Magnitude < 60 then
+			Effects.Play("DoubleJump", 0.6)
+		end
 	end
 end)
 

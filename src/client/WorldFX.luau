@@ -53,15 +53,29 @@ local LOOKS = {
 		fog = Color3.fromRGB(150, 98, 82), fogStart = 160, fogEnd = 950, ambient = Color3.fromRGB(168, 138, 126),
 		indoor = Color3.fromRGB(150, 122, 110), tint = Color3.fromRGB(255, 234, 220), sat = -0.08, clock = 16.6, brightness = 2.6,
 	},
+	-- late-afternoon gloom under the trees: green-grey haze, close fog
+	forest = {
+		fog = Color3.fromRGB(128, 146, 126), fogStart = 60, fogEnd = 520, ambient = Color3.fromRGB(112, 124, 104),
+		indoor = Color3.fromRGB(110, 118, 100), tint = Color3.fromRGB(236, 246, 226), sat = -0.2, clock = 17.6, brightness = 1.9,
+	},
+	-- bright and clear above the clouds; the fog is the cloud sea far below
+	sky = {
+		fog = Color3.fromRGB(214, 222, 236), fogStart = 260, fogEnd = 1200, ambient = Color3.fromRGB(156, 160, 176),
+		indoor = Color3.fromRGB(140, 144, 160), tint = Color3.fromRGB(246, 248, 255), sat = -0.1, clock = 13.4, brightness = 2.6,
+	},
 }
 
 local function regionAt(pos)
-	if pos.Z > 470 and math.abs(pos.X) < 320 then
+	if pos.Y > Config.SkyFloor - 60 then
+		return "sky"
+	elseif pos.Z > 470 and math.abs(pos.X) < 320 then
 		return "castle"
 	elseif pos.Z < -470 then
 		return "peaks"
 	elseif pos.X > 460 then
 		return "canyon"
+	elseif pos.X < -470 then
+		return "forest"
 	end
 	return "meadow"
 end

@@ -1,8 +1,9 @@
 # Bunny 64
 
 A 3D collect-a-thon platformer for **Roblox** starring a plush bunny teddy.
-Explore four regions, find **26 golden carrots** and topple **King Grumble**
-in his throne room above the Infernal Castle. Three save files, unlockable
+Explore six lands, find **37 golden carrots**, bring Granny Clover's lost
+grandkits home and topple **King Grumble** in his throne room above the
+Infernal Castle. Three save files, unlockable
 hats, and a late-90s console look: chunky low-poly shapes, a muted palette,
 distance fog and N64-style menus.
 
@@ -30,7 +31,10 @@ All keys and gamepad buttons can be rebound in **Options > Controls**
 | Hopscotch Toad | meadow, canyon, peaks | hops after you in big arcs - stomp it |
 | Flitbat | peaks, castle, canyon | circles, then swoops - stomp it or roll / long jump into it |
 | Thornhog | canyon floor, castle approach | all spikes: only a ground-pound shockwave works |
-| Puffshroom | meadow, peaks, castle | puffs a ring of spores every few seconds - stomp it between puffs |
+| Puffshroom | meadow, peaks, castle, woods | puffs a ring of spores every few seconds - stomp it between puffs |
+| Mossling | Whisperwood | hides as a hump of moss, pops up and chases you - stomp it or roll into it |
+| Snapper | Whisperwood (bog edges, grove) | rooted biting plant: rears back, lunges, then droops - stomp its head while it's tired |
+| Puffer | Cloudtop Heights | grumpy cloud that puffs up and blows you away - stomp it from above |
 | King Grumble | throne room | see below |
 
 ## The world
@@ -57,6 +61,17 @@ tufts. Built things (towers, castles, platforms) stay chunky low-poly parts.
   points are only exposed when he's dazed - bait him into charging a stone
   pillar, or survive his ground slam (jump the fire ring). Then hop onto his
   back and jump on a weak point. He spits fireballs once he's angry.
+* **Whisperwood** (far west, over the rope bridge from the Lonely Islet): a
+  misty old forest. Climb the shelf fungus spiralling up the giant **Elder
+  Tree**, cross the rope bridges of **Treetop Village** (one is missing
+  planks), bounce up the giant caps of **Bouncy Grove**, and hop the lily pads
+  of **the Bog** - some of them sink.
+* **Cloudtop Heights** (up the beanstalk on the meadow's west side, needs 18
+  golden carrots): floating islands far above the meadow. **Cloud Hop** east,
+  the arching **Rainbow Bridge** south (mind the gap), Captain Gust's airship
+  the **Cumulus** with a crow's nest up the mast, and the **Updraft Spire**,
+  where rising winds carry you from ledge to ledge. Falling off the clouds
+  costs a heart and puts you back where you last stood.
 
 Checkpoint flags save where you respawn (your active flag glows gold). Burrow Warps (one per region) let
 you travel between regions once discovered.
@@ -74,7 +89,7 @@ Good platformers are generous in ways players never notice. Bunny 64 does:
 * **Iris wipes** - the classic circle transition on death, warps and loading a file.
 * **"Golden carrot get!"** - a short celebration pose every time.
 * **Contextual tips** - one-off hints the first time you reach a new idea (saved per file).
-* **Friendly faces** - six characters with typewriter dialogue that changes as you progress.
+* **Friendly faces** - eleven characters with typewriter dialogue that changes as you progress.
 * **One theme, many moods** - the whole soundtrack is built on a single leitmotif.
 
 ## Side challenges
@@ -82,6 +97,9 @@ Good platformers are generous in ways players never notice. Bunny 64 does:
 * **Silver carrot hunts** - five silver carrots hide in each region (on roofs,
   ledges, tower tops, even over a lava vent). Find all five and that region's
   golden carrot appears. Positions live in `Config.SilverSets`.
+* **Granny's Lost Kits** - Granny Clover's five grandkits have wandered off,
+  one in every land. Find them all (they're tiny bunnies) and Granny has a
+  golden carrot for you.
 * **Time trials** - step on a glowing start pad and race the clock:
   *Summit Sprint* (Peaks, 90 s to the summit) and *Boulder Dash* (Canyon, 20 s up
   the boulder ramp). Beat the time and a golden carrot appears at the finish.
@@ -89,13 +107,14 @@ Good platformers are generous in ways players never notice. Bunny 64 does:
 
 ## Atmosphere
 
-Weather per region (meadow pollen, peaks snowfall, canyon dust, castle embers),
+Weather per region (meadow pollen, peaks snowfall, canyon dust, castle embers,
+fireflies in the woods, cloud wisps in the sky),
 a boss title card for King Grumble, a scrolling credits roll over the ending
 reprise, and a little SAVED icon whenever your progress is stored.
 
 ## Goals beyond the golden carrots
 
-* **Stamps** (Pause > STAMPS) - 13 achievements, from your first golden carrot to
+* **Stamps** (Pause > STAMPS) - 16 achievements, from your first golden carrot to
   beating the King without a scratch, wall-jump chains and smashing 20 crates.
   Add Roblox badge ids to `Config.Badges` to award real badges too.
 * **Fastest Bunnies** - a board by the meadow spawn showing the 10 fastest 100%
@@ -118,9 +137,11 @@ reprise, and a little SAVED icon whenever your progress is stored.
 
 ## Friends
 
-Talk to them with F (gamepad Y): Elder Shellby (meadow spawn), Granny Clover
-(cottage), Guard Nibbles (castle bridge), Pip (Frostbite Peaks), Prospector Digby
-(Dustbowl Canyon) and Sir Ember (castle courtyard). Their lines are in
+Talk to them with F (gamepad Y): Elder Shellby and Mayor Burrows (meadow
+spawn), Granny Clover (cottage), Guard Nibbles (castle bridge), Pip (Frostbite
+Peaks), Prospector Digby (Dustbowl Canyon), Sir Ember (castle courtyard),
+Ranger Fern (Whisperwood arrival) and Professor Hoot (Treetop Village), Nimbus
+the cloud sheep and Captain Gust (Cloudtop Heights). Their lines are in
 `Config.NPCs`; each picks the last set of lines whose goal you've reached.
 
 ## Admin perks
@@ -139,16 +160,19 @@ command.
 * **World:** reset King Grumble, give yourself every golden carrot on the
   current file (for testing)
 
-## Golden carrots (26)
+## Golden carrots (37)
 
-Meadow 8 (including *Carrot Collector* for 100 carrots and *Bug Buster* for
-20 bopped bugs), Peaks 6, Canyon 5, Castle 7 - each region also has a silver hunt golden, and the Peaks and Canyon each have a time-trial golden (including the King's Crown).
+Meadow 9 (including *Carrot Collector* for 100 carrots, *Bug Buster* for
+20 bopped bugs and *Granny's Lost Kits*), Peaks 6, Canyon 5, Castle 7
+(including the King's Crown), Whisperwood 5, Cloudtop Heights 5. Each land has
+a silver hunt golden, and the Peaks and Canyon each have a time-trial golden.
 Every 10 carrots restores a heart. Press **M > Carrot Log** for hints.
 
 ## Customisation
 
 Fur colour, accent colour, hats and neckwear. Hats unlock as your best file
-collects golden carrots (Bobble Beanie at 2 ... Wizard Hat at 16); beating
+collects golden carrots (Bobble Beanie at 2 ... Wizard Hat at 16, Leaf Cap at
+20, Sky Pilot Cap at 26); beating
 King Grumble unlocks the King's Crown. Looks are shared across your files.
 
 ## Saving
@@ -195,7 +219,7 @@ runtime), so avatar settings don't matter.
 
 ## Sound and music
 
-**8-bit music is built in**, all of it variations on one original leitmotif, *Bunny's Theme*: a lullaby (title), a march (meadow), a waltz (peaks), a swung trail tune (canyon), a minor-key brood (castle), a battle version (boss) and a full reprise (ending). The engine has melody, harmony, bass, arpeggio, drum and echo channels. `src/client/Chiptune.luau` is a tiny tracker that
+**8-bit music is built in**, all of it variations on one original leitmotif, *Bunny's Theme*: a lullaby (title), a march (meadow), a waltz (peaks), a swung trail tune (canyon), a minor-key brood (castle), a hushed nocturne (Whisperwood), a breezy F-major lift (Cloudtop Heights), a battle version (boss) and a full reprise (ending). The engine has melody, harmony, bass, arpeggio, drum and echo channels. `src/client/Chiptune.luau` is a tiny tracker that
 plays original chip tunes for the title screen, each region and the boss,
 using one built-in blip sample at different pitches plus a noise sample for
 drums. Songs are plain text patterns you can edit (`C5 . E5 - | ...`).

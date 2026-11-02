@@ -148,6 +148,46 @@ local SONGS = {
 			k h s h k k s h | k h s h k k s h | k h s h k k s h | k s k s k s s s ]],
 	},
 
+	-- Whisperwood: "Whisperwood" - the theme in A minor, hushed and slow, like
+	-- something is listening between the trees
+	forest = {
+		bpm = 92,
+		echo = true,
+		arpOctave = 4,
+		lead = [[
+			C5 . E5 . F5 - E5 C5 | B4 - C5 - A4 - - . | C5 . E5 . F5 - A5 G5 | E5 - - - - . . . |
+			F5 . E5 . C5 - B4 A4 | B4 - C5 - E5 - - . | F5 . E5 C5 B4 . G#4 B4 | A4 - - - - . . . ]],
+		arp = [[
+			Am - - - - - - - | Em - - - - - - - | F - - - - - - - | C - - - - - - - |
+			Dm - - - - - - - | Em - - - - - - - | F - - - E - - - | Am - - - - - - - ]],
+		bass = [[
+			A2 - - - E2 - - - | E2 - - - B2 - - - | F2 - - - C3 - - - | C3 - - - G2 - - - |
+			D3 - - - A2 - - - | E2 - - - B2 - - - | F2 - - - E2 - - - | A2 - - - - - - - ]],
+		drums = [[ k . . . h . . . | . . h . . . h . | k . . . h . . . | . . h . . . h . |
+			k . . . h . . . | . . h . . . h . | k . . . h . . . | k . . . . . . . ]],
+	},
+
+	-- Cloudtop Heights: "Above the Clouds" - the theme lifted into F major, light and breezy
+	sky = {
+		bpm = 126,
+		echo = true,
+		arpOctave = 5,
+		lead = [[
+			A4 . C5 . D5 - C5 A4 | G4 - A4 - F4 - - . | A4 . C5 . D5 - F5 E5 | C5 - - - - . C4 . |
+			D5 . C5 . A4 - G4 F4 | G4 - A4 - C5 - - . | D5 . C5 A4 G4 . F4 G4 | F4 - - - F4 . . . ]],
+		harmony = [[
+			F4 - - - F4 - - - | D4 - - - C4 - - - | F4 - - - A4 - - - | G4 - - - E4 - - - |
+			F4 - - - F4 - - - | E4 - - - E4 - - - | F4 - - - E4 - - - | C4 - - - C4 - - - ]],
+		arp = [[
+			F - - - - - - - | Dm - - - - - - - | Bb - - - - - - - | C - - - - - - - |
+			Dm - - - - - - - | Am - - - - - - - | Bb - - - C - - - | F - - - - - - - ]],
+		bass = [[
+			F2 . C3 . F2 . C3 . | D2 . A2 . D2 . A2 . | A#2 . F2 . A#2 . F2 . | C3 . G2 . C3 . G2 . |
+			D3 . A2 . D3 . A2 . | A2 . E2 . A2 . E2 . | A#2 . F2 . C3 . G2 . | F2 . C3 . F2 . . . ]],
+		drums = [[ k . h . s . h h | k . h . s . h . | k . h . s . h h | k . h k s . h . |
+			k . h . s . h h | k . h . s . h . | k . h . s . h h | k . s . k s s . ]],
+	},
+
 	-- Ending: "Home Again" - the full theme, warm and slow, every voice together
 	ending = {
 		bpm = 104,

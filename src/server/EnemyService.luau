@@ -34,10 +34,16 @@ local FEET = 2.6 -- HumanoidRootPart centre to feet
 local SHAPE = {
 	bug = { lift = 1.8, radius = 4.4, top = 4.0 },
 	toad = { lift = 1.6, radius = 3.6, top = 3.2 },
-	bat = { lift = 0, radius = 3.2, top = 1.6 },
+	bat = { lift = 0, below = 1.6, radius = 3.2, top = 1.6 },
 	thornhog = { lift = 2.0, radius = 3.6, top = 4.2 },
 	puffshroom = { lift = 1.9, radius = 3.4, top = 5.0 },
+	mossling = { lift = 1.6, radius = 3.6, top = 3.4 },
+	snapper = { lift = 1.5, radius = 3.4, top = 3.2 }, -- measured around its head
+	puffer = { lift = 0, below = 1.8, radius = 3.8, top = 3.4 },
 }
+
+-- Kinds that hover at their home point instead of standing on the ground
+local FLYING = { bat = true, puffer = true }
 
 local function groundAt(pos)
 	local hit = workspace:Raycast(pos + Vector3.new(0, 8, 0), Vector3.new(0, -30, 0), rayParams)
@@ -58,7 +64,7 @@ local function walkable(gy, hitPart, fromY, maxStep)
 end
 
 local function center(e)
-	if e.kind == "bat" then
+	if FLYING[e.kind] then
 		return e.pos
 	end
 	return e.pos + Vector3.new(0, SHAPE[e.kind].lift + (e.lift or 0), 0)
@@ -116,7 +122,7 @@ function EnemyService.Start(info, cb)
 	for _, def in ipairs(info.enemies) do
 		local home = def.pos
 		local pos = home
-		if def.kind ~= "bat" then
+		if not FLYING[def.kind] then
 			local y = groundAt(home + Vector3.new(0, 10, 0)) or home.Y
 			pos = Vector3.new(home.X, y, home.Z)
 		end
@@ -349,13 +355,190 @@ function BEHAVIOUR.puffshroom(e, dt, now)
 	place(e, math.sin(now * 20) * (e.state == "swell" and 0.06 or 0))
 end
 
+-- Mossling: a hump of moss until you get close, then it pops up and gives chase
+local function stepToward(e, dir, speed, dt)
+	local nextPos = e.pos + dir * speed * dt
+	local gy, hit = groundAt(nextPos)
+	if walkable(gy, hit, e.pos.Y) then
+		e.pos = Vector3.new(nextPos.X, gy, nextPos.Z)
+		return true
+	end
+	return false
+end
+
+function BEHAVIOUR.mossling(e, dt, now)
+	local HIDDEN = -2.5
+	if e.state == "idle" then
+		e.lift = HIDDEN + math.sin(now * 1.5 + e.phase) * 0.08
+		place(e)
+		if now > e.t0 then
+			local _, hrp = nearestPlayer(e.pos, 17, 8)
+			if hrp then
+				e.state = "pop"
+				e.t0 = now
+				e.yaw = lookYaw(e.pos, hrp.Position)
+				callbacks.effect("poof", e.pos + Vector3.new(0, 1, 0))
+			else
+				e.t0 = now + 0.25
+			end
+		end
+	elseif e.state == "pop" then
+		local u = math.clamp((now - e.t0) / 0.35, 0, 1)
+		e.lift = HIDDEN * (1 - u) + math.sin(u * math.pi) * 2
+		place(e)
+		if u >= 1 then
+			e.state = "chase"
+			e.t0 = now
+		end
+	elseif e.state == "chase" then
+		local _, hrp = nearestPlayer(e.pos, 40, 10)
+		local toHome = (e.home - e.pos) * Vector3.new(1, 0, 1)
+		local speed = 0
+		if hrp and now - e.t0 < 7 and toHome.Magnitude < 45 then
+			e.yaw = lookYaw(e.pos, hrp.Position)
+			speed = 13
+		elseif toHome.Magnitude > 1.5 then
+			e.yaw = lookYaw(Vector3.zero, toHome)
+			speed = 9
+		else
+			e.state = "sink"
+			e.t0 = now
+		end
+		if speed > 0 and not stepToward(e, forward(e.yaw), speed, dt) and not hrp then
+			e.pos = e.home -- stuck on the way home: just burrow back
+		end
+		local step = now * 14 + e.phase
+		e.lift = math.abs(math.sin(step)) * 0.5
+		place(e, math.sin(step) * 0.12)
+	else -- sink back into the moss
+		local u = math.clamp((now - e.t0) / 0.5, 0, 1)
+		e.lift = HIDDEN * u
+		place(e)
+		if u >= 1 then
+			e.state = "idle"
+			e.t0 = now + 2
+		end
+	end
+end
+
+-- Snapper: a rooted biting plant. Rears back (the tell), lunges, then droops
+-- for a moment - the best time to stomp its head.
+function BEHAVIOUR.snapper(e, dt, now)
+	local pitch = 0
+	if e.state == "idle" then
+		pitch = math.sin(now * 1.6 + e.phase) * 0.08
+		if now > e.t0 then
+			local _, hrp = nearestPlayer(e.pos, 13, 7)
+			if hrp then
+				e.yaw = lookYaw(e.pos, hrp.Position)
+				e.state = "wind"
+				e.t0 = now
+			else
+				e.yaw += math.sin(now + e.phase) * 0.05
+				e.t0 = now + 0.2
+			end
+		end
+	elseif e.state == "wind" then
+		local u = math.clamp((now - e.t0) / 0.5, 0, 1)
+		pitch = 0.4 * u + math.sin(now * 40) * 0.03
+		if u >= 1 then
+			e.state = "lunge"
+			e.t0 = now
+		end
+	elseif e.state == "lunge" then
+		local u = math.clamp((now - e.t0) / 0.15, 0, 1)
+		pitch = 0.4 - 1.45 * u
+		if now - e.t0 > 0.45 then
+			e.state = "tired"
+			e.t0 = now
+		end
+	else -- tired
+		local u = math.clamp((now - e.t0) / 1.1, 0, 1)
+		pitch = -1.05 * (1 - u)
+		if u >= 1 then
+			e.state = "idle"
+			e.t0 = now + 0.8
+		end
+	end
+	place(e, 0, pitch)
+	local cf = CFrame.new(center(e)) * CFrame.Angles(0, e.yaw, 0) * CFrame.Angles(pitch, 0, 0)
+	e.head = (cf * CFrame.new(0, 4.6, 0)).Position
+	if e.extra and e.extra.jaw then
+		local open = (e.state == "wind" and 0.6) or (e.state == "lunge" and (now - e.t0 < 0.12 and 0.6 or 0)) or 0.15
+		e.extra.jaw.CFrame = cf * e.extra.jawRest * CFrame.Angles(-open, 0, 0) * e.extra.jawLocal
+	end
+end
+
+-- Puffer: a grumpy little cloud. Drifts, turns to face you, puffs up, then
+-- blows a gust that shoves you back (straight off a cloud, if you're careless)
+function BEHAVIOUR.puffer(e, dt, now)
+	local drift = Vector3.new(math.cos(now * 0.5 + e.phase) * 3, math.sin(now * 1.3 + e.phase) * 0.8, math.sin(now * 0.5 + e.phase) * 3)
+	e.pos = e.pos:Lerp(e.home + drift, math.clamp(dt * 2, 0, 1))
+	local scale = 1
+	if e.state == "idle" then
+		if now > e.t0 then
+			local _, hrp = nearestPlayer(e.pos, 36, 14)
+			if hrp then
+				e.yaw = lookYaw(e.pos, hrp.Position)
+				e.state = "swell"
+				e.t0 = now
+			else
+				e.t0 = now + 0.4
+			end
+		end
+	elseif e.state == "swell" then
+		local _, hrp = nearestPlayer(e.pos, 40, 14)
+		if hrp then
+			e.yaw = lookYaw(e.pos, hrp.Position)
+		end
+		local u = math.clamp((now - e.t0) / 0.9, 0, 1)
+		scale = 1 + u * 0.35
+		if u >= 1 then
+			e.state = "blow"
+			e.t0 = now
+			e.blown = {}
+			callbacks.effect("gust", e.pos, forward(e.yaw))
+		end
+	elseif e.state == "blow" then
+		scale = 1.35 - math.clamp((now - e.t0) / 0.3, 0, 1) * 0.45
+		local dir = forward(e.yaw)
+		for _, player in ipairs(Players:GetPlayers()) do
+			local char = player.Character
+			local hrp = char and char:FindFirstChild("HumanoidRootPart")
+			if hrp and not e.blown[player] then
+				local to = hrp.Position - e.pos
+				local flat = Vector3.new(to.X, 0, to.Z)
+				if flat.Magnitude < 32 and math.abs(to.Y) < 12 and flat.Magnitude > 0.1 and flat.Unit:Dot(dir) > 0.8 then
+					e.blown[player] = true
+					callbacks.gust(player, dir * 58 + Vector3.new(0, 24, 0))
+				end
+			end
+		end
+		if now - e.t0 > 1.0 then
+			e.state = "idle"
+			e.t0 = now + 2.4 + math.random()
+		end
+	end
+	place(e)
+	if e.extra and e.extra.puffs then
+		local root = e.model.PrimaryPart.CFrame
+		for _, pf in ipairs(e.extra.puffs) do
+			pf.part.Size = pf.size * scale
+			pf.part.CFrame = root * CFrame.new(pf.cf.Position * scale) * pf.cf.Rotation
+		end
+	end
+end
+
 --------------------------------------------------------------------------------
 -- Contact with bunnies
 --------------------------------------------------------------------------------
 
 local function contact(e, now)
 	local shape = SHAPE[e.kind]
-	local c = center(e)
+	if e.kind == "mossling" and (e.state == "idle" or e.state == "sink") then
+		return -- tucked away under the moss
+	end
+	local c = e.head or center(e)
 	for _, player in ipairs(Players:GetPlayers()) do
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart")
@@ -364,7 +547,7 @@ local function contact(e, now)
 			local p = root.Position
 			local feet = p.Y - FEET
 			local flat = Vector3.new(p.X - c.X, 0, p.Z - c.Z).Magnitude
-			local bottom = c.Y - (e.kind == "bat" and 1.6 or shape.lift)
+			local bottom = c.Y - (shape.below or shape.lift)
 			local top = bottom + shape.top
 			-- spore puffs reach further than the body
 			if e.kind == "puffshroom" and e.state == "puff" and flat < 8.5 and feet < top + 2 and feet > bottom - 3 then
@@ -384,7 +567,7 @@ local function contact(e, now)
 					defeat(e, player)
 					callbacks.bounce(player, Vector3.new(0, Config.StompBounce, 0), true)
 					return
-				elseif move and ATTACK_MOVES[move] and e.kind ~= "puffshroom" then
+				elseif move and ATTACK_MOVES[move] and e.kind ~= "puffshroom" and e.kind ~= "puffer" then
 					defeat(e, player)
 					return
 				else

@@ -286,6 +286,23 @@ local function hatSpec(id)
 		end
 		add("ball", CF(x + 0.15, 3.95, 0.5), V(0.35, 0.35, 0.35), P.Gold, SMOOTH)
 		add("ball", CF(0.5, 1.55, -0.62), V(0.32, 0.32, 0.12), P.Gold, SMOOTH)
+	elseif id == "leafcap" then
+		-- a big forest leaf worn like a cap, stalk and all
+		local leaf = Color3.fromRGB(96, 128, 64)
+		add("ball", CF(0, 0.92, 0.1) * ROT(-0.12, 0, 0), V(2.9, 0.75, 3.2), leaf, SMOOTH)
+		add("ball", CF(0, 0.98, -1.25) * ROT(-0.35, 0, 0), V(1.7, 0.3, 1.4), leaf, SMOOTH)
+		add("block", CF(0, 1.32, 0.15), V(0.12, 0.08, 3.0), Color3.fromRGB(150, 172, 96), SMOOTH)
+		add("block", CF(0.1, 1.45, 1.6) * ROT(0.6, 0, 0), V(0.16, 0.16, 0.9), Color3.fromRGB(110, 86, 54), SMOOTH)
+	elseif id == "pilot" then
+		-- leather flying cap with goggles
+		local leather = Color3.fromRGB(122, 84, 56)
+		add("ball", CF(0, 0.9, 0.05), V(2.8, 1.6, 2.75), leather, Enum.Material.Leather)
+		for _, sx in ipairs({ -1, 1 }) do
+			add("block", CF(sx * 1.3, 0.3, 0.1) * ROT(0, 0, sx * 0.12), V(0.25, 1.1, 0.9), leather, Enum.Material.Leather)
+			add("cyl", CF(sx * 0.5, 1.2, -1.15) * ROT(0, math.pi / 2, 0), V(0.3, 0.75, 0.75), Color3.fromRGB(140, 120, 70), Enum.Material.Metal)
+			add("cyl", CF(sx * 0.5, 1.2, -1.32) * ROT(0, math.pi / 2, 0), V(0.06, 0.55, 0.55), Color3.fromRGB(150, 190, 200), Enum.Material.Glass)
+		end
+		add("block", CF(0, 1.25, -1.1), V(1.0, 0.18, 0.2), Color3.fromRGB(60, 46, 36), SMOOTH)
 	elseif id == "crown" then
 		add("cyl", vcyl(CF(0, 1.0, 0)), V(0.42, 2.1, 2.1), P.Gold, Enum.Material.Metal)
 		for i = 0, 7 do
@@ -457,12 +474,16 @@ Config.BugBusterGoal = 20      -- Grumblebugs to bop for the "Bug Buster" golden
 Config.BugRespawnSeconds = 40
 Config.CastleGate = 10         -- golden carrots needed to open the castle gate
 Config.ThroneGate = 15         -- golden carrots needed to face King Grumble
+Config.SkyGate = 18            -- golden carrots needed to climb the beanstalk to Cloudtop Heights
+Config.SkyFloor = 360          -- below this height, a bunny who was in the sky is caught and put back
 
 Config.Regions = {
 	{ id = "meadow", name = "CARROT MEADOW" },
 	{ id = "peaks", name = "FROSTBITE PEAKS" },
 	{ id = "canyon", name = "DUSTBOWL CANYON" },
 	{ id = "castle", name = "INFERNAL CASTLE" },
+	{ id = "forest", name = "WHISPERWOOD" },
+	{ id = "sky", name = "CLOUDTOP HEIGHTS" },
 }
 
 Config.Goldens = {
@@ -490,11 +511,25 @@ Config.Goldens = {
 	{ id = "rampart", region = "castle", name = "Rampart Watch", hint = "Walk the castle walls to the north-east tower." },
 	{ id = "keep", region = "castle", name = "Keep Climb", hint = "Climb the ledges inside the keep. Don't touch the lava." },
 	{ id = "boss", region = "castle", name = "King Grumble's Crown", hint = "Defeat King Grumble in the throne room above the castle.", req = "boss" },
+	-- Whisperwood
+	{ id = "eldertree", region = "forest", name = "Elder Tree Crown", hint = "Climb the shelf fungus spiralling up the Elder Tree." },
+	{ id = "treetop", region = "forest", name = "Treetop Village", hint = "Cross the rope bridges between the treehouses. One bridge is missing a few planks." },
+	{ id = "grove", region = "forest", name = "Bouncy Grove", hint = "Bounce from mushroom to mushroom to reach the floating log." },
+	{ id = "bog", region = "forest", name = "Bog Hop", hint = "Hop the lily pads across the misty bog. Some of them sink." },
+	-- Cloudtop Heights
+	{ id = "cloudhop", region = "sky", name = "Cloud Hopper", hint = "Hop the drifting clouds east of the beanstalk." },
+	{ id = "rainbow", region = "sky", name = "Rainbow's End", hint = "Follow the rainbow bridge to its end. Watch for gaps." },
+	{ id = "crowsnest", region = "sky", name = "Crow's Nest", hint = "Climb the mast of Captain Gust's airship." },
+	{ id = "updraft", region = "sky", name = "Updraft Spire", hint = "Ride the rising winds up the tall spire." },
+	-- Granny Clover's lost grandkits
+	{ id = "kits", region = "meadow", name = "Granny's Lost Kits", hint = "Granny Clover's five grandkits wandered off - one in every land. Bring them home!", req = "silver" },
 	-- Silver carrot hunts: find all five silver carrots in a region
 	{ id = "silver_meadow", region = "meadow", name = "Meadow Silver Hunt", hint = "Five silver carrots hide around the meadow: high, low and far.", req = "silver" },
 	{ id = "silver_peaks", region = "peaks", name = "Peaks Silver Hunt", hint = "Five silver carrots glint in the snow, up the mountain and by the pond.", req = "silver" },
 	{ id = "silver_canyon", region = "canyon", name = "Canyon Silver Hunt", hint = "Five silver carrots in the canyon. Look on top of things.", req = "silver" },
 	{ id = "silver_castle", region = "castle", name = "Castle Silver Hunt", hint = "Five silver carrots in and around the castle. One is very warm.", req = "silver" },
+	{ id = "silver_forest", region = "forest", name = "Whisperwood Silver Hunt", hint = "Five silver carrots glimmer in the forest gloom.", req = "silver" },
+	{ id = "silver_sky", region = "sky", name = "Cloudtop Silver Hunt", hint = "Five silver carrots float among the clouds.", req = "silver" },
 	-- Time trials: step on the glowing start pad and race the clock
 	{ id = "trial_summit", region = "peaks", name = "Summit Sprint", hint = "Race from the pad by Pip to the summit before time runs out.", req = "trial" },
 	{ id = "trial_boulder", region = "canyon", name = "Boulder Dash", hint = "Race up Boulder Run to the temple. Boulders don't wait.", req = "trial" },
@@ -532,6 +567,38 @@ Config.SilverSets = {
 			Vector3.new(674.8, 52.5, 93.6), -- a ledge on Eagle's Mesa
 		},
 	},
+	-- Granny's lost grandkits (shown as baby bunnies, not carrots)
+	kits = {
+		style = "kit",
+		reward = Vector3.new(-50, 6, -14),
+		spots = {
+			Vector3.new(-80, 3, -46), -- hiding in Granny's carrot patch
+			Vector3.new(-69, 3, -570), -- out in the snow near the ice chute landing
+			Vector3.new(838, 64, 160), -- inside the canyon temple
+			Vector3.new(-152, 3, 648), -- behind a vent on the castle approach
+			Vector3.new(-760, 3, 82), -- among the Elder Tree's roots
+		},
+	},
+	silver_forest = {
+		reward = Vector3.new(-600, 7, 60),
+		spots = {
+			Vector3.new(-780 + math.cos(4.5) * 26, 83.5, 60 + math.sin(4.5) * 26), -- an Elder Tree shelf
+			Vector3.new(-630, 51.5, 100), -- on a treehouse roof
+			Vector3.new(-880, 39.5, 20), -- above a grove mushroom
+			Vector3.new(-720, 4.5, -116), -- on a bog lily pad
+			Vector3.new(-990, 3.5, 60), -- the far western shore
+		},
+	},
+	silver_sky = {
+		reward = Vector3.new(48, 425, -72),
+		spots = {
+			Vector3.new(139, 431.5, -66), -- mid-way along the cloud hops
+			Vector3.new(60, 439, -156), -- over the rainbow bridge gap
+			Vector3.new(-52, 426, -20), -- the airship's bow
+			Vector3.new(172.4, 483.5, -167.1), -- second ledge of the Updraft Spire
+			Vector3.new(40, 436, -40), -- on top of the cloud pillar by the beanstalk
+		},
+	},
 	silver_castle = {
 		reward = Vector3.new(0, 8, 760),
 		spots = {
@@ -567,6 +634,9 @@ Config.Checkpoints = {
 	courtyard = { name = "Castle Courtyard", pos = Vector3.new(0, 7, 715) },
 	keep = { name = "The Keep", pos = Vector3.new(0, 8, 832) },
 	dungeon = { name = "Dungeon Gate", pos = Vector3.new(180, 5, 700) },
+	forest = { name = "Whisperwood", pos = Vector3.new(-580, 5, 40) },
+	beanstalk = { name = "The Beanstalk", pos = Vector3.new(-140, 5, 140) },
+	sky = { name = "Cloudtop Heights", pos = Vector3.new(60, 425, -60) },
 	throne = { name = "Throne Room", pos = Vector3.new(0, 206, 752) },
 }
 
@@ -576,6 +646,8 @@ Config.Warps = {
 	{ id = "peaks", name = "FROSTBITE PEAKS", pos = Vector3.new(24, 0, -530) },
 	{ id = "canyon", name = "DUSTBOWL CANYON", pos = Vector3.new(540, 0, 24) },
 	{ id = "castle", name = "INFERNAL CASTLE", pos = Vector3.new(26, 0, 575) },
+	{ id = "forest", name = "WHISPERWOOD", pos = Vector3.new(-592, 0, 72) },
+	{ id = "sky", name = "CLOUDTOP HEIGHTS", pos = Vector3.new(76, 420, -46) },
 }
 
 -- Stamps: in-game achievements (Pause > STAMPS). Put a Roblox badge id in
@@ -585,15 +657,18 @@ Config.Stamps = {
 	{ id = "golden10", name = "HALFWAY HOP", desc = "Find 10 golden carrots." },
 	{ id = "golden20", name = "CARROT CHAMPION", desc = "Find every golden carrot." },
 	{ id = "carrots", name = "CRUNCH TIME", desc = "Collect every single carrot." },
-	{ id = "regions", name = "SIGHTSEER", desc = "Visit all four regions." },
-	{ id = "friends", name = "SOCIAL BUNNY", desc = "Chat with all six friends." },
+	{ id = "regions", name = "SIGHTSEER", desc = "Visit all six lands." },
+	{ id = "friends", name = "SOCIAL BUNNY", desc = "Chat with every friend in every land." },
 	{ id = "bops50", name = "BUG SQUASHER", desc = "Bop 50 baddies." },
 	{ id = "crates", name = "CRATE EXPECTATIONS", desc = "Smash 20 heart crates." },
 	{ id = "longjump", name = "FLYING SIDEWAYS", desc = "Long jump 25 times." },
 	{ id = "walljump", name = "BOING BOING BOING", desc = "Wall jump 3 times in a row." },
 	{ id = "boss", name = "CROWN JEWEL", desc = "Defeat King Grumble." },
 	{ id = "bossnohit", name = "UNTOUCHABLE", desc = "Defeat King Grumble without getting hurt." },
-	{ id = "speedy", name = "SPEEDY BUNNY", desc = "Find every golden carrot in under 3 hours." },
+	{ id = "speedy", name = "SPEEDY BUNNY", desc = "Find every golden carrot in under 4 hours." },
+	{ id = "sky", name = "HEAD IN THE CLOUDS", desc = "Climb the beanstalk to Cloudtop Heights." },
+	{ id = "kits", name = "GRANNY'S HERO", desc = "Bring all five lost grandkits home." },
+	{ id = "silvers", name = "SILVER LINING", desc = "Finish every silver carrot hunt." },
 }
 Config.Badges = {
 	-- golden20 = 1234567890,
@@ -621,6 +696,10 @@ Config.Tips = {
 	{ id = "spikes", pos = Vector3.new(690, 4, -60), radius = 30, text = "Thornhogs are all spikes. Only a ground pound shockwave works: {crouch} in mid-air near them." },
 	{ id = "lava", pos = Vector3.new(0, 5, 565), radius = 24, text = "Lava bounces you out, but it costs a heart. Checkpoint flags glow gold when they're yours." },
 	{ id = "boss", pos = Vector3.new(0, 206, 752), radius = 24, text = "King Grumble only shows his weak spots when he's dazed. Make him charge a pillar!" },
+	{ id = "mossling", pos = Vector3.new(-600, 4, 40), radius = 30, text = "Mosslings hide in the forest floor and pop up as you pass. Stomp them, or {roll} into them!" },
+	{ id = "bouncy", pos = Vector3.new(-870, 6, 20), radius = 18, text = "Land on a mushroom cap to bounce. Hold {crouch} in the air for a ground pound to bounce even higher." },
+	{ id = "updraft", pos = Vector3.new(180, 424, -150), radius = 30, text = "Stand in the rising wind to float upward. Steer to drift onto the ledges." },
+	{ id = "puffer", pos = Vector3.new(60, 425, -60), radius = 30, text = "Puffers blow gusts that can push you off the clouds. Stomp them from above!" },
 }
 
 -- Friendly characters. Each NPC picks the LAST dialogue set whose conditions
@@ -661,7 +740,18 @@ Config.NPCs = {
 			} },
 			{ goldens = 3, lines = {
 				"You found the one on my roof! Oh, you're a treasure.",
-				"When you get tired, come back and sit a while. The meadow will still be here.",
+				"Sweetpea... could I ask a favour? My five grandkits went exploring and haven't come home.",
+				"One in every land, I'd wager. Little rascals. If you see them, bring them back to me?",
+			} },
+			{ kits = 1, lines = {
+				"You found one of my grandkits! Oh, thank goodness. The others can't be far... well. They can be quite far.",
+			} },
+			{ kits = 3, lines = {
+				"Three home safe! They're telling me ALL about their adventures. Loudly.",
+			} },
+			{ has = "kits", lines = {
+				"All five of my grandkits, home for supper! I could hug you till your ears pop.",
+				"I left something shiny by the crates for you. Don't tell the kits, they'll want one too.",
 			} },
 			{ boss = true, lines = {
 				"I heard the castle went quiet. Was that you? Of course it was.",
@@ -718,6 +808,78 @@ Config.NPCs = {
 			} },
 		},
 	},
+	burrows = {
+		name = "MAYOR BURROWS", kind = "mayor", voice = 0.75,
+		dialogue = {
+			{ lines = {
+				"Ahem! Welcome, welcome, citizen, to Carrot Meadow - the finest meadow in all the islands!",
+				"I am Mayor Burrows. I was elected unanimously. By myself. Nobody else ran.",
+				"Our golden carrots have gone astray. Find them and you'll have the gratitude of the whole meadow!",
+			} },
+			{ goldens = 10, lines = {
+				"Ten golden carrots! I shall have a statue made of you. A small one. Budgets, you understand.",
+			} },
+			{ goldens = 18, lines = {
+				"The old beanstalk on the west side has started growing again! Up past the clouds, they say.",
+				"Eighteen golden carrots should be enough to convince it to let you climb.",
+			} },
+			{ boss = true, lines = {
+				"You defeated King Grumble! I hereby declare today Bunny Day. Every year. Forever.",
+				"...Pending council approval. I am the council.",
+			} },
+		},
+	},
+	fern = {
+		name = "RANGER FERN", kind = "fox", voice = 0.95,
+		dialogue = {
+			{ lines = {
+				"Shh! Keep your voice down. The woods are listening. Well, the Mosslings are, anyway.",
+				"They hide in the ground and pop up when you walk past. Stomp them before they stomp you.",
+				"The Elder Tree in the middle is the oldest thing on these islands. Shelf fungus grows all the way up it.",
+				"And mind the bog to the south. The lily pads don't all stay afloat.",
+			} },
+			{ goldens = 22, lines = {
+				"You're getting a name for yourself, bunny. Even the Snappers are nervous. Probably.",
+			} },
+		},
+	},
+	hoot = {
+		name = "PROFESSOR HOOT", kind = "owl", voice = 0.6,
+		dialogue = {
+			{ lines = {
+				"Hoo! A visitor to the treetops. Do mind the gaps in the bridges. Gravity is very strict here.",
+				"I study the golden carrots, you know. Fascinating vegetables. They seem to want to be found.",
+				"There is a mushroom grove to the west. The caps are bouncier than a professor at a conference.",
+			} },
+			{ goldens = 25, lines = {
+				"My research suggests you have found more golden carrots than anyone. My research is you. I asked you.",
+			} },
+		},
+	},
+	gust = {
+		name = "CAPTAIN GUST", kind = "bird", voice = 1.0,
+		dialogue = {
+			{ lines = {
+				"Ahoy, landlubber! Welcome aboard the Cumulus, finest airship in the sky!",
+				"Somethin' golden's stuck up in my crow's nest. Climb the rigging if ye've the stomach for it!",
+				"And mind them Puffers. Nasty clouds. One sneeze and yer overboard.",
+			} },
+			{ has = "crowsnest", lines = {
+				"Ye made it up the mast! Ye've the makings of a fine sky pirate, bunny.",
+			} },
+		},
+	},
+	nimbus = {
+		name = "NIMBUS", kind = "sheep", voice = 1.25,
+		dialogue = {
+			{ lines = {
+				"Oh! Hello! I'm Nimbus. I'm a cloud. Well, a sheep. People mix us up.",
+				"You climbed the WHOLE beanstalk? That's so many leaves!",
+				"The rising winds by the tall spire can carry you up. Just stand in them and let go of your worries.",
+				"The rainbow bridge goes all the way to the end of the rainbow. Obviously.",
+			} },
+		},
+	},
 	ember = {
 		name = "SIR EMBER", kind = "knightbug", voice = 0.6,
 		dialogue = {
@@ -747,7 +909,7 @@ Config.FurColors = {
 	{ name = "ROSE", fur = rgb(190, 140, 140), cream = rgb(236, 214, 204) },
 	{ name = "MOSS", fur = rgb(120, 128, 92), cream = rgb(214, 210, 180) },
 	-- post-game reward
-	{ name = "GOLDEN", fur = rgb(214, 172, 72), cream = rgb(244, 226, 170), need = 26 },
+	{ name = "GOLDEN", fur = rgb(214, 172, 72), cream = rgb(244, 226, 170), need = #Config.Goldens },
 }
 Config.AccentColors = {
 	{ name = "CRIMSON", color = rgb(140, 50, 48) },
@@ -770,6 +932,8 @@ Config.Hats = {
 	{ id = "propeller", name = "PROPELLER CAP", need = 10 },
 	{ id = "viking", name = "VIKING HELM", need = 13 },
 	{ id = "wizard", name = "WIZARD HAT", need = 16 },
+	{ id = "leafcap", name = "LEAF CAP", need = 20 },
+	{ id = "pilot", name = "SKY PILOT CAP", need = 26 },
 	{ id = "crown", name = "KING'S CROWN", need = 0, boss = true },
 }
 Config.Necks = {
@@ -812,6 +976,8 @@ Config.Music = {
 	peaks = "",
 	canyon = "",
 	castle = "",
+	forest = "",
+	sky = "",
 	boss = "",
 }
 Config.MusicVolume = 0.35
@@ -885,6 +1051,8 @@ Config.BugSkins = {
 	peaks = { shell = rgb(94, 118, 140), shell2 = rgb(70, 90, 110), spot = rgb(222, 228, 232), body = rgb(40, 46, 56), eye = rgb(150, 210, 230) },
 	canyon = { shell = rgb(150, 100, 60), shell2 = rgb(120, 78, 46), spot = rgb(84, 58, 40), body = rgb(56, 40, 30), eye = rgb(220, 180, 90) },
 	castle = { shell = rgb(54, 46, 46), shell2 = rgb(38, 32, 32), spot = rgb(222, 96, 40), body = rgb(30, 24, 24), eye = rgb(240, 120, 50) },
+	forest = { shell = rgb(70, 96, 70), shell2 = rgb(52, 74, 54), spot = rgb(196, 176, 110), body = rgb(40, 44, 36), eye = rgb(210, 220, 120) },
+	sky = { shell = rgb(176, 184, 206), shell2 = rgb(146, 154, 180), spot = rgb(240, 226, 170), body = rgb(70, 74, 92), eye = rgb(250, 220, 140) },
 }
 
 return Config
@@ -942,7 +1110,7 @@ function HazardMath.SegmentDistance(p, a, b)
 end
 
 return HazardMath
-]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX0000001A"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX00000019"><Properties><string name="Name">Bunny64Server</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="ServerScriptService" referent="RBX0000001C"><Properties><string name="Name">ServerScriptService</string></Properties><Item class="Script" referent="RBX0000001B"><Properties><string name="Name">Bunny64Server</string><ProtectedString name="Source"><![CDATA[--[[
 	Bunny 64 - server entry point.
 	Builds the world, runs save files, pickups, hearts, hazards, checkpoints,
 	warps, enemies, the boss and customisation.
@@ -1251,6 +1419,7 @@ local function onCharacter(player, character)
 		end
 		if st then
 			st.safe = cf
+			st.sky = cf.Position.Y > Config.SkyFloor
 			st.invulnUntil = os.clock() + 2
 		end
 	end
@@ -1348,6 +1517,22 @@ Collect.OnServerEvent:Connect(function(player, id)
 			end
 		end
 		push(player, { kind = "silver", set = silver.set, got = got, total = #set.spots })
+		if got >= #set.spots then
+			if silver.set == "kits" then
+				awardStamp(player, "kits")
+			end
+			-- every hunt done?
+			local all = true
+			for sid in pairs(info.silvers) do
+				if not slot.silvers[sid] then
+					all = false
+					break
+				end
+			end
+			if all then
+				awardStamp(player, "silvers")
+			end
+		end
 		return
 	end
 
@@ -1391,7 +1576,7 @@ Collect.OnServerEvent:Connect(function(player, id)
 			end
 			if n >= #Config.Goldens then
 				awardStamp(player, "golden20")
-				if DataService.GetPlayTime(player) < 3 * 3600 then
+				if DataService.GetPlayTime(player) < 4 * 3600 then
 					awardStamp(player, "speedy")
 				end
 			end
@@ -1585,6 +1770,7 @@ end
 local function teleport(player, cf)
 	if state[player] then
 		state[player].trial = nil -- warping out of a time trial cancels it
+		state[player].sky = cf.Position.Y > Config.SkyFloor
 	end
 	local char = player.Character
 	if char then
@@ -1619,7 +1805,15 @@ for _, d in ipairs(info.solidFolder:GetDescendants()) do
 					teleport(player, checkpointCF("throne"))
 					push(player, { kind = "checkpoint", id = "throne" })
 				else
-					Effect:FireClient(player, "locked", Config.ThroneGate)
+					Effect:FireClient(player, "locked", Config.ThroneGate, "king")
+				end
+			elseif part:GetAttribute("Beanstalk") then
+				if count(slot.goldens) >= Config.SkyGate then
+					slot.checkpoint = "sky"
+					teleport(player, checkpointCF("sky"))
+					push(player, { kind = "checkpoint", id = "sky" })
+				else
+					Effect:FireClient(player, "locked", Config.SkyGate, "beanstalk")
 				end
 			end
 		end)
@@ -1643,12 +1837,19 @@ safeStart("HazardService", HazardService.Start, info, {
 })
 
 safeStart("EnemyService", EnemyService.Start, info, {
-	effect = function(kind, pos)
-		Effect:FireAllClients(kind, pos)
+	effect = function(kind, pos, extra)
+		Effect:FireAllClients(kind, pos, extra)
 	end,
 	bopped = onBopped,
 	bounce = function(player, vel, keepHorizontal)
 		Bounce:FireClient(player, vel, keepHorizontal, "stomp")
+	end,
+	-- a Puffer's gust: shoves the bunny without hurting it
+	gust = function(player, vel)
+		local char = player.Character
+		if char and char:GetAttribute("Move") ~= "fly" then
+			Bounce:FireClient(player, vel, false, "gust")
+		end
 	end,
 	hurt = function(player, fromPos)
 		hurt(player, fromPos, nil, false)
@@ -1804,8 +2005,21 @@ RunService.Heartbeat:Connect(function(dt)
 			local pos = root.Position
 			local hit = workspace:Raycast(pos, Vector3.new(0, -3.4, 0), floorParams)
 			local inWater = pos.Y < Config.WaterLevel - 2.5 or (hit and hit.Instance:GetAttribute("Water"))
+			-- Cloudtop Heights: falling off the clouds catches you and puts you back
+			if pos.Y > Config.SkyFloor then
+				st.sky = true
+			elseif st.sky and pos.Y < Config.SkyFloor - 25 then
+				st.sky = false
+				if st.safe.Position.Y > Config.SkyFloor and player.Character:GetAttribute("Move") ~= "fly" then
+					inWater = true
+				end
+			end
 			if inWater then
-				Effect:FireAllClients("splash", Vector3.new(pos.X, hit and hit.Position.Y or Config.WaterLevel, pos.Z))
+				if pos.Y > Config.WaterLevel + 20 then
+					Effect:FireAllClients("poof", pos) -- caught by the clouds, not the sea
+				else
+					Effect:FireAllClients("splash", Vector3.new(pos.X, hit and hit.Position.Y or Config.WaterLevel, pos.Z))
+				end
 				hurt(player, pos, Vector3.zero, true)
 				if hum.Health > 0 then
 					player.Character:PivotTo(st.safe)
@@ -1852,16 +2066,23 @@ RunService.Heartbeat:Connect(function(dt)
 
 			-- regions visited (for the SIGHTSEER stamp)
 			local region = "meadow"
-			if pos.Z > 470 and math.abs(pos.X) < 320 then
+			if pos.Y > Config.SkyFloor - 60 then
+				region = "sky"
+			elseif pos.Z > 470 and math.abs(pos.X) < 320 then
 				region = "castle"
 			elseif pos.Z < -470 then
 				region = "peaks"
 			elseif pos.X > 460 then
 				region = "canyon"
+			elseif pos.X < -470 then
+				region = "forest"
 			end
 			slot.regions = slot.regions or {}
 			if not slot.regions[region] then
 				slot.regions[region] = true
+				if region == "sky" then
+					awardStamp(player, "sky")
+				end
 				if count(slot.regions) >= #Config.Regions then
 					awardStamp(player, "regions")
 				end
@@ -1874,7 +2095,8 @@ RunService.Heartbeat:Connect(function(dt)
 				end
 			end
 			for _, w in ipairs(Config.Warps) do
-				if not slot.warps[w.id] and (Vector3.new(pos.X, 0, pos.Z) - Vector3.new(w.pos.X, 0, w.pos.Z)).Magnitude < 16 then
+				if not slot.warps[w.id] and (Vector3.new(pos.X, 0, pos.Z) - Vector3.new(w.pos.X, 0, w.pos.Z)).Magnitude < 16
+					and math.abs(pos.Y - w.pos.Y) < 30 then
 					slot.warps[w.id] = true
 					push(player, { kind = "warpfound", id = w.id })
 				end
@@ -3221,11 +3443,14 @@ local CF, V, R = CFrame.new, Vector3.new, CFrame.Angles
 
 local SKINS = {
 	toad = {
+		forest = { body = rgb(78, 104, 64), belly = rgb(196, 190, 150), spot = rgb(120, 92, 60), eye = rgb(200, 210, 110) },
 		meadow = { body = rgb(96, 128, 70), belly = rgb(214, 204, 160), spot = rgb(70, 96, 52), eye = rgb(214, 180, 70) },
 		canyon = { body = rgb(170, 130, 82), belly = rgb(226, 206, 166), spot = rgb(132, 96, 60), eye = rgb(226, 160, 60) },
 		peaks = { body = rgb(120, 140, 156), belly = rgb(226, 230, 232), spot = rgb(92, 108, 124), eye = rgb(150, 210, 230) },
 	},
 	bat = {
+		forest = { body = rgb(54, 60, 50), wing = rgb(80, 92, 70), eye = rgb(200, 230, 120) },
+		sky = { body = rgb(110, 116, 140), wing = rgb(160, 170, 196), eye = rgb(250, 220, 140) },
 		castle = { body = rgb(62, 44, 54), wing = rgb(92, 56, 66), eye = rgb(240, 120, 50) },
 		peaks = { body = rgb(86, 100, 120), wing = rgb(120, 140, 160), eye = rgb(160, 220, 240) },
 		meadow = { body = rgb(70, 56, 66), wing = rgb(104, 80, 92), eye = rgb(230, 200, 90) },
@@ -3234,6 +3459,15 @@ local SKINS = {
 		canyon = { body = rgb(112, 84, 60), spike = rgb(226, 214, 186), face = rgb(196, 160, 120), tip = rgb(226, 214, 186) },
 		castle = { body = rgb(48, 40, 40), spike = rgb(80, 70, 70), face = rgb(120, 96, 86), tip = rgb(232, 120, 50) },
 		meadow = { body = rgb(100, 84, 70), spike = rgb(214, 204, 180), face = rgb(190, 160, 128), tip = rgb(214, 204, 180) },
+	},
+	mossling = {
+		forest = { moss = rgb(92, 118, 64), moss2 = rgb(72, 96, 52), face = rgb(120, 92, 66), eye = rgb(226, 214, 120) },
+	},
+	snapper = {
+		forest = { stem = rgb(84, 114, 62), head = rgb(140, 70, 80), inside = rgb(200, 120, 120), leaf = rgb(70, 100, 54), tooth = rgb(236, 230, 214) },
+	},
+	puffer = {
+		sky = { cloud = rgb(226, 230, 238), shade = rgb(186, 194, 212), cheek = rgb(214, 150, 160) },
 	},
 	puffshroom = {
 		meadow = { cap = rgb(120, 82, 132), spot = rgb(222, 210, 190), stem = rgb(220, 208, 182) },
@@ -3396,6 +3630,83 @@ function EnemyModels.puffshroom(skinName, origin)
 	return model, { cap = cap, stem = stem, spots = spots }
 end
 
+-- Mossling ---------------------------------------------------------------------------------
+function EnemyModels.mossling(skinName, origin)
+	local s = skinFor("mossling", skinName)
+	local model = Instance.new("Model")
+	model.Name = "Mossling"
+	rootPart(model, origin, V(3, 3, 3))
+	newPart(model, origin, CF(0, 0, 0), V(4.2, 3.2, 4.0), s.moss, true, Enum.Material.Grass, "Body")
+	for i = 0, 5 do
+		local a = i / 6 * math.pi * 2
+		newPart(model, origin, CF(math.cos(a) * 1.5, 1.2 + (i % 2) * 0.3, math.sin(a) * 1.4 + 0.3), V(1.6, 1.1, 1.6), i % 2 == 0 and s.moss2 or s.moss, true, Enum.Material.Grass)
+	end
+	-- a sprout on top and a little bark face
+	newPart(model, origin, CF(0, 2.0, 0.2), V(0.2, 1.2, 0.2), s.moss2)
+	newPart(model, origin, CF(0.35, 2.55, 0.2) * R(0, 0, -0.6), V(0.8, 0.12, 0.45), s.moss, true)
+	newPart(model, origin, CF(-0.35, 2.5, 0.2) * R(0, 0, 0.6), V(0.8, 0.12, 0.45), s.moss2, true)
+	newPart(model, origin, CF(0, -0.2, -1.6), V(2.4, 1.6, 0.8), s.face, true)
+	eyes(model, origin, 0.0, -1.95, 0.5, 0.5, s.eye, true)
+	newPart(model, origin, CF(0, -0.6, -1.95), V(0.8, 0.14, 0.1), rgb(40, 30, 24))
+	model:SetAttribute("Kind", "mossling")
+	return model, {}
+end
+
+-- Snapper (pivot at the base of the stem; the head sits on top) ----------------------------
+function EnemyModels.snapper(skinName, origin)
+	local s = skinFor("snapper", skinName)
+	local model = Instance.new("Model")
+	model.Name = "Snapper"
+	rootPart(model, origin, V(1, 1, 1))
+	newPart(model, origin, CF(0, 1.4, 0), V(0.9, 3.2, 0.9), s.stem, false, nil, "Stem")
+	for _, sx in ipairs({ -1, 1 }) do
+		newPart(model, origin, CF(sx * 1.4, -1.1, 0) * R(0, 0, sx * -0.3), V(2.8, 0.25, 1.6), s.leaf, true)
+		newPart(model, origin, CF(0, -1.1, sx * 1.4) * R(sx * 0.3, 0, 0), V(1.6, 0.25, 2.8), s.leaf, true)
+	end
+	-- head: upper jaw fixed, lower jaw hinged at the back
+	newPart(model, origin, CF(0, 4.9, -0.3), V(3.4, 1.6, 3.6), s.head, true, nil, "Head")
+	for i = 0, 4 do
+		local a = i / 4 * math.pi - math.pi / 2
+		newPart(model, origin, CF(math.sin(a) * 1.4, 4.2, -0.3 - math.cos(a) * 1.5), V(0.3, 0.5, 0.3), s.tooth)
+	end
+	for _, sp in ipairs({ { -0.8, 5.6, 0.2 }, { 0.9, 5.5, -0.6 }, { 0.1, 5.75, 0.9 } }) do
+		newPart(model, origin, CF(sp[1], sp[2], sp[3]), V(0.7, 0.3, 0.7), s.tooth, true)
+	end
+	eyes(model, origin, 5.5, -1.6, 0.7, 0.55, nil, true)
+	local jawRest = CF(0, 3.9, 1.2)
+	local jaw = newPart(model, origin, jawRest * CF(0, 0, -1.5), V(3.0, 0.9, 3.2), s.inside, true, nil, "Jaw")
+	local jawLocal = CF(0, 0, -1.5)
+	model:SetAttribute("Kind", "snapper")
+	return model, { jaw = jaw, jawRest = jawRest, jawLocal = jawLocal }
+end
+
+-- Puffer ---------------------------------------------------------------------------------
+function EnemyModels.puffer(skinName, origin)
+	local s = skinFor("puffer", skinName)
+	local model = Instance.new("Model")
+	model.Name = "Puffer"
+	rootPart(model, origin, V(2, 2, 2))
+	local parts = {}
+	local function add(cf, size, color, ball, material)
+		local p = newPart(model, origin, cf, size, color, ball, material)
+		table.insert(parts, { part = p, cf = cf, size = size })
+		return p
+	end
+	add(CF(0, 0, 0), V(5.2, 3.8, 4.6), s.cloud, true)
+	for _, b in ipairs({ { -2.2, 0.6, 0.4, 2.8 }, { 2.2, 0.5, 0.3, 2.6 }, { 0, 1.7, 0.4, 3 }, { -1.1, -1.1, 0.8, 2.4 }, { 1.2, -1.2, 0.6, 2.2 } }) do
+		add(CF(b[1], b[2], b[3]), V(b[4], b[4] * 0.85, b[4]), b[2] < 0 and s.shade or s.cloud, true)
+	end
+	for _, sx in ipairs({ -1, 1 }) do
+		add(CF(sx * 1.5, -0.3, -2.0), V(0.9, 0.5, 0.3), s.cheek, true)
+		add(CF(sx * 0.7, 0.5, -2.25), V(0.6, 0.75, 0.3), rgb(40, 36, 48), true)
+		add(CF(sx * 0.75, 1.1, -2.2) * R(0, 0, sx * 0.4), V(0.8, 0.16, 0.2), rgb(70, 66, 84))
+	end
+	-- pursed "O" mouth, ready to blow
+	add(CF(0, -0.5, -2.3), V(0.7, 0.7, 0.3), rgb(70, 60, 76), true)
+	model:SetAttribute("Kind", "puffer")
+	return model, { puffs = parts }
+end
+
 return EnemyModels
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000000E"><Properties><string name="Name">EnemyService</string><ProtectedString name="Source"><![CDATA[--[[
 	EnemyService - all the baddies.
@@ -3433,10 +3744,16 @@ local FEET = 2.6 -- HumanoidRootPart centre to feet
 local SHAPE = {
 	bug = { lift = 1.8, radius = 4.4, top = 4.0 },
 	toad = { lift = 1.6, radius = 3.6, top = 3.2 },
-	bat = { lift = 0, radius = 3.2, top = 1.6 },
+	bat = { lift = 0, below = 1.6, radius = 3.2, top = 1.6 },
 	thornhog = { lift = 2.0, radius = 3.6, top = 4.2 },
 	puffshroom = { lift = 1.9, radius = 3.4, top = 5.0 },
+	mossling = { lift = 1.6, radius = 3.6, top = 3.4 },
+	snapper = { lift = 1.5, radius = 3.4, top = 3.2 }, -- measured around its head
+	puffer = { lift = 0, below = 1.8, radius = 3.8, top = 3.4 },
 }
+
+-- Kinds that hover at their home point instead of standing on the ground
+local FLYING = { bat = true, puffer = true }
 
 local function groundAt(pos)
 	local hit = workspace:Raycast(pos + Vector3.new(0, 8, 0), Vector3.new(0, -30, 0), rayParams)
@@ -3457,7 +3774,7 @@ local function walkable(gy, hitPart, fromY, maxStep)
 end
 
 local function center(e)
-	if e.kind == "bat" then
+	if FLYING[e.kind] then
 		return e.pos
 	end
 	return e.pos + Vector3.new(0, SHAPE[e.kind].lift + (e.lift or 0), 0)
@@ -3515,7 +3832,7 @@ function EnemyService.Start(info, cb)
 	for _, def in ipairs(info.enemies) do
 		local home = def.pos
 		local pos = home
-		if def.kind ~= "bat" then
+		if not FLYING[def.kind] then
 			local y = groundAt(home + Vector3.new(0, 10, 0)) or home.Y
 			pos = Vector3.new(home.X, y, home.Z)
 		end
@@ -3748,13 +4065,190 @@ function BEHAVIOUR.puffshroom(e, dt, now)
 	place(e, math.sin(now * 20) * (e.state == "swell" and 0.06 or 0))
 end
 
+-- Mossling: a hump of moss until you get close, then it pops up and gives chase
+local function stepToward(e, dir, speed, dt)
+	local nextPos = e.pos + dir * speed * dt
+	local gy, hit = groundAt(nextPos)
+	if walkable(gy, hit, e.pos.Y) then
+		e.pos = Vector3.new(nextPos.X, gy, nextPos.Z)
+		return true
+	end
+	return false
+end
+
+function BEHAVIOUR.mossling(e, dt, now)
+	local HIDDEN = -2.5
+	if e.state == "idle" then
+		e.lift = HIDDEN + math.sin(now * 1.5 + e.phase) * 0.08
+		place(e)
+		if now > e.t0 then
+			local _, hrp = nearestPlayer(e.pos, 17, 8)
+			if hrp then
+				e.state = "pop"
+				e.t0 = now
+				e.yaw = lookYaw(e.pos, hrp.Position)
+				callbacks.effect("poof", e.pos + Vector3.new(0, 1, 0))
+			else
+				e.t0 = now + 0.25
+			end
+		end
+	elseif e.state == "pop" then
+		local u = math.clamp((now - e.t0) / 0.35, 0, 1)
+		e.lift = HIDDEN * (1 - u) + math.sin(u * math.pi) * 2
+		place(e)
+		if u >= 1 then
+			e.state = "chase"
+			e.t0 = now
+		end
+	elseif e.state == "chase" then
+		local _, hrp = nearestPlayer(e.pos, 40, 10)
+		local toHome = (e.home - e.pos) * Vector3.new(1, 0, 1)
+		local speed = 0
+		if hrp and now - e.t0 < 7 and toHome.Magnitude < 45 then
+			e.yaw = lookYaw(e.pos, hrp.Position)
+			speed = 13
+		elseif toHome.Magnitude > 1.5 then
+			e.yaw = lookYaw(Vector3.zero, toHome)
+			speed = 9
+		else
+			e.state = "sink"
+			e.t0 = now
+		end
+		if speed > 0 and not stepToward(e, forward(e.yaw), speed, dt) and not hrp then
+			e.pos = e.home -- stuck on the way home: just burrow back
+		end
+		local step = now * 14 + e.phase
+		e.lift = math.abs(math.sin(step)) * 0.5
+		place(e, math.sin(step) * 0.12)
+	else -- sink back into the moss
+		local u = math.clamp((now - e.t0) / 0.5, 0, 1)
+		e.lift = HIDDEN * u
+		place(e)
+		if u >= 1 then
+			e.state = "idle"
+			e.t0 = now + 2
+		end
+	end
+end
+
+-- Snapper: a rooted biting plant. Rears back (the tell), lunges, then droops
+-- for a moment - the best time to stomp its head.
+function BEHAVIOUR.snapper(e, dt, now)
+	local pitch = 0
+	if e.state == "idle" then
+		pitch = math.sin(now * 1.6 + e.phase) * 0.08
+		if now > e.t0 then
+			local _, hrp = nearestPlayer(e.pos, 13, 7)
+			if hrp then
+				e.yaw = lookYaw(e.pos, hrp.Position)
+				e.state = "wind"
+				e.t0 = now
+			else
+				e.yaw += math.sin(now + e.phase) * 0.05
+				e.t0 = now + 0.2
+			end
+		end
+	elseif e.state == "wind" then
+		local u = math.clamp((now - e.t0) / 0.5, 0, 1)
+		pitch = 0.4 * u + math.sin(now * 40) * 0.03
+		if u >= 1 then
+			e.state = "lunge"
+			e.t0 = now
+		end
+	elseif e.state == "lunge" then
+		local u = math.clamp((now - e.t0) / 0.15, 0, 1)
+		pitch = 0.4 - 1.45 * u
+		if now - e.t0 > 0.45 then
+			e.state = "tired"
+			e.t0 = now
+		end
+	else -- tired
+		local u = math.clamp((now - e.t0) / 1.1, 0, 1)
+		pitch = -1.05 * (1 - u)
+		if u >= 1 then
+			e.state = "idle"
+			e.t0 = now + 0.8
+		end
+	end
+	place(e, 0, pitch)
+	local cf = CFrame.new(center(e)) * CFrame.Angles(0, e.yaw, 0) * CFrame.Angles(pitch, 0, 0)
+	e.head = (cf * CFrame.new(0, 4.6, 0)).Position
+	if e.extra and e.extra.jaw then
+		local open = (e.state == "wind" and 0.6) or (e.state == "lunge" and (now - e.t0 < 0.12 and 0.6 or 0)) or 0.15
+		e.extra.jaw.CFrame = cf * e.extra.jawRest * CFrame.Angles(-open, 0, 0) * e.extra.jawLocal
+	end
+end
+
+-- Puffer: a grumpy little cloud. Drifts, turns to face you, puffs up, then
+-- blows a gust that shoves you back (straight off a cloud, if you're careless)
+function BEHAVIOUR.puffer(e, dt, now)
+	local drift = Vector3.new(math.cos(now * 0.5 + e.phase) * 3, math.sin(now * 1.3 + e.phase) * 0.8, math.sin(now * 0.5 + e.phase) * 3)
+	e.pos = e.pos:Lerp(e.home + drift, math.clamp(dt * 2, 0, 1))
+	local scale = 1
+	if e.state == "idle" then
+		if now > e.t0 then
+			local _, hrp = nearestPlayer(e.pos, 36, 14)
+			if hrp then
+				e.yaw = lookYaw(e.pos, hrp.Position)
+				e.state = "swell"
+				e.t0 = now
+			else
+				e.t0 = now + 0.4
+			end
+		end
+	elseif e.state == "swell" then
+		local _, hrp = nearestPlayer(e.pos, 40, 14)
+		if hrp then
+			e.yaw = lookYaw(e.pos, hrp.Position)
+		end
+		local u = math.clamp((now - e.t0) / 0.9, 0, 1)
+		scale = 1 + u * 0.35
+		if u >= 1 then
+			e.state = "blow"
+			e.t0 = now
+			e.blown = {}
+			callbacks.effect("gust", e.pos, forward(e.yaw))
+		end
+	elseif e.state == "blow" then
+		scale = 1.35 - math.clamp((now - e.t0) / 0.3, 0, 1) * 0.45
+		local dir = forward(e.yaw)
+		for _, player in ipairs(Players:GetPlayers()) do
+			local char = player.Character
+			local hrp = char and char:FindFirstChild("HumanoidRootPart")
+			if hrp and not e.blown[player] then
+				local to = hrp.Position - e.pos
+				local flat = Vector3.new(to.X, 0, to.Z)
+				if flat.Magnitude < 32 and math.abs(to.Y) < 12 and flat.Magnitude > 0.1 and flat.Unit:Dot(dir) > 0.8 then
+					e.blown[player] = true
+					callbacks.gust(player, dir * 58 + Vector3.new(0, 24, 0))
+				end
+			end
+		end
+		if now - e.t0 > 1.0 then
+			e.state = "idle"
+			e.t0 = now + 2.4 + math.random()
+		end
+	end
+	place(e)
+	if e.extra and e.extra.puffs then
+		local root = e.model.PrimaryPart.CFrame
+		for _, pf in ipairs(e.extra.puffs) do
+			pf.part.Size = pf.size * scale
+			pf.part.CFrame = root * CFrame.new(pf.cf.Position * scale) * pf.cf.Rotation
+		end
+	end
+end
+
 --------------------------------------------------------------------------------
 -- Contact with bunnies
 --------------------------------------------------------------------------------
 
 local function contact(e, now)
 	local shape = SHAPE[e.kind]
-	local c = center(e)
+	if e.kind == "mossling" and (e.state == "idle" or e.state == "sink") then
+		return -- tucked away under the moss
+	end
+	local c = e.head or center(e)
 	for _, player in ipairs(Players:GetPlayers()) do
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart")
@@ -3763,7 +4257,7 @@ local function contact(e, now)
 			local p = root.Position
 			local feet = p.Y - FEET
 			local flat = Vector3.new(p.X - c.X, 0, p.Z - c.Z).Magnitude
-			local bottom = c.Y - (e.kind == "bat" and 1.6 or shape.lift)
+			local bottom = c.Y - (shape.below or shape.lift)
 			local top = bottom + shape.top
 			-- spore puffs reach further than the body
 			if e.kind == "puffshroom" and e.state == "puff" and flat < 8.5 and feet < top + 2 and feet > bottom - 3 then
@@ -3783,7 +4277,7 @@ local function contact(e, now)
 					defeat(e, player)
 					callbacks.bounce(player, Vector3.new(0, Config.StompBounce, 0), true)
 					return
-				elseif move and ATTACK_MOVES[move] and e.kind ~= "puffshroom" then
+				elseif move and ATTACK_MOVES[move] and e.kind ~= "puffshroom" and e.kind ~= "puffer" then
 					defeat(e, player)
 					return
 				else
@@ -4243,13 +4737,111 @@ function BUILD.knightbug(model, base)
 	end
 end
 
+function BUILD.fox(model, base)
+	local orange = rgb(176, 104, 58)
+	local cream = rgb(230, 216, 190)
+	part(model, base * CFrame.new(0, 2.1, 0), Vector3.new(2.8, 3.6, 2.6), rgb(84, 100, 66), true, Enum.Material.Fabric) -- ranger coat
+	part(model, base * CFrame.new(0, 2.2, -0.85), Vector3.new(1.6, 2.4, 1.0), cream, true)
+	part(model, base * CFrame.new(0, 4.3, -0.1), Vector3.new(2.6, 2.2, 2.4), orange, true)
+	part(model, base * CFrame.new(0, 4.0, -1.3), Vector3.new(1.3, 1.0, 1.6), cream, true) -- muzzle
+	part(model, base * CFrame.new(0, 4.25, -2.1), Vector3.new(0.45, 0.4, 0.4), P.Button, true)
+	for _, sx in ipairs({ -1, 1 }) do
+		part(model, base * CFrame.new(sx * 0.85, 5.6, 0) * CFrame.Angles(0, 0, sx * -0.25), Vector3.new(0.9, 1.5, 0.4), orange) -- ears
+		part(model, base * CFrame.new(sx * 0.85, 5.55, -0.12) * CFrame.Angles(0, 0, sx * -0.25), Vector3.new(0.5, 1.0, 0.2), rgb(60, 40, 34))
+	end
+	eyes(model, base, 4.6, -1.1, 0.55, 0.38)
+	-- ranger hat
+	part(model, base * CFrame.new(0, 5.5, -0.1) * CFrame.Angles(0, 0, math.rad(90)), Vector3.new(0.15, 3.4, 3.4), rgb(150, 124, 80), false).Shape = Enum.PartType.Cylinder
+	part(model, base * CFrame.new(0, 5.9, -0.1), Vector3.new(1.7, 0.9, 1.7), rgb(150, 124, 80), true)
+	-- big bushy tail
+	part(model, base * CFrame.new(0.6, 1.4, 1.8) * CFrame.Angles(0.7, 0.3, 0), Vector3.new(1.4, 3.4, 1.4), orange, true)
+	part(model, base * CFrame.new(0.95, 0.4, 2.8) * CFrame.Angles(0.7, 0.3, 0), Vector3.new(1.0, 1.2, 1.0), cream, true)
+	-- lantern
+	local lamp = part(model, base * CFrame.new(-1.7, 2.2, -0.6), Vector3.new(0.7, 0.9, 0.7), rgb(255, 214, 140), false, Enum.Material.Neon)
+	local light = Instance.new("PointLight")
+	light.Range = 14
+	light.Brightness = 1.2
+	light.Color = rgb(255, 200, 130)
+	light.Parent = lamp
+end
+
+function BUILD.owl(model, base)
+	local brown = rgb(120, 96, 72)
+	part(model, base * CFrame.new(0, 2.6, 0), Vector3.new(3.6, 4.6, 3.2), brown, true)
+	part(model, base * CFrame.new(0, 2.3, -1.0), Vector3.new(2.6, 3.2, 1.4), rgb(214, 196, 160), true)
+	for _, sx in ipairs({ -1, 1 }) do
+		part(model, base * CFrame.new(sx * 0.75, 4.1, -1.25), Vector3.new(1.4, 1.4, 0.4), rgb(236, 226, 200), true) -- face discs
+		part(model, base * CFrame.new(sx * 1.85, 2.6, 0) * CFrame.Angles(0, 0, sx * 0.2), Vector3.new(0.7, 3.2, 2.4), rgb(100, 78, 58), true) -- wings
+		part(model, base * CFrame.new(sx * 0.9, 5.2, -0.1) * CFrame.Angles(0, 0, sx * -0.4), Vector3.new(0.45, 1.0, 0.4), brown) -- ear tufts
+	end
+	eyes(model, base, 4.1, -1.5, 0.75, 0.6)
+	part(model, base * CFrame.new(0, 3.6, -1.55), Vector3.new(0.4, 0.6, 0.4), rgb(214, 160, 70), true)
+	-- spectacles and a mortarboard
+	for _, sx in ipairs({ -1, 1 }) do
+		local lens = part(model, base * CFrame.new(sx * 0.75, 4.1, -1.65), Vector3.new(1.1, 1.1, 0.08), rgb(170, 140, 70), false, Enum.Material.Metal)
+		lens.Transparency = 0.55
+	end
+	part(model, base * CFrame.new(0, 5.0, 0), Vector3.new(2.2, 0.6, 2.2), rgb(40, 38, 44))
+	part(model, base * CFrame.new(0, 5.35, 0) * CFrame.Angles(0, math.pi / 4, 0), Vector3.new(3.0, 0.15, 3.0), rgb(40, 38, 44))
+	part(model, base * CFrame.new(1.2, 4.9, -0.6), Vector3.new(0.12, 1.0, 0.12), P.Gold)
+	for _, sx in ipairs({ -1, 1 }) do
+		part(model, base * CFrame.new(sx * 0.6, 0.25, -0.4), Vector3.new(0.9, 0.4, 1.0), rgb(214, 160, 70), true)
+	end
+end
+
+function BUILD.bird(model, base)
+	local blue = rgb(76, 104, 140)
+	part(model, base * CFrame.new(0, 2.4, 0), Vector3.new(3.0, 3.8, 3.0), rgb(130, 64, 56), true, Enum.Material.Fabric) -- captain's coat
+	for k = 0, 2 do
+		part(model, base * CFrame.new(0, 1.6 + k * 0.8, -1.45), Vector3.new(0.3, 0.3, 0.2), P.Gold, true, Enum.Material.Metal)
+	end
+	part(model, base * CFrame.new(0, 4.5, -0.1), Vector3.new(2.6, 2.4, 2.5), blue, true)
+	part(model, base * CFrame.new(0, 4.3, -1.0), Vector3.new(1.6, 1.4, 0.8), rgb(226, 220, 206), true)
+	part(model, base * CFrame.new(0, 4.3, -1.75) * CFrame.Angles(-0.2, 0, 0), Vector3.new(0.7, 0.5, 1.2), rgb(220, 170, 70), true) -- beak
+	eyes(model, base, 4.85, -1.15, 0.55, 0.4)
+	-- eyepatch and tricorn hat
+	part(model, base * CFrame.new(0.55, 4.85, -1.3), Vector3.new(0.6, 0.6, 0.1), rgb(30, 26, 26), true)
+	part(model, base * CFrame.new(0, 5.4, 1.1) * CFrame.Angles(0.5, 0, 0), Vector3.new(1.9, 0.1, 1.0), rgb(30, 26, 26))
+	part(model, base * CFrame.new(0, 5.8, 0), Vector3.new(2.8, 0.9, 2.2), rgb(40, 34, 34), true)
+	part(model, base * CFrame.new(0, 5.6, -0.2) * CFrame.Angles(0, 0, math.rad(90)), Vector3.new(0.15, 3.4, 3.0), rgb(40, 34, 34)).Shape = Enum.PartType.Cylinder
+	part(model, base * CFrame.new(0, 6.1, -1.0), Vector3.new(0.7, 0.4, 0.1), P.Gold, false, Enum.Material.Metal)
+	for _, sx in ipairs({ -1, 1 }) do
+		part(model, base * CFrame.new(sx * 1.6, 2.6, 0.2) * CFrame.Angles(0, 0, sx * 0.25), Vector3.new(0.6, 2.6, 1.8), blue, true)
+		part(model, base * CFrame.new(sx * 0.5, 0.2, -0.3), Vector3.new(0.5, 0.3, 1.0), rgb(220, 170, 70), true)
+	end
+	part(model, base * CFrame.new(0, 2.2, 1.7) * CFrame.Angles(-0.6, 0, 0), Vector3.new(1.4, 1.8, 0.3), blue) -- tail feathers
+	-- telescope
+	part(model, base * CFrame.new(1.9, 3.1, -0.8) * CFrame.Angles(0, 0, math.rad(90)) * CFrame.Angles(0.3, 0, 0), Vector3.new(2.0, 0.35, 0.35), P.Gold, false, Enum.Material.Metal).Shape = Enum.PartType.Cylinder
+end
+
+function BUILD.sheep(model, base)
+	local wool = rgb(236, 236, 240)
+	for i = 0, 7 do
+		local a = i / 8 * math.pi * 2
+		part(model, base * CFrame.new(math.cos(a) * 1.4, 2.4 + math.sin(a * 2) * 0.3, math.sin(a) * 1.3), Vector3.new(2.4, 2.2, 2.4), wool, true)
+	end
+	part(model, base * CFrame.new(0, 2.6, 0), Vector3.new(3.8, 3.2, 3.8), wool, true)
+	part(model, base * CFrame.new(0, 3.9, 0), Vector3.new(2.6, 1.6, 2.6), wool, true)
+	part(model, base * CFrame.new(0, 2.9, -2.1), Vector3.new(1.6, 1.9, 1.5), rgb(70, 66, 74), true) -- face
+	eyes(model, base, 3.15, -2.8, 0.38, 0.32)
+	for _, sx in ipairs({ -1, 1 }) do
+		part(model, base * CFrame.new(sx * 1.05, 3.2, -1.9) * CFrame.Angles(0, 0, sx * 0.9), Vector3.new(0.4, 1.0, 0.25), rgb(70, 66, 74), true) -- ears
+		part(model, base * CFrame.new(sx * 0.4, 2.4, -2.75), Vector3.new(0.35, 0.2, 0.1), rgb(214, 150, 160), true) -- blush
+	end
+	for _, l in ipairs({ { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } }) do
+		part(model, base * CFrame.new(l[1], 0.5, l[2]), Vector3.new(0.5, 1.0, 0.5), rgb(70, 66, 74))
+	end
+end
+
 local function build(def, spec)
 	local model = Instance.new("Model")
 	model.Name = "NPC_" .. def.id
 	local flatFacing = (def.facing * Vector3.new(1, 0, 1)).Unit
 	local base = CFrame.lookAt(def.pos, def.pos + flatFacing) -- front (-Z) faces `facing`
-	if spec.kind == "granny" then
-		local bunny = BunnyModel.BuildPreview({ fur = 4, accent = 5, hat = "flowers", neck = "scarf" })
+	if spec.kind == "granny" or spec.kind == "mayor" then
+		local look = spec.kind == "granny" and { fur = 4, accent = 5, hat = "flowers", neck = "scarf" }
+			or { fur = 2, accent = 1, hat = "tophat", neck = "bell" }
+		local bunny = BunnyModel.BuildPreview(look)
 		bunny:PivotTo(base * CFrame.new(0, 2.6, 0))
 		for _, d in ipairs(bunny:GetDescendants()) do
 			if d:IsA("BasePart") then
@@ -4298,7 +4890,7 @@ function NPCService.Start(info)
 end
 
 return NPCService
-]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX00000017"><Properties><string name="Name">World</string></Properties><Item class="ModuleScript" referent="RBX00000012"><Properties><string name="Name">Builder</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="Folder" referent="RBX00000019"><Properties><string name="Name">World</string></Properties><Item class="ModuleScript" referent="RBX00000012"><Properties><string name="Name">Builder</string><ProtectedString name="Source"><![CDATA[--[[
 	Builder - shared helpers for constructing the world out of chunky parts,
 	plus the registry of collectibles, enemies, hazards and checkpoints that
 	the rest of the server reads.
@@ -4307,6 +4899,7 @@ return NPCService
 local RunService = game:GetService("RunService")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
 local Config = require(Shared:WaitForChild("Config"))
+local BunnyModel = require(Shared:WaitForChild("BunnyModel"))
 
 local P = Config.Palette
 local SMOOTH = Enum.Material.SmoothPlastic
@@ -4340,6 +4933,7 @@ function B.Init(root)
 	B.decor = folder("Decor")
 	B.collect = folder("Collectibles")
 	B.hazards = folder("Hazards")
+	B.winds = folder("Winds")
 	B.info.solidFolder = B.solid
 	B.info.collectFolder = B.collect
 	B.info.hazardFolder = B.hazards
@@ -4740,9 +5334,9 @@ end
 
 -- A line of carrots between two points
 -- A carrot hovering 3 studs above whatever ground is at (x, z)
-function B.carrotOnGround(x, z, nominalY)
+function B.carrotOnGround(x, z, nominalY, fromY)
 	-- cast from just above head height so floating platforms overhead don't count
-	B.carrot(Vector3.new(x, nominalY or 3, z), Vector3.new(x, B.groundY(x, z, 60) + 3, z))
+	B.carrot(Vector3.new(x, nominalY or 3, z), Vector3.new(x, B.groundY(x, z, fromY or 60) + 3, z))
 end
 
 function B.carrotLine(a, b, n)
@@ -4763,6 +5357,27 @@ function B.silver(setId, index, pos)
 	local id = string.format("s_%s_%d", setId, index)
 	B.info.silvers = B.info.silvers or {}
 	B.info.silvers[id] = { pos = pos, set = setId }
+	local set = Config.SilverSets[setId]
+	if set and set.style == "kit" then
+		-- a lost grandkit: a tiny bunny in its own colours
+		local kit = BunnyModel.BuildPreview({ fur = (index % 7) + 1, accent = (index * 3) % 8 + 1, hat = "none", neck = "bow" })
+		kit.Name = "LostKit"
+		kit:ScaleTo(0.45)
+		kit:PivotTo(CFrame.new(pos))
+		for _, d in ipairs(kit:GetDescendants()) do
+			if d:IsA("BasePart") then
+				d.CanCollide = false
+				d.CanQuery = false
+				d.CanTouch = false
+			end
+		end
+		kit:SetAttribute("CollectId", id)
+		kit:SetAttribute("Kind", "silver")
+		kit:SetAttribute("SilverSet", setId)
+		kit.ModelStreamingMode = Enum.ModelStreamingMode.Atomic
+		kit.Parent = B.collect
+		return
+	end
 	local m = carrotModel(pos, false, true)
 	m:SetAttribute("CollectId", id)
 	m:SetAttribute("Kind", "silver")
@@ -4772,6 +5387,36 @@ function B.silver(setId, index, pos)
 	light.Range = 10
 	light.Brightness = 1
 	light.Parent = m.PrimaryPart
+end
+
+-- A column of wind. `force` is a velocity: upward = an updraft that lifts you,
+-- sideways = a gust that pushes you along. Invisible, with drifting streaks.
+function B.wind(cf, size, force)
+	local p = B.make("Part", {
+		Name = "Wind",
+		CFrame = cf,
+		Size = size,
+		Transparency = 1,
+		CanCollide = false,
+		CanQuery = false,
+		CanTouch = false,
+		CastShadow = false,
+	}, B.winds)
+	p:SetAttribute("Wind", force)
+	local e = Instance.new("ParticleEmitter")
+	e.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	e.Shape = Enum.ParticleEmitterShape.Box
+	e.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+	e.Rate = math.clamp(size.X * size.Z / 12, 6, 40)
+	e.Lifetime = NumberRange.new(1.2, 2)
+	e.Speed = NumberRange.new(force.Magnitude * 0.4, force.Magnitude * 0.6)
+	e.EmissionDirection = force.Y > math.abs(force.X) + math.abs(force.Z) and Enum.NormalId.Top or Enum.NormalId.Front
+	e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(1, 1.6) })
+	e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.3, 0.75), NumberSequenceKeypoint.new(1, 1) })
+	e.Color = ColorSequence.new(Color3.fromRGB(240, 246, 255))
+	e.LightEmission = 0.3
+	e.Parent = p
+	return p
 end
 
 -- A glowing start pad for a time trial
@@ -4840,8 +5485,8 @@ function B.crate(x, z, fromY)
 end
 
 -- A friendly character to talk to (see client/Dialogue and Config.NPCs)
-function B.npc(id, x, z, facing)
-	table.insert(B.info.npcs, { id = id, pos = Vector3.new(x, B.groundY(x, z, 60), z), facing = facing or Vector3.new(0, 0, 1) })
+function B.npc(id, x, z, facing, fromY)
+	table.insert(B.info.npcs, { id = id, pos = Vector3.new(x, B.groundY(x, z, fromY or 60), z), facing = facing or Vector3.new(0, 0, 1) })
 end
 
 function B.bug(pos, skin)
@@ -5803,7 +6448,466 @@ function Castle.Build(B)
 end
 
 return Castle
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000015"><Properties><string name="Name">Meadow</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000015"><Properties><string name="Name">Forest</string><ProtectedString name="Source"><![CDATA[--[[
+	Whisperwood - an old, misty forest island west of the Lonely Islet.
+	  * a rope bridge from the islet, with a little rest stop half way
+	  * the Elder Tree: shelf fungus spiralling up a giant trunk to the canopy
+	  * Treetop Village: three treehouses joined by rope bridges (one is missing planks)
+	  * Bouncy Grove: giant mushrooms that fling you higher and higher
+	  * the Bog: lily pads over murky water, some of which sink
+]]
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+
+local Forest = {}
+
+local ROPE = Color3.fromRGB(150, 128, 92)
+local BARK = Color3.fromRGB(86, 66, 50)
+local BARK_DARK = Color3.fromRGB(64, 50, 40)
+local MOSS = Color3.fromRGB(88, 112, 62)
+local MOSS_DARK = Color3.fromRGB(62, 84, 50)
+local FUNGUS = Color3.fromRGB(196, 168, 120)
+local FUNGUS_DARK = Color3.fromRGB(160, 130, 90)
+local HUT_ROOF = Color3.fromRGB(104, 118, 76)
+local CAPS = {
+	Color3.fromRGB(128, 92, 136),
+	Color3.fromRGB(86, 122, 138),
+	Color3.fromRGB(150, 84, 76),
+	Color3.fromRGB(118, 110, 150),
+}
+
+function Forest.Build(B)
+	local P = B.P
+	local rng = B.rng
+	local V = Vector3.new
+	local M = Enum.Material
+	local T = B.Terrain
+	local WX, WZ = -780, 60
+	local W = V(WX, 0, WZ)
+
+	--------------------------------------------------------------- helpers
+	local function decorPart(props)
+		props.CanCollide = false
+		props.CanQuery = false
+		props.CanTouch = false
+		return B.make("Part", props, B.decor)
+	end
+
+	-- A sagging rope bridge between two deck-top points. `gaps` = segment
+	-- indices with missing planks.
+	local function ropeBridge(a, b, width, gaps)
+		local n = math.max(4, math.floor((b - a).Magnitude / 8))
+		local function at(t)
+			return a:Lerp(b, t) - V(0, math.sin(t * math.pi) * 1.5, 0)
+		end
+		for i = 0, n - 1 do
+			if not (gaps and gaps[i]) then
+				B.plank(at(i / n), at((i + 1) / n), width, 0.8, P.WoodLight, M.WoodPlanks)
+			end
+		end
+		local flat = V(b.X - a.X, 0, b.Z - a.Z).Unit
+		local side = flat:Cross(V(0, 1, 0))
+		for _, s in ipairs({ -1, 1 }) do
+			local off = side * s * (width / 2 + 0.2)
+			for _, p in ipairs({ a, b }) do
+				B.block(CFrame.new(p + off + V(0, 1.6, 0)), V(0.7, 4.4, 0.7), P.Wood, M.Wood)
+			end
+			for i = 0, n - 1 do
+				local p0 = at(i / n) + off + V(0, 3.2, 0)
+				local p1 = at((i + 1) / n) + off + V(0, 3.2, 0)
+				decorPart({
+					Size = V(0.25, 0.25, (p1 - p0).Magnitude + 0.2),
+					CFrame = CFrame.lookAt((p0 + p1) / 2, p1),
+					Color = ROPE,
+					Material = M.Fabric,
+					CastShadow = false,
+				})
+			end
+		end
+	end
+
+	-- A tall dark forest tree (round canopy layered on a long trunk)
+	local function forestTree(x, y, z, s)
+		B.cyl(x, y - 1, z, 1.1 * s, 16 * s, BARK, M.Wood)
+		local tone = rng:NextNumber() < 0.5 and P.LeafDark or MOSS_DARK
+		B.blob(V(x, y + 17 * s, z), V(11, 8, 11) * s, tone)
+		B.blob(V(x + 2.5 * s, y + 14.5 * s, z + 1.5 * s), V(8, 6, 8) * s, P.Pine)
+		B.blob(V(x - 2 * s, y + 20 * s, z - 1 * s), V(7, 5.5, 7) * s, tone)
+	end
+
+	local function deadTree(x, y, z, h)
+		B.cyl(x, y - 1, z, 0.8, h, BARK_DARK, M.Wood)
+		for i = 1, 3 do
+			local a = i * 2.2 + x
+			local base = V(x, y + h * (0.45 + i * 0.15), z)
+			decorPart({
+				Size = V(0.45, 0.45, 4 + i),
+				CFrame = CFrame.lookAt(base, base + V(math.cos(a), 0.7, math.sin(a))) * CFrame.new(0, 0, -(2 + i / 2)),
+				Color = BARK_DARK,
+				Material = M.Wood,
+			})
+		end
+	end
+
+	--------------------------------------------------------------- island & terrain
+	B.island(WX, WZ, 220, 0, P.GrassLight, P.Sand)
+	-- moss and leaf-litter patches, gentle hummocks
+	for _ = 1, 16 do
+		local a = rng:NextNumber(0, math.pi * 2)
+		local r = rng:NextNumber(30, 200)
+		local p = W + V(math.cos(a) * r, 0, math.sin(a) * r)
+		B.paint(p, p + V(rng:NextNumber(-24, 24), 0, rng:NextNumber(-24, 24)), rng:NextNumber(10, 20), M.Grass, { M.LeafyGrass })
+	end
+	for _, h in ipairs({ { -860, 150, 30, 6 }, { -930, -40, 28, 5 }, { -640, 180, 22, 4 }, { -830, -110, 26, 5 }, { -960, 140, 24, 6 } }) do
+		B.hill(h[1], h[2], h[3], h[4], M.LeafyGrass)
+	end
+	for i = 0, 13 do
+		local a = i / 14 * math.pi * 2 + 0.3
+		B.outcrop(W + V(math.cos(a) * 214, -1, math.sin(a) * 214), rng:NextNumber(5, 9), M.Rock)
+	end
+	-- dirt trails from the arrival clearing
+	B.path(V(-566, 0, 40), V(-640, 0, 40), 8)
+	B.path(V(-640, 0, 40), V(-750, 0, 60), 7)
+	B.path(V(-640, 0, 40), V(-660, 0, 10), 6)
+	B.path(V(-640, 0, 40), V(-712, 0, -62), 6)
+	B.path(V(-810, 0, 50), V(-860, 0, 22), 6)
+
+	--------------------------------------------------------------- the way in (from the Lonely Islet)
+	ropeBridge(V(-358, 2.5, 40), V(-452, 2.5, 40), 8)
+	B.island(-460, 40, 8, 2, P.Grass, P.Sand)
+	B.torch(V(-460, 3.2, 46))
+	B.carrot(V(-460, 6, 40))
+	ropeBridge(V(-468, 2.5, 40), V(-568, 2.5, 40), 8)
+	B.ramp(V(-576, 0, 40), V(-568, 2.5, 40), 8, P.WoodLight, M.WoodPlanks)
+	B.carrotLine(V(-380, 5, 40), V(-440, 5, 40), 4)
+	B.carrotLine(V(-490, 5, 40), V(-550, 5, 40), 4)
+	B.sign(V(-352, 2, 54), V(1, 0, 0), "WHISPERWOOD", "West, over the rope bridge")
+	B.sign(V(-586, 0, 26), V(1, 0, 0), "WHISPERWOOD", "Elder Tree / Treetops / Bog / Grove")
+
+	B.checkpointFlag("forest", V(0, 0, -10))
+	B.warpBurrow(Config.Warps[5])
+	B.npc("fern", -592, 18, V(1, 0, 0.3))
+	B.crate(-600, 30)
+
+	--------------------------------------------------------------- the Elder Tree
+	do
+		local trunkTop = 150
+		B.cyl(WX, -2, WZ, 18, trunkTop + 2, BARK, M.Wood)
+		for y = 14, trunkTop - 10, 22 do
+			local ring = B.cyl(WX, y, WZ, 18.3, 1.2, BARK_DARK, M.Wood, B.decor)
+			ring.CanCollide = false
+			ring.CanQuery = false
+		end
+		-- moss streaks
+		for i = 0, 7 do
+			local a = i / 8 * math.pi * 2 + 0.2
+			decorPart({
+				Size = V(0.4, rng:NextNumber(20, 40), 4),
+				CFrame = CFrame.new(WX + math.cos(a) * 18.1, rng:NextNumber(20, 120), WZ + math.sin(a) * 18.1) * CFrame.Angles(0, -a, 0),
+				Color = MOSS,
+				Material = M.Grass,
+			})
+		end
+		-- roots (leaving the first shelf and the hiding kit's nook clear)
+		for i = 0, 9 do
+			local a = i / 10 * math.pi * 2 + 0.35
+			if math.abs(a - 0.83) > 0.4 and math.abs(a - 2 * math.pi) > 0.4 and a > 0.3 then
+				local inner = V(WX + math.cos(a) * 15, 6, WZ + math.sin(a) * 15)
+				local outer = V(WX + math.cos(a) * 30, -0.5, WZ + math.sin(a) * 30)
+				B.plank(outer, inner, 4.5, 3, BARK, M.Wood)
+			end
+		end
+		-- shelf fungus spiral (17 shelves, 8 studs apart)
+		for i = 0, 16 do
+			local a = i * 0.5
+			local top = 8 + i * 8
+			local x, z = WX + math.cos(a) * 23.5, WZ + math.sin(a) * 23.5
+			B.cyl(x, top - 2, z, 5.5, 2, FUNGUS, M.SmoothPlastic)
+			local rim = B.cyl(x, top - 2.4, z, 5.9, 0.6, FUNGUS_DARK, nil, B.decor)
+			rim.CanCollide = false
+			rim.CanQuery = false
+			if i % 3 == 2 then
+				B.carrot(V(x, top + 3, z))
+			end
+		end
+		-- the canopy: a broad crown you can stand on
+		B.cyl(WX, trunkTop - 5, WZ, 24, 5, BARK_DARK, M.Wood)
+		B.cyl(WX, trunkTop - 0.6, WZ, 23, 0.8, MOSS, M.Grass)
+		for i = 0, 11 do
+			local a = i / 12 * math.pi * 2
+			local r = 26 + (i % 3) * 3
+			B.blob(V(WX + math.cos(a) * r, trunkTop + 4 + (i % 2) * 5, WZ + math.sin(a) * r), V(22, 14, 22), i % 2 == 0 and P.LeafDark or MOSS_DARK)
+		end
+		for i = 0, 5 do
+			local a = i / 6 * math.pi * 2 + 0.5
+			B.blob(V(WX + math.cos(a) * 14, trunkTop + 16, WZ + math.sin(a) * 14), V(18, 10, 18), P.Pine)
+		end
+		B.golden("eldertree", V(WX, trunkTop + 5, WZ))
+		B.carrotRing(V(WX, 3, WZ), 34, 10)
+		B.sign(V(-750, 0, 60), V(1, 0, 0), "THE ELDER TREE", "Climb the shelf fungus")
+	end
+
+	--------------------------------------------------------------- Treetop Village
+	do
+		local top = 40
+		local trees = { V(-670, 0, -10), V(-630, 0, 100), V(-700, 0, 190) }
+		for i, c in ipairs(trees) do
+			B.cyl(c.X, -1, c.Z, 8, top - 1, BARK, M.Wood)
+			B.cyl(c.X, top - 2, c.Z, 14, 2, P.WoodLight, M.WoodPlanks)
+			local rim = B.cyl(c.X, top - 2.3, c.Z, 14.4, 0.6, P.Wood, M.Wood, B.decor)
+			rim.CanCollide = false
+			-- a hut on the first two; the third is a lookout with the prize
+			if i < 3 then
+				B.cyl(c.X, top, c.Z, 5, 6, P.Plaster)
+				B.block(CFrame.new(c.X + 5, top + 2, c.Z), V(0.3, 4, 2.4), P.Wood, M.Wood)
+				B.cyl(c.X, top + 6, c.Z, 7, 1, HUT_ROOF, M.Slate)
+				B.cyl(c.X, top + 7, c.Z, 5.5, 1, HUT_ROOF, M.Slate)
+				B.cyl(c.X, top + 8, c.Z, 1, 2, BARK_DARK, M.Wood)
+			else
+				B.golden("treetop", V(c.X, top + 4.5, c.Z))
+			end
+			B.torch(V(c.X + 10, top + 1.2, c.Z + 6))
+			B.torch(V(c.X - 10, top + 1.2, c.Z - 6))
+			for k = 0, 5 do
+				local a = k / 6 * math.pi * 2
+				B.blob(V(c.X + math.cos(a) * 12, top + 22 + (k % 2) * 4, c.Z + math.sin(a) * 12), V(18, 11, 18), k % 2 == 0 and P.LeafDark or MOSS_DARK)
+			end
+		end
+		-- spiral steps up the first tree (outside the platform, so no bumped heads)
+		local t1 = trees[1]
+		for k = 0, 8 do
+			local a = -0.6 + k * 0.62
+			local stepTop = 4 + k * 4
+			local x, z = t1.X + math.cos(a) * 18, t1.Z + math.sin(a) * 18
+			B.block(CFrame.new(x, stepTop - 0.75, z) * CFrame.Angles(0, -a, 0), V(7, 1.5, 6), P.WoodLight, M.WoodPlanks)
+			decorPart({
+				Size = V(0.8, 0.8, 9),
+				CFrame = CFrame.lookAt(V(x, stepTop - 1.6, z), V(t1.X, stepTop - 4, t1.Z)) * CFrame.new(0, 0, -4.5),
+				Color = P.Wood,
+				Material = M.Wood,
+			})
+			if k % 2 == 1 then
+				B.carrot(V(x, stepTop + 3, z))
+			end
+		end
+		-- bridges: T1 -> T2 is whole, T2 -> T3 is missing two planks
+		local function edge(from, to)
+			local d = V(to.X - from.X, 0, to.Z - from.Z).Unit
+			return from + d * 13.5 + V(0, top, 0), to - d * 13.5 + V(0, top, 0)
+		end
+		local a1, b1 = edge(trees[1], trees[2])
+		ropeBridge(a1, b1, 6)
+		local a2, b2 = edge(trees[2], trees[3])
+		ropeBridge(a2, b2, 6, { [3] = true, [7] = true })
+		B.carrotLine(a1:Lerp(b1, 0.2) + V(0, 2, 0), a1:Lerp(b1, 0.8) + V(0, 2, 0), 4)
+		B.carrotLine(a2:Lerp(b2, 0.15) + V(0, 2, 0), a2:Lerp(b2, 0.85) + V(0, 2, 0), 5)
+		B.npc("hoot", t1.X + 9, t1.Z - 6, V(0, 0, 1), top + 10)
+		B.crate(trees[2].X + 9, trees[2].Z + 7, top + 5)
+		B.sign(V(-648, 0, -24), V(1, 0, 0), "TREETOP VILLAGE", "Steps around the trunk")
+	end
+
+	--------------------------------------------------------------- Bouncy Grove
+	do
+		local z = 20
+		local caps = { { -870, 6 }, { -890, 32 }, { -910, 58 }, { -930, 84 } }
+		for i, c in ipairs(caps) do
+			local x, capTop = c[1], c[2]
+			B.cyl(x, -1, z, 2.2, capTop - 1.5, Color3.fromRGB(214, 204, 180))
+			local cap = B.blob(V(x, capTop - 2.5, z), V(14, 5, 14), CAPS[i], nil, B.solid, true)
+			cap:SetAttribute("Bounce", 110)
+			cap.Name = "BounceMushroom"
+			local glow = Instance.new("PointLight")
+			glow.Color = Color3.fromRGB(170, 200, 230)
+			glow.Range = 14
+			glow.Brightness = 0.6
+			glow.Parent = cap
+			for k = 0, 4 do
+				local a = k / 5 * math.pi * 2 + i
+				B.blob(V(x + math.cos(a) * 4, capTop - 0.3, z + math.sin(a) * 4), V(1.8, 0.6, 1.8), Color3.fromRGB(226, 220, 200))
+			end
+			B.carrot(V(x - 10, capTop + 14, z))
+		end
+		-- the high log, resting on a dead trunk
+		B.cyl(-952, -1, 31, 2.6, 104, BARK_DARK, M.Wood)
+		B.make("Part", {
+			Shape = Enum.PartType.Cylinder,
+			Size = V(18, 4, 4),
+			CFrame = CFrame.new(-952, 103, 20) * CFrame.Angles(0, math.pi / 2, 0),
+			Color = BARK,
+			Material = M.Wood,
+		})
+		B.blob(V(-952, 105.2, 22), V(3, 0.6, 6), MOSS)
+		B.golden("grove", V(-952, 109.5, 16))
+		B.sign(V(-852, 0, 34), V(1, 0, 0), "BOUNCY GROVE", "Land on the caps!")
+		-- smaller mushrooms all around
+		for _ = 1, 14 do
+			local p = V(rng:NextNumber(-960, -850), 0, z + rng:NextNumber(-30, 30))
+			if math.abs(p.Z - z) > 10 then
+				B.mushrooms(p.X, B.groundY(p.X, p.Z, 30), p.Z)
+			end
+		end
+	end
+
+	--------------------------------------------------------------- the Bog
+	do
+		local bx, bz, br = -720, -100, 34
+		T:FillCylinder(CFrame.new(bx, -1.5, bz), 3, br, M.Air)
+		T:FillCylinder(CFrame.new(bx, -3.5, bz), 1, br, M.Mud)
+		B.paint(V(bx - br - 6, 0, bz), V(bx + br + 6, 0, bz), 14, M.Mud, { M.Grass, M.LeafyGrass })
+		B.paint(V(bx, 0, bz - br - 6), V(bx, 0, bz + br + 6), 14, M.Mud, { M.Grass, M.LeafyGrass })
+		local water = B.make("Part", {
+			Name = "BogWater",
+			Shape = Enum.PartType.Cylinder,
+			Size = V(1.2, br * 2, br * 2),
+			CFrame = CFrame.new(bx, -1.4, bz) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = Color3.fromRGB(70, 84, 62),
+			Material = M.Glass,
+			Transparency = 0.1,
+			CastShadow = false,
+		})
+		water:SetAttribute("Water", true)
+		-- low mist
+		local mist = decorPart({ Size = V(br * 2, 1, br * 2), CFrame = CFrame.new(bx, 0, bz), Transparency = 1 })
+		local e = Instance.new("ParticleEmitter")
+		e.Texture = "rbxasset://textures/particles/smoke_main.dds"
+		e.Rate = 10
+		e.Lifetime = NumberRange.new(5, 8)
+		e.Speed = NumberRange.new(0.5, 1.5)
+		e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 4), NumberSequenceKeypoint.new(1, 9) })
+		e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.4, 0.8), NumberSequenceKeypoint.new(1, 1) })
+		e.Color = ColorSequence.new(Color3.fromRGB(200, 210, 190))
+		e.Parent = mist
+		-- the islet in the middle
+		B.cyl(bx, -3, bz, 6, 4, MOSS_DARK, M.Grass)
+		deadTree(bx + 2, 1, bz + 3, 14)
+		B.golden("bog", V(bx - 1, 5, bz - 1))
+		-- lily pads; kind = "still", "bob", "sink" or "slide"
+		local pads = {
+			{ -714, -76, "bob" }, { -724, -86, "sink" }, { -730, -110, "slide" },
+			{ -720, -116, "still" }, { -710, -126, "sink" }, { -740, -96, "still" }, { -748, -108, "sink" },
+		}
+		for i, pd in ipairs(pads) do
+			local pad = B.cyl(pd[1], -0.4, pd[2], 3.6, 1, Color3.fromRGB(96, 128, 70))
+			B.blob(V(pd[1] + 1.2, 0.75, pd[2] + 0.8), V(1.4, 0.6, 1.4), Color3.fromRGB(214, 190, 200))
+			local base = pad.CFrame
+			if pd[3] == "bob" then
+				B.bobber(pad, 0.4, 1.4, i)
+			elseif pd[3] == "sink" then
+				-- floats for a while, then slips under for a moment
+				B.mover(pad, function(t)
+					local s = math.sin(t * 0.9 + i * 1.7)
+					return base - V(0, math.max(0, s - 0.35) * 4.5, 0)
+				end)
+			elseif pd[3] == "slide" then
+				B.slider(pad, V(6, 0, 0), 0.8, i)
+			end
+			if i == 1 or i == 6 then
+				B.carrot(V(pd[1], 4, pd[2]))
+			end
+		end
+		for _, d in ipairs({ { -700, -84, 12 }, { -742, -124, 10 }, { -698, -118, 16 }, { -752, -80, 11 } }) do
+			deadTree(d[1], -1, d[2], d[3])
+		end
+		B.sign(V(-700, 0, -62), V(0, 0, 1), "THE BOG", "Mind the sinking pads")
+		B.crate(-700, -58)
+	end
+
+	--------------------------------------------------------------- baddies
+	for _, p in ipairs({ V(-620, 0, 30), V(-690, 0, 60), V(-760, 0, 120), V(-840, 0, 80), V(-660, 0, 150), V(-880, 0, -60) }) do
+		B.enemy("mossling", p, "forest", 0)
+	end
+	for _, p in ipairs({ V(-680, 0, -100), V(-760, 0, -90), V(-728, 0, -140), V(-820, 0, 20) }) do
+		B.enemy("snapper", p, "forest")
+	end
+	B.enemy("toad", V(-650, 0, 60), "forest", 26)
+	B.enemy("toad", V(-900, 0, 110), "forest", 26)
+	B.enemy("bat", V(-640, 58, 45), "forest")
+	B.enemy("bat", V(-780, 90, 30), "forest")
+	B.enemy("puffshroom", V(-860, 0, -20), "meadow")
+	for _, p in ipairs({ V(-600, 0, 70), V(-720, 0, 20), V(-800, 0, 140), V(-900, 0, 60), V(-640, 0, -50), V(-940, 0, -10) }) do
+		B.bug(p, "forest")
+	end
+
+	--------------------------------------------------------------- scenery
+	local avoid = {
+		{ V(-580, 0, 40), 26 }, { V(-592, 0, 72), 14 }, { W, 44 }, { V(-670, 0, -10), 30 }, { V(-630, 0, 100), 22 },
+		{ V(-700, 0, 190), 22 }, { V(-910, 0, 20), 36 }, { V(-952, 0, 31), 12 }, { V(-720, 0, -100), 46 },
+		{ V(-760, 0, 82), 10 }, { V(-990, 0, 60), 12 },
+	}
+	local function nearLine(p, a, b, w)
+		local ab = b - a
+		local t = math.clamp((p - a):Dot(ab) / ab:Dot(ab), 0, 1)
+		return (p - (a + ab * t)).Magnitude < w
+	end
+	local function clear(p, extra)
+		if (p - W).Magnitude > 200 then
+			return false
+		end
+		if p.X > -600 and math.abs(p.Z - 40) < 20 then
+			return false
+		end
+		-- keep the bridge lines between the treehouses clear
+		if nearLine(p, V(-670, 0, -10), V(-630, 0, 100), 10) or nearLine(p, V(-630, 0, 100), V(-700, 0, 190), 10) then
+			return false
+		end
+		for _, a in ipairs(avoid) do
+			if (p - a[1]).Magnitude < a[2] + extra then
+				return false
+			end
+		end
+		return true
+	end
+	local function scatter(count, tries, extra, place, spacing)
+		local placed = 0
+		for _ = 1, tries do
+			if placed >= count then
+				break
+			end
+			local a = rng:NextNumber(0, math.pi * 2)
+			local r = rng:NextNumber(20, 200)
+			local p = W + V(math.cos(a) * r, 0, math.sin(a) * r)
+			if clear(p, extra) then
+				place(p, B.groundY(p.X, p.Z, 30))
+				if spacing then
+					table.insert(avoid, { p, spacing })
+				end
+				placed += 1
+			end
+		end
+	end
+	scatter(70, 900, 6, function(p, y)
+		local roll = rng:NextNumber()
+		if roll < 0.55 then
+			forestTree(p.X, y, p.Z, rng:NextNumber(0.9, 1.5))
+		elseif roll < 0.85 then
+			B.pineTree(p.X, y, p.Z, rng:NextNumber(1.4, 2.2))
+		else
+			deadTree(p.X, y, p.Z, rng:NextNumber(10, 16))
+		end
+	end, 9)
+	scatter(30, 400, 2, function(p, y)
+		B.bush(p.X, y, p.Z, rng:NextNumber(0.9, 1.5), MOSS_DARK)
+	end, 4)
+	scatter(14, 300, 3, function(p, y)
+		B.log(p.X, y, p.Z, rng:NextNumber(0, math.pi), rng:NextNumber(1, 1.6))
+	end, 6)
+	scatter(22, 400, 1, function(p, y)
+		B.mushrooms(p.X, y, p.Z)
+	end, 3)
+	scatter(16, 300, 2, function(p, y)
+		B.rock(p.X, y, p.Z, rng:NextNumber(0.8, 2), P.StoneDark)
+	end, 4)
+	scatter(20, 500, 3, function(p)
+		B.carrotOnGround(p.X, p.Z)
+	end, 10)
+	scatter(140, 400, 0, function(p, y)
+		B.tuft(p.X, y, p.Z)
+	end, nil)
+end
+
+return Forest
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000016"><Properties><string name="Name">Meadow</string><ProtectedString name="Source"><![CDATA[--[[
 	Carrot Meadow - the hub island, plus the routes out to the other regions:
 	a grassy causeway north to Frostbite Peaks, a boardwalk east to Dustbowl
 	Canyon and a long stone bridge south to the Infernal Castle.
@@ -5836,7 +6940,7 @@ function Meadow.Build(B)
 	-- keep gameplay spots and the three exit corridors flat
 	local keepFlat = {
 		{ V(0, 0, 60), 34 }, { V(-60, 0, -40), 30 }, { V(-130, 0, -120), 60 }, { V(110, 0, 140), 32 },
-		{ V(140, 0, -90), 68 }, { V(12, 0, 40), 10 }, { V(-24, 0, 44), 12 },
+		{ V(140, 0, -90), 68 }, { V(12, 0, 40), 10 }, { V(-24, 0, 44), 12 }, { V(-145, 0, 125), 28 },
 	}
 	local function flatOK(p, radius)
 		if p.Magnitude + radius > 200 then
@@ -5894,7 +6998,7 @@ function Meadow.Build(B)
 	----------------------------------------------------------------- spawn
 	local spawnPos = V(0, 0, 60)
 	B.cyl(0, -0.5, 60, 7, 0.9, P.Stone, Enum.Material.Slate)
-	B.sign(V(12, 0, 40), V(-0.5, 0, 0.85).Unit, "CARROT MEADOW", "North: Peaks / East: Canyon / South: Castle")
+	B.sign(V(12, 0, 40), V(-0.5, 0, 0.85).Unit, "CARROT MEADOW", "N: Peaks / E: Canyon / S: Castle / W: Woods")
 	B.carrotRing(spawnPos + V(0, 3, 0), 22, 8)
 	B.fence(V(-30, 0, 90), V(-10, 0, 98))
 	B.fence(V(-10, 0, 98), V(12, 0, 98))
@@ -6174,8 +7278,54 @@ function Meadow.Build(B)
 		B.sign(V(16, 0, 214), V(0, 0, -1), "INFERNAL CASTLE", "10 golden carrots open the gate")
 	end
 
+	----------------------------------------------------------------- the beanstalk (up to Cloudtop Heights)
+	do
+		local bx, bz = -145, 120
+		local STALK = Color3.fromRGB(92, 128, 70)
+		local STALK_DARK = Color3.fromRGB(70, 104, 56)
+		local base = B.cyl(bx, -0.6, bz, 7, 1.4, STALK_DARK, Enum.Material.Grass)
+		base.Name = "BeanstalkBase"
+		base:SetAttribute("Beanstalk", true)
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "BeanstalkPrompt"
+		prompt.ActionText = "Climb"
+		prompt.ObjectText = "The Beanstalk"
+		prompt.KeyboardKeyCode = Enum.KeyCode.F
+		prompt.GamepadKeyCode = Enum.KeyCode.ButtonY
+		prompt.MaxActivationDistance = 14
+		prompt.RequiresLineOfSight = false
+		prompt.HoldDuration = 0.4
+		prompt.Parent = base
+		-- two twisting stalks climbing up into a cloud bank
+		for k = 0, 1 do
+			for i = 0, 29 do
+				local a = i * 0.45 + k * math.pi
+				local y = i * 10
+				local p0 = V(bx + math.cos(a) * 2.2, y, bz + math.sin(a) * 2.2)
+				local p1 = V(bx + math.cos(a + 0.45) * 2.2, y + 10.5, bz + math.sin(a + 0.45) * 2.2)
+				B.make("Part", {
+					Size = V(3.2, 3.2, (p1 - p0).Magnitude + 1),
+					CFrame = CFrame.lookAt((p0 + p1) / 2, p1),
+					Color = k == 0 and STALK or STALK_DARK,
+					Material = Enum.Material.Grass,
+				})
+				if i % 2 == k then
+					B.blob(CFrame.new(p0 + V(math.cos(a) * 4, 0, math.sin(a) * 4)) * CFrame.Angles(0, -a, 0.35), V(7, 0.6, 4), STALK_DARK)
+				end
+			end
+		end
+		for i = 0, 5 do
+			local a = i / 6 * math.pi * 2
+			B.blob(V(bx + math.cos(a) * 18, 300 + (i % 2) * 6, bz + math.sin(a) * 14), V(46, 14, 34), Color3.fromRGB(232, 234, 240))
+		end
+		B.sign(V(bx + 12, 0, bz + 6), V(1, 0, 0.3).Unit, "THE BEANSTALK", Config.SkyGate .. " golden carrots to climb")
+		B.checkpointFlag("beanstalk")
+		B.carrotRing(V(bx, 3, bz), 12, 6)
+	end
+
 	----------------------------------------------------------------- friends & heart crates
 	B.npc("shellby", 30, 66, V(-1, 0, 0.2))
+	B.npc("burrows", -24, 44, V(1, 0, 0.4))
 	B.npc("clover", -54, -24, V(0, 0, 1))
 	B.npc("nibbles", 8, 518, V(-1, 0, -0.3))
 	B.crate(26, 48)
@@ -6187,7 +7337,7 @@ function Meadow.Build(B)
 	for _, p in ipairs({ V(-80, 0, 70), V(60, 0, 50), V(-150, 0, 20), V(160, 0, 60) }) do
 		B.enemy("toad", p, "meadow", 26)
 	end
-	for _, p in ipairs({ V(-40, 0, -80), V(90, 0, -10), V(-110, 0, 110) }) do
+	for _, p in ipairs({ V(-40, 0, -80), V(90, 0, -10), V(-96, 0, 92) }) do
 		B.enemy("puffshroom", p, "meadow")
 	end
 	B.enemy("bat", V(-96, 40, -112), "meadow")
@@ -6204,7 +7354,7 @@ function Meadow.Build(B)
 	----------------------------------------------------------------- scatter scenery
 	local avoid = {
 		{ V(0, 0, 60), 30 }, { V(-60, 0, -40), 26 }, { V(-130, 0, -120), 56 }, { V(110, 0, 140), 28 },
-		{ V(140, 0, -90), 64 }, { V(12, 0, 40), 8 }, { V(-24, 0, 44), 10 },
+		{ V(140, 0, -90), 64 }, { V(12, 0, 40), 8 }, { V(-24, 0, 44), 10 }, { V(-145, 0, 125), 26 },
 	}
 	local function ok(p, extra)
 		if p.Magnitude > 205 then
@@ -6284,7 +7434,7 @@ function Meadow.Build(B)
 end
 
 return Meadow
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000016"><Properties><string name="Name">Peaks</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000017"><Properties><string name="Name">Peaks</string><ProtectedString name="Source"><![CDATA[--[[
 	Frostbite Peaks - a snowy island north of the meadow.
 	  * A terraced mountain with winding ramps up to the summit
 	  * A long ice slide chute spiralling down the outside of the mountain
@@ -6543,13 +7693,306 @@ function Peaks.Build(B)
 end
 
 return Peaks
-]]></ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX00000018"><Properties><string name="Name">WorldBuilder</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000018"><Properties><string name="Name">Sky</string><ProtectedString name="Source"><![CDATA[--[[
+	Cloudtop Heights - floating islands high above the meadow, reached by
+	climbing the beanstalk (Config.SkyGate golden carrots).
+	  * Cloud Hop: drifting clouds heading east
+	  * Rainbow Bridge: an arching rainbow south to a pot of gold (mind the gap)
+	  * the Cumulus: Captain Gust's airship, with a crow's nest up the mast
+	  * Updraft Spire: rising winds carry you from ledge to ledge
+	Falling off the clouds puts you back where you last stood (see the server).
+]]
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
+local Config = require(Shared:WaitForChild("Config"))
+
+local Sky = {}
+
+local CLOUD = Color3.fromRGB(232, 234, 240)
+local CLOUD_SHADE = Color3.fromRGB(198, 204, 220)
+local STALK = Color3.fromRGB(92, 128, 70)
+local STALK_DARK = Color3.fromRGB(70, 104, 56)
+-- a soft, slightly faded rainbow
+local BANDS = {
+	Color3.fromRGB(182, 102, 96),
+	Color3.fromRGB(200, 146, 90),
+	Color3.fromRGB(212, 192, 116),
+	Color3.fromRGB(122, 160, 104),
+	Color3.fromRGB(100, 136, 168),
+	Color3.fromRGB(134, 112, 164),
+}
+
+function Sky.Build(B)
+	local P = B.P
+	local rng = B.rng
+	local V = Vector3.new
+	local M = Enum.Material
+	local T = B.Terrain
+	local HX, HY, HZ = 60, 420, -60
+
+	--------------------------------------------------------------- helpers
+	local function puff(pos, size, color)
+		local p = B.blob(pos, size, color or CLOUD, M.SmoothPlastic)
+		p.CastShadow = false
+		return p
+	end
+
+	-- floating chunk of terrain with a cloud skirt
+	local function skyIsland(x, top, z, r)
+		T:FillCylinder(CFrame.new(x, top - 3, z), 6, r, M.Ground)
+		T:FillCylinder(CFrame.new(x, top - 1.25, z), 2.5, r, M.Grass)
+		T:FillBall(V(x, top - 7, z), r * 0.7, M.Ground)
+		T:FillBall(V(x + r * 0.15, top - 12, z - r * 0.1), r * 0.42, M.Rock)
+		T:FillBall(V(x - r * 0.1, top - 16, z + r * 0.05), r * 0.22, M.Rock)
+		local n = math.max(6, math.floor(r / 2.5))
+		for i = 0, n - 1 do
+			local a = i / n * math.pi * 2 + rng:NextNumber(-0.2, 0.2)
+			local s = rng:NextNumber(0.5, 0.8) * math.min(r, 18)
+			puff(V(x + math.cos(a) * r * 0.95, top - 5 - rng:NextNumber(0, 3), z + math.sin(a) * r * 0.95), V(s * 1.6, s * 0.7, s * 1.6), i % 2 == 0 and CLOUD or CLOUD_SHADE)
+		end
+	end
+
+	-- a solid cloud you can stand on; `top` is the walkable height
+	local function cloud(x, top, z, w, d)
+		w = w or 14
+		d = d or 12
+		local c = B.blob(V(x, top - 2, z), V(w, 4, d), CLOUD, M.SmoothPlastic, B.solid, true)
+		c.Name = "Cloud"
+		c.CastShadow = false
+		for i = 0, 3 do
+			local a = i / 4 * math.pi * 2 + x
+			local s = rng:NextNumber(4, 6)
+			local p = B.blob(V(x + math.cos(a) * w * 0.35, top - 1.6, z + math.sin(a) * d * 0.35), V(s * 1.3, s * 0.8, s), i % 2 == 0 and CLOUD or CLOUD_SHADE, M.SmoothPlastic)
+			p.CastShadow = false
+			local weld = Instance.new("WeldConstraint")
+			p.Anchored = false
+			p.Massless = true
+			weld.Part0 = c
+			weld.Part1 = p
+			weld.Parent = p
+			p.Parent = c
+		end
+		return c
+	end
+
+	--------------------------------------------------------------- the hub
+	skyIsland(HX, HY, HZ, 30)
+	-- the top of the beanstalk pokes up through the hub
+	B.cyl(40, HY - 30, -40, 4, 42, STALK, M.Grass) -- top at 432
+	for i = 0, 7 do
+		local a = i * 1.3
+		local y = HY + 2 + i * 1.4
+		B.blob(CFrame.new(40 + math.cos(a) * 5, y, -40 + math.sin(a) * 5) * CFrame.Angles(0, -a, 0.4), V(5, 0.5, 3), STALK_DARK)
+	end
+	B.blob(V(40, HY + 11, -40), V(7, 2, 7), STALK_DARK)
+	B.exitPrompt(V(36, HY + 0.5, -52), "beanstalk", "Climb down")
+	B.checkpointFlag("sky")
+	B.warpBurrow(Config.Warps[6])
+	B.npc("nimbus", 74, -74, V(-1, 0, 0.3), HY + 20)
+	B.sign(V(64, HY, -48), V(0, 0, 1), "CLOUDTOP HEIGHTS", "Don't look down!")
+	B.crate(46, -74, HY + 20)
+	B.carrotRing(V(HX, HY + 3, HZ), 18, 8)
+	for i = 0, 4 do
+		local a = i * 1.25 + 0.4
+		B.flower(HX + math.cos(a) * 24, HY, HZ + math.sin(a) * 24)
+	end
+	B.bug(V(50, HY, -70), "sky")
+	B.bug(V(75, HY, -58), "sky")
+
+	--------------------------------------------------------------- Cloud Hop (east)
+	do
+		local hops = { { 105, 420, -60 }, { 122, 424, -50 }, { 139, 428, -66 }, { 156, 432, -56 }, { 173, 436, -70 } }
+		for i, h in ipairs(hops) do
+			local c = cloud(h[1], h[2], h[3])
+			if i == 2 or i == 4 then
+				B.slider(c, V(0, 0, 5), 0.9, i)
+			end
+			if i ~= 3 then
+				B.carrot(V(h[1], h[2] + 3, h[3]))
+			end
+		end
+		skyIsland(192, 440, -60, 12)
+		B.golden("cloudhop", V(192, 445, -60))
+		B.enemy("puffer", V(150, 444, -84), "sky")
+		B.sign(V(84, HY, -66), V(-1, 0, 0), "CLOUD HOP", "East, cloud by cloud")
+	end
+
+	--------------------------------------------------------------- Rainbow Bridge (south)
+	do
+		local a, b = V(HX, HY, -86), V(HX, 430, -218)
+		local n = 16
+		local function at(t)
+			return a:Lerp(b, t) + V(0, math.sin(t * math.pi) * 10, 0)
+		end
+		for i = 0, n - 1 do
+			if i ~= 8 then -- the gap
+				local p0, p1 = at(i / n), at((i + 1) / n)
+				for k, color in ipairs(BANDS) do
+					local off = V((k - 3.5) * 1.6, 0, 0)
+					local part = B.plank(p0 + off, p1 + off, 1.6, 1, color)
+					part.CastShadow = false
+				end
+			end
+		end
+		for _, t in ipairs({ 0.25, 0.4, 0.7, 0.85 }) do
+			B.carrot(at(t) + V(0, 3, 0))
+		end
+		skyIsland(HX, 430, -230, 14)
+		-- the pot of gold
+		B.cyl(HX, 430, -234, 3, 3, Color3.fromRGB(40, 36, 40), M.Metal)
+		for i = 0, 6 do
+			local ang = i / 7 * math.pi * 2
+			B.blob(V(HX + math.cos(ang) * 1.4, 433.2, -234 + math.sin(ang) * 1.4), V(1.2, 0.5, 1.2), P.Gold, M.Metal)
+		end
+		B.golden("rainbow", V(HX, 435, -226))
+		B.enemy("bat", V(HX + 14, 446, -170), "sky")
+		B.sign(V(HX + 9, HY, -84), V(0, 0, 1), "RAINBOW BRIDGE", "Mind the gap")
+	end
+
+	--------------------------------------------------------------- the airship Cumulus (west)
+	do
+		local deck = 422
+		local z = -20
+		-- cloud stepping stones out to the bow
+		for i, c in ipairs({ { 18, 421, -44 }, { 0, 423, -34 }, { -17, 422, -27 }, { -33, 423, -22 } }) do
+			local cl = cloud(c[1], c[2], c[3], 12, 11)
+			if i == 3 then
+				B.bobber(cl, 1.5, 1.1, 0)
+			end
+			B.carrot(V(c[1], c[2] + 3, c[3]))
+		end
+		local WOOD = P.Wood
+		B.block(CFrame.new(-82, deck - 4, z), V(52, 8, 16), WOOD, M.WoodPlanks)
+		B.block(CFrame.new(-52, deck - 3.5, z), V(8, 7, 11), WOOD, M.WoodPlanks)
+		B.block(CFrame.new(-82, deck - 8.5, z), V(44, 3, 10), P.Roof, M.WoodPlanks)
+		B.block(CFrame.new(-82, deck - 0.2, z), V(51, 0.4, 15), P.WoodLight, M.WoodPlanks)
+		-- bow sprit and figurehead
+		B.make("Part", {
+			Size = V(12, 0.8, 0.8),
+			CFrame = CFrame.new(-44, deck + 1.5, z) * CFrame.Angles(0, 0, 0.3),
+			Color = WOOD,
+			Material = M.Wood,
+			CanCollide = false,
+		}, B.decor)
+		B.blob(V(-48.5, deck - 1, z), V(2, 3, 2), P.Gold, M.Metal)
+		-- railings (decor: the ship is open-decked, so watch your step)
+		for _, s in ipairs({ -1, 1 }) do
+			local rail = B.block(CFrame.new(-82, deck + 1.2, z + s * 7.8), V(52, 0.4, 0.4), P.WoodLight, M.Wood, B.decor)
+			rail.CanCollide = false
+			for x = -106, -58, 6 do
+				local post = B.block(CFrame.new(x, deck + 0.6, z + s * 7.8), V(0.4, 1.2, 0.4), WOOD, M.Wood, B.decor)
+				post.CanCollide = false
+			end
+		end
+		-- cabin at the stern
+		B.block(CFrame.new(-101, deck + 3.5, z), V(12, 7, 13), P.Plaster)
+		B.block(CFrame.new(-101, deck + 7.4, z), V(13, 0.8, 14), P.Roof, M.Slate)
+		B.block(CFrame.new(-94.9, deck + 2.5, z), V(0.3, 4.5, 2.6), WOOD, M.Wood)
+		local wheel = B.cyl(-90, deck + 3, z, 1.6, 0.4, WOOD, M.Wood, B.decor)
+		wheel.CFrame = CFrame.new(-90, deck + 3, z) -- facing the bow
+		wheel.CanCollide = false
+		B.block(CFrame.new(-90.6, deck + 1.4, z), V(0.6, 2.8, 0.6), WOOD, M.Wood)
+		-- propellers off the stern
+		for _, s in ipairs({ -1, 1 }) do
+			B.cyl(-110, deck - 5, z + s * 6, 0.6, 3, P.StoneDark, M.Metal)
+			for k = 0, 2 do
+				local blade = B.block(CFrame.new(-110.5, deck - 2, z + s * 6) * CFrame.Angles(k * 2.09, 0, 0) * CFrame.new(0, 2, 0), V(0.3, 4, 1.2), P.WoodLight, M.Wood, B.decor)
+				blade.CanCollide = false
+			end
+		end
+		-- the mast: yardarms staggered so you never bump your head, then the crow's nest
+		local mx = -80
+		B.cyl(mx, deck, z, 1.2, 43, WOOD, M.Wood)
+		local yards = { { 5, 432 }, { -5, 443 }, { 6, 454 } }
+		for i, y in ipairs(yards) do
+			B.block(CFrame.new(mx + y[1], y[2] - 0.75, z), V(2.5, 1.5, 18), P.WoodLight, M.Wood)
+			local sail = B.block(CFrame.new(mx + y[1] + 0.4, y[2] - 5.5, z), V(0.3, 8, 15), P.Plaster, M.Fabric, B.decor)
+			sail.CanCollide = false
+			sail.CastShadow = false
+			if i < 3 then
+				B.carrot(V(mx + y[1], y[2] + 3, z + 6))
+			end
+		end
+		B.cyl(mx, 463, z, 4.5, 2, P.WoodLight, M.WoodPlanks)
+		for k = 0, 9 do
+			local ang = k / 10 * math.pi * 2
+			if k ~= 0 then -- a gap in the rim to climb in
+				local post = B.block(CFrame.new(mx + math.cos(ang) * 4.3, 466, z + math.sin(ang) * 4.3) * CFrame.Angles(0, -ang, 0), V(0.4, 2, 2.6), WOOD, M.Wood, B.decor)
+				post.CanCollide = false
+			end
+		end
+		local pole = B.cyl(mx - 3, 465, z - 3, 0.25, 10, WOOD, M.Wood, B.decor)
+		pole.CanCollide = false
+		local flag = B.block(CFrame.new(mx - 3, 473, z - 4.6), V(0.15, 2, 3), P.Roof, M.Fabric, B.decor)
+		flag.CanCollide = false
+		B.golden("crowsnest", V(mx + 1, 469, z))
+		B.npc("gust", -66, -14, V(1, 0, 0), deck + 20)
+		B.crate(-64, -25, deck + 6)
+		B.enemy("puffer", V(-30, 432, -6), "sky")
+		B.enemy("puffer", V(-80, 444, -42), "sky")
+	end
+
+	--------------------------------------------------------------- Updraft Spire (south-east)
+	do
+		local sx, sz = 180, -180
+		-- cloud steps down from the Cloud Hop island...
+		for _, c in ipairs({ { 190, 436, -86 }, { 187, 433, -104 }, { 184, 430, -122 }, { 182, 427, -140 } }) do
+			cloud(c[1], c[2], c[3])
+			B.carrot(V(c[1], c[2] + 3, c[3]))
+		end
+		-- ...and a slow cloud ferry from the end of the rainbow
+		local ferry = cloud(117, 428, -214, 14, 14)
+		B.slider(ferry, V(32, 0, 14), 0.35, 0)
+		skyIsland(sx, 424, sz, 22)
+		B.cyl(sx, 418, sz, 10, 102, Color3.fromRGB(150, 156, 170), M.Slate)
+		for y = 440, 510, 14 do
+			local band = B.cyl(sx, y, sz, 10.3, 1.2, Color3.fromRGB(120, 126, 140), M.Slate, B.decor)
+			band.CanCollide = false
+		end
+		B.cyl(sx, 519.4, sz, 10.4, 0.8, P.Gold, M.Metal)
+		local ledges = { { 0, 450 }, { 2.1, 480 }, { 4.2, 510 } }
+		for _, l in ipairs(ledges) do
+			local p = V(sx + math.cos(l[1]) * 15, l[2] - 1, sz + math.sin(l[1]) * 15)
+			B.block(CFrame.new(p) * CFrame.Angles(0, -l[1], 0), V(11, 2, 8), Color3.fromRGB(176, 180, 192), M.Slate)
+		end
+		-- rising winds: each one lifts you beside the next ledge
+		local winds = { { -0.7, 424, 458 }, { 1.05, 447, 488 }, { 3.15, 477, 518 } }
+		for _, w in ipairs(winds) do
+			local h = w[3] - w[2]
+			local p = V(sx + math.cos(w[1]) * 16, w[2] + h / 2, sz + math.sin(w[1]) * 16)
+			B.wind(CFrame.new(p) * CFrame.Angles(0, -w[1], 0), V(8, h, 8), V(0, 32, 0))
+			-- a little vent on the island marks the first one
+			if w[2] < 430 then
+				B.cyl(p.X, 423.6, p.Z, 4, 0.6, Color3.fromRGB(120, 126, 140), M.Slate)
+			end
+		end
+		B.golden("updraft", V(sx, 525, sz))
+		B.sign(V(sx - 4, 424, sz + 18), V(0, 0, 1), "UPDRAFT SPIRE", "Ride the rising wind")
+		B.enemy("puffer", V(sx + 26, 474, sz + 10), "sky")
+		B.enemy("bat", V(sx - 20, 500, sz), "sky")
+		B.carrot(V(sx, 430, sz + 15))
+	end
+
+	--------------------------------------------------------------- distant scenery clouds (walk-through)
+	for i = 0, 17 do
+		local a = i / 18 * math.pi * 2
+		local r = rng:NextNumber(260, 340)
+		local s = rng:NextNumber(14, 26)
+		local p = puff(V(HX + math.cos(a) * r, rng:NextNumber(390, 450), HZ + math.sin(a) * r), V(s * 2.4, s * 0.8, s * 1.6), i % 3 == 0 and CLOUD_SHADE or CLOUD)
+		p.CanCollide = false
+	end
+end
+
+return Sky
+]]></ProtectedString></Properties></Item></Item><Item class="ModuleScript" referent="RBX0000001A"><Properties><string name="Name">WorldBuilder</string><ProtectedString name="Source"><![CDATA[--[[
 	WorldBuilder - builds the whole world at server start.
 
 	  Carrot Meadow (hub)      centre            World/Meadow
 	  Frostbite Peaks          north (z -720)    World/Peaks
 	  Dustbowl Canyon          east  (x 720)     World/Canyon
 	  Infernal Castle          south (z 800)     World/Castle
+	  Whisperwood              west  (x -780)    World/Forest
+	  Cloudtop Heights         sky   (y 420)     World/Sky
 ]]
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
@@ -6561,6 +8004,8 @@ local Meadow = require(folder:WaitForChild("Meadow"))
 local Peaks = require(folder:WaitForChild("Peaks"))
 local Canyon = require(folder:WaitForChild("Canyon"))
 local Castle = require(folder:WaitForChild("Castle"))
+local Forest = require(folder:WaitForChild("Forest"))
+local Sky = require(folder:WaitForChild("Sky"))
 
 local WorldBuilder = {}
 WorldBuilder.Castle = Castle
@@ -6647,7 +8092,7 @@ function WorldBuilder.Build()
 	setupLighting()
 	buildSea()
 	-- each region builds in protected mode: one mistake can't wipe out the world
-	for _, region in ipairs({ { "Meadow", Meadow }, { "Peaks", Peaks }, { "Canyon", Canyon }, { "Castle", Castle } }) do
+	for _, region in ipairs({ { "Meadow", Meadow }, { "Peaks", Peaks }, { "Canyon", Canyon }, { "Castle", Castle }, { "Forest", Forest }, { "Sky", Sky } }) do
 		local ok, err = pcall(region[2].Build, B)
 		if not ok then
 			warn("[Bunny64] Building " .. region[1] .. " failed: " .. tostring(err))
@@ -6680,7 +8125,7 @@ function WorldBuilder.Build()
 end
 
 return WorldBuilder
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX0000002E"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="EnableMouseLockOption">false</bool></Properties><Item class="StarterPlayerScripts" referent="RBX0000002A"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX00000029"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000030"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="EnableMouseLockOption">false</bool></Properties><Item class="StarterPlayerScripts" referent="RBX0000002C"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX0000002B"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
 	Bunny 64 - client entry point. Wires together menus, HUD, movement,
 	animation, collectibles and world effects, and reacts to server events.
 ]]
@@ -6796,6 +8241,11 @@ local function handleEvent(s, event)
 				Hud.Toast("THE CASTLE GATE HAS OPENED...", 3.5, Color3.fromRGB(240, 150, 110))
 			end)
 		end
+		if s.slot.goldenCount == Config.SkyGate then
+			task.delay(4.2, function()
+				Hud.Toast("OUT WEST IN THE MEADOW,\nTHE OLD BEANSTALK STIRS...", 3.5, Color3.fromRGB(170, 220, 150))
+			end)
+		end
 	elseif kind == "complete" then
 		Effects.Jingle()
 		task.delay(0.6, Effects.Jingle)
@@ -6810,6 +8260,13 @@ local function handleEvent(s, event)
 	elseif kind == "warpfound" then
 		Effects.Play("MenuSelect", 1.4)
 		Hud.Toast("BURROW WARP FOUND:\n" .. (warpNames[event.id] or ""), 2.5, GOLD)
+	elseif kind == "silver" and event.set == "kits" then
+		Effects.Jingle()
+		if event.got >= event.total then
+			Hud.Toast(string.format("GRANDKIT FOUND %d/%d\nALL HOME! GO SEE GRANNY CLOVER...", event.got, event.total), 4, GOLD)
+		else
+			Hud.Toast(string.format("GRANDKIT FOUND %d/%d\nIT HOPS OFF HOME TO GRANNY", event.got, event.total), 3, Color3.fromRGB(240, 200, 180))
+		end
 	elseif kind == "silver" then
 		if event.got >= event.total then
 			Effects.Jingle()
@@ -6929,7 +8386,15 @@ remotes.Effect.OnClientEvent:Connect(function(kind, pos, extra)
 		Effects.Play("Heart", 1.6)
 		Hud.Toast("+1 HEART", 1.2, Color3.fromRGB(240, 140, 140))
 	elseif kind == "locked" then
-		Hud.Toast(string.format("YOU NEED %d GOLDEN CARROTS\nTO FACE THE KING", pos), 3, Color3.fromRGB(240, 150, 110))
+		local why = extra == "beanstalk" and "TO CLIMB THE BEANSTALK" or "TO FACE THE KING"
+		Hud.Toast(string.format("YOU NEED %d GOLDEN CARROTS\n%s", pos, why), 3, Color3.fromRGB(240, 150, 110))
+	elseif kind == "gust" then
+		Effects.Burst(pos + (extra or Vector3.zero) * 3, Color3.fromRGB(236, 240, 248), 14, 14, 1.2, 1)
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if root and (root.Position - pos).Magnitude < 60 then
+			Effects.Play("DoubleJump", 0.6)
+		end
 	end
 end)
 
@@ -7081,7 +8546,7 @@ task.spawn(function()
 		applySnapshot(s)
 	end
 end)
-]]></ProtectedString></Properties><Item class="ModuleScript" referent="RBX0000001B"><Properties><string name="Name">AdminPanel</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties><Item class="ModuleScript" referent="RBX0000001D"><Properties><string name="Name">AdminPanel</string><ProtectedString name="Source"><![CDATA[--[[
 	AdminPanel - the admin perks menu (press P, or the ADMIN button).
 	Only shows for admins; the server checks every command anyway.
 
@@ -7476,7 +8941,7 @@ function AdminPanel.Init(dependencies)
 end
 
 return AdminPanel
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001C"><Properties><string name="Name">Animator</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001E"><Properties><string name="Name">Animator</string><ProtectedString name="Source"><![CDATA[--[[
 	Animator - procedural animation for every bunny in the server.
 
 	No animation assets: each frame we compute a pose from the bunny's
@@ -7729,7 +9194,7 @@ function Animator.Init(movement)
 end
 
 return Animator
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001D"><Properties><string name="Name">Chiptune</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001F"><Properties><string name="Name">Chiptune</string><ProtectedString name="Source"><![CDATA[--[[
 	Chiptune - Bunny 64's 8-bit music engine and soundtrack.
 
 	Roblox can't synthesise sound, so this little "tracker" plays one short
@@ -7877,6 +9342,46 @@ local SONGS = {
 			A2 A3 A2 A3 A2 A3 A2 A3 | F2 F3 F2 F3 F2 F3 F2 F3 | C3 C2 C3 C2 B1 B2 B1 B2 | E2 E3 E2 E3 B1 B2 B1 B2 ]],
 		drums = [[ k h s h k k s h | k h s h k k s h | k h s h k k s h | k h s h k s s s |
 			k h s h k k s h | k h s h k k s h | k h s h k k s h | k s k s k s s s ]],
+	},
+
+	-- Whisperwood: "Whisperwood" - the theme in A minor, hushed and slow, like
+	-- something is listening between the trees
+	forest = {
+		bpm = 92,
+		echo = true,
+		arpOctave = 4,
+		lead = [[
+			C5 . E5 . F5 - E5 C5 | B4 - C5 - A4 - - . | C5 . E5 . F5 - A5 G5 | E5 - - - - . . . |
+			F5 . E5 . C5 - B4 A4 | B4 - C5 - E5 - - . | F5 . E5 C5 B4 . G#4 B4 | A4 - - - - . . . ]],
+		arp = [[
+			Am - - - - - - - | Em - - - - - - - | F - - - - - - - | C - - - - - - - |
+			Dm - - - - - - - | Em - - - - - - - | F - - - E - - - | Am - - - - - - - ]],
+		bass = [[
+			A2 - - - E2 - - - | E2 - - - B2 - - - | F2 - - - C3 - - - | C3 - - - G2 - - - |
+			D3 - - - A2 - - - | E2 - - - B2 - - - | F2 - - - E2 - - - | A2 - - - - - - - ]],
+		drums = [[ k . . . h . . . | . . h . . . h . | k . . . h . . . | . . h . . . h . |
+			k . . . h . . . | . . h . . . h . | k . . . h . . . | k . . . . . . . ]],
+	},
+
+	-- Cloudtop Heights: "Above the Clouds" - the theme lifted into F major, light and breezy
+	sky = {
+		bpm = 126,
+		echo = true,
+		arpOctave = 5,
+		lead = [[
+			A4 . C5 . D5 - C5 A4 | G4 - A4 - F4 - - . | A4 . C5 . D5 - F5 E5 | C5 - - - - . C4 . |
+			D5 . C5 . A4 - G4 F4 | G4 - A4 - C5 - - . | D5 . C5 A4 G4 . F4 G4 | F4 - - - F4 . . . ]],
+		harmony = [[
+			F4 - - - F4 - - - | D4 - - - C4 - - - | F4 - - - A4 - - - | G4 - - - E4 - - - |
+			F4 - - - F4 - - - | E4 - - - E4 - - - | F4 - - - E4 - - - | C4 - - - C4 - - - ]],
+		arp = [[
+			F - - - - - - - | Dm - - - - - - - | Bb - - - - - - - | C - - - - - - - |
+			Dm - - - - - - - | Am - - - - - - - | Bb - - - C - - - | F - - - - - - - ]],
+		bass = [[
+			F2 . C3 . F2 . C3 . | D2 . A2 . D2 . A2 . | A#2 . F2 . A#2 . F2 . | C3 . G2 . C3 . G2 . |
+			D3 . A2 . D3 . A2 . | A2 . E2 . A2 . E2 . | A#2 . F2 . C3 . G2 . | F2 . C3 . F2 . . . ]],
+		drums = [[ k . h . s . h h | k . h . s . h . | k . h . s . h h | k . h k s . h . |
+			k . h . s . h h | k . h . s . h . | k . h . s . h h | k . s . k s s . ]],
 	},
 
 	-- Ending: "Home Again" - the full theme, warm and slow, every voice together
@@ -8159,7 +9664,7 @@ function Chiptune.Has(name)
 end
 
 return Chiptune
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001E"><Properties><string name="Name">Collectibles</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000020"><Properties><string name="Name">Collectibles</string><ProtectedString name="Source"><![CDATA[--[[
 	Collectibles - spins the carrots, hides the ones this file already has,
 	and asks the server to collect carrots the bunny touches.
 	Each player has their own carrots, so pickups are client-side visuals
@@ -8333,7 +9838,7 @@ function Collectibles.Init(effects, remotes)
 end
 
 return Collectibles
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000001F"><Properties><string name="Name">Dialogue</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000021"><Properties><string name="Name">Dialogue</string><ProtectedString name="Source"><![CDATA[--[[
 	Dialogue - talk to friendly characters.
 
 	A chunky text box types each line out letter by letter, with a little
@@ -8363,6 +9868,12 @@ local talkStart = 0
 local function pickLines(spec, slot)
 	local goldens = slot and slot.goldenCount or 0
 	local boss = slot and slot.bossDefeated or false
+	local kits = 0
+	for sid in pairs(slot and slot.silvers or {}) do
+		if string.sub(sid, 1, 7) == "s_kits_" then
+			kits += 1
+		end
+	end
 	local chosen = spec.dialogue[1].lines
 	for _, set in ipairs(spec.dialogue) do
 		local ok = true
@@ -8370,6 +9881,12 @@ local function pickLines(spec, slot)
 			ok = false
 		end
 		if set.boss and not boss then
+			ok = false
+		end
+		if set.kits and kits < set.kits then
+			ok = false
+		end
+		if set.has and not (slot and slot.goldens[set.has]) then
 			ok = false
 		end
 		if ok then
@@ -8508,7 +10025,7 @@ function Dialogue.Init(dependencies)
 end
 
 return Dialogue
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000020"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000022"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
 	Effects - local sounds, music, chunky block particles and camera shake.
 ]]
 
@@ -8706,7 +10223,7 @@ RunService:BindToRenderStep("Bunny64Shake", Enum.RenderPriority.Camera.Value + 1
 end)
 
 return Effects
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000021"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000023"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
 	Hud - in-game overlay: hearts, golden carrot and carrot counters,
 	region title cards, toasts, the boss health bar and the MENU button.
 ]]
@@ -9173,7 +10690,7 @@ function Hud.WatchBoss(inArenaFn)
 end
 
 return Hud
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000022"><Properties><string name="Name">Menus</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000024"><Properties><string name="Name">Menus</string><ProtectedString name="Source"><![CDATA[--[[
 	Menus - every full-screen menu:
 	  Title (PRESS START) -> File Select (File A/B/C, erase) -> game
 	  Customise (fur, accent colour, hat, neckwear with a live 3D preview)
@@ -9890,16 +11407,20 @@ end
 -- The world from above: islands, routes, golden carrots (gold = found),
 -- discovered warps, checkpoints and you.
 local MAP_ISLANDS = {
-	{ x = 0, z = 0, r = 246, color = Color3.fromRGB(104, 136, 72), name = "CARROT MEADOW" },
-	{ x = 0, z = -720, r = 246, color = Color3.fromRGB(214, 220, 226), name = "FROSTBITE PEAKS" },
-	{ x = 720, z = 0, r = 226, color = Color3.fromRGB(184, 134, 92), name = "DUSTBOWL CANYON" },
-	{ x = 0, z = 800, r = 276, color = Color3.fromRGB(78, 64, 64), name = "INFERNAL CASTLE" },
+	{ x = 0, z = 0, r = 246, color = Color3.fromRGB(104, 136, 72), name = "CARROT MEADOW", region = "meadow" },
+	{ x = 0, z = -720, r = 246, color = Color3.fromRGB(214, 220, 226), name = "FROSTBITE PEAKS", region = "peaks" },
+	{ x = 720, z = 0, r = 226, color = Color3.fromRGB(184, 134, 92), name = "DUSTBOWL CANYON", region = "canyon" },
+	{ x = 0, z = 800, r = 276, color = Color3.fromRGB(78, 64, 64), name = "INFERNAL CASTLE", region = "castle" },
+	{ x = -780, z = 60, r = 234, color = Color3.fromRGB(70, 98, 60), name = "WHISPERWOOD", region = "forest" },
 	{ x = -330, z = 40, r = 48, color = Color3.fromRGB(104, 136, 72) },
+	{ x = -460, z = 40, r = 12, color = Color3.fromRGB(104, 136, 72) },
+	-- Cloudtop Heights floats high above the meadow, so it's drawn see-through on top
+	{ x = 110, z = -150, r = 130, color = Color3.fromRGB(236, 240, 248), name = "CLOUDTOP HEIGHTS", region = "sky", see = 0.55 },
 }
 local MAP_ROUTES = { -- straight links between islands: { x1, z1, x2, z2, width }
-	{ 0, -222, 0, -522, 44 }, { 222, 0, 522, 0, 14 }, { 0, 222, 0, 552, 24 },
+	{ 0, -222, 0, -522, 44 }, { 222, 0, 522, 0, 14 }, { 0, 222, 0, 552, 24 }, { -362, 40, -566, 40, 8 },
 }
-local MAP_MIN = Vector2.new(-420, -1000)
+local MAP_MIN = Vector2.new(-1040, -1000)
 local MAP_MAX = Vector2.new(980, 1100)
 
 function Menus.ShowMap(back)
@@ -9943,6 +11464,7 @@ function Menus.ShowMap(back)
 		f.Position = toMap(isl.x, isl.z)
 		f.Size = UDim2.fromOffset(isl.r * 2 * scale, isl.r * 2 * scale)
 		f.BackgroundColor3 = isl.color
+		f.BackgroundTransparency = isl.see or 0
 		f.BorderSizePixel = 0
 		UI.corner(f, 999)
 		UI.stroke(f, 2, Color3.fromRGB(220, 206, 160), Enum.ApplyStrokeMode.Border)
@@ -9950,8 +11472,7 @@ function Menus.ShowMap(back)
 		if isl.name then
 			local got, total = 0, 0
 			for _, g in ipairs(Config.Goldens) do
-				local region = ({ ["CARROT MEADOW"] = "meadow", ["FROSTBITE PEAKS"] = "peaks", ["DUSTBOWL CANYON"] = "canyon", ["INFERNAL CASTLE"] = "castle" })[isl.name]
-				if g.region == region then
+				if g.region == isl.region then
 					total += 1
 					if snap.slot and snap.slot.goldens[g.id] then
 						got += 1
@@ -10382,7 +11903,7 @@ function Menus.Init(dependencies)
 end
 
 return Menus
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000023"><Properties><string name="Name">Movement</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000025"><Properties><string name="Name">Movement</string><ProtectedString name="Source"><![CDATA[--[[
 	Movement - the bunny's moveset on top of Roblox's humanoid.
 
 	  Jump            Space / A / jump button
@@ -10432,6 +11953,8 @@ local lastBounce = 0
 local airborneSince = nil
 local sentMove = nil
 local flying = false -- admin fly mode (client/AdminPanel) takes over movement
+local windFolder = nil -- workspace.Bunny64World.Winds, found on first use
+local inWind = false
 local jumpedSinceGround = false
 local jumpRising = false
 local bufferUntil = 0
@@ -10978,6 +12501,39 @@ local function step(dt)
 		end
 	end
 
+	-- rising winds and gusts (Cloudtop Heights): parts in the world's Winds folder
+	if not windFolder then
+		local world = workspace:FindFirstChild("Bunny64World")
+		windFolder = world and world:FindFirstChild("Winds")
+	end
+	local nowInWind = false
+	if windFolder then
+		local pos = root.Position
+		for _, w in ipairs(windFolder:GetChildren()) do
+			local force = w:GetAttribute("Wind")
+			if typeof(force) == "Vector3" and w:IsA("BasePart") then
+				local lp = w.CFrame:PointToObjectSpace(pos)
+				local half = w.Size / 2
+				if math.abs(lp.X) < half.X and math.abs(lp.Z) < half.Z and lp.Y > -half.Y - 3 and lp.Y < half.Y then
+					nowInWind = true
+					local v = root.AssemblyLinearVelocity
+					local vy = force.Y > 0 and math.max(v.Y, force.Y) or v.Y
+					local push = Vector3.new(force.X, 0, force.Z) * math.clamp(dt * 3, 0, 1)
+					root.AssemblyLinearVelocity = Vector3.new(v.X + push.X, vy, v.Z + push.Z)
+					if not inWind and force.Y > 0 then
+						humanoid:ChangeState(HST.Freefall)
+						jumpRising = false
+						if move == "pound" then
+							setMove("")
+						end
+					end
+					usedDouble = false -- the wind gives you your double jump back
+				end
+			end
+		end
+	end
+	inWind = nowInWind
+
 	if move == "" and onGround and sentMove == "flip" then
 		sendMove("")
 	end
@@ -11238,7 +12794,7 @@ function Movement.Init(effects, remotes)
 end
 
 return Movement
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000024"><Properties><string name="Name">PhotoMode</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000026"><Properties><string name="Name">PhotoMode</string><ProtectedString name="Source"><![CDATA[--[[
 	PhotoMode - a free camera for screenshots (Pause > PHOTO MODE).
 
 	  WASD / left stick       fly
@@ -11366,7 +12922,7 @@ function PhotoMode.IsActive()
 end
 
 return PhotoMode
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000025"><Properties><string name="Name">Shadows</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">Shadows</string><ProtectedString name="Source"><![CDATA[--[[
 	Shadows - a round "blob" shadow straight under every bunny.
 
 	In a 3D platformer the sun's shadow is rarely directly beneath you, so
@@ -11443,7 +12999,7 @@ function Shadows.Init()
 end
 
 return Shadows
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000026"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000028"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--[[
 	UI - shared building blocks for Bunny 64's late-90s console look:
 	chunky beveled panels with gold trim, gradient title lettering, a bouncing
 	carrot cursor, and menu navigation that works with keyboard, gamepad,
@@ -11835,12 +13391,14 @@ function UI.list(parent, padding)
 end
 
 return UI
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">Weather</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000029"><Properties><string name="Name">Weather</string><ProtectedString name="Source"><![CDATA[--[[
 	Weather - a little atmosphere for each region, drawn around the camera:
 	  meadow  drifting pollen motes
 	  peaks   gentle snowfall
 	  canyon  wind-blown dust
 	  castle  rising embers
+	  forest  drifting fireflies
+	  sky     wisps of cloud streaming past
 	Uses particle textures that ship with Roblox, so no uploads are needed.
 ]]
 
@@ -11872,6 +13430,16 @@ local STYLES = {
 		texture = FIRE, rate = 14, lifetime = NumberRange.new(3, 5), speed = NumberRange.new(2, 5),
 		accel = Vector3.new(0.5, 2.5, 0.2), size = 0.3, color = Color3.fromRGB(255, 150, 70), light = 1,
 		offset = Vector3.new(0, -8, 0), dir = Enum.NormalId.Top, spread = 40,
+	},
+	forest = {
+		texture = SPARK, rate = 9, lifetime = NumberRange.new(4, 7), speed = NumberRange.new(0.3, 1.2),
+		accel = Vector3.new(0.3, 0.15, -0.2), size = 0.3, color = Color3.fromRGB(214, 236, 130), light = 1,
+		offset = Vector3.new(0, 2, 0), dir = Enum.NormalId.Top, spread = 180,
+	},
+	sky = {
+		texture = SMOKE, rate = 3, lifetime = NumberRange.new(5, 7), speed = NumberRange.new(6, 9),
+		accel = Vector3.new(1.5, 0, 0.5), size = 6, color = Color3.fromRGB(240, 244, 252), light = 0.1,
+		offset = Vector3.new(-30, -6, 0), dir = Enum.NormalId.Right, spread = 25, transparency = 0.82,
 	},
 }
 
@@ -11947,7 +13515,7 @@ function Weather.Init()
 end
 
 return Weather
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000028"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002A"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--[[
 	WorldFX - client-side world behaviour:
 	  * animates firebars and crushers from the shared server clock
 	  * opens golden-carrot gates for players who have enough golden carrots
@@ -12002,15 +13570,29 @@ local LOOKS = {
 		fog = Color3.fromRGB(150, 98, 82), fogStart = 160, fogEnd = 950, ambient = Color3.fromRGB(168, 138, 126),
 		indoor = Color3.fromRGB(150, 122, 110), tint = Color3.fromRGB(255, 234, 220), sat = -0.08, clock = 16.6, brightness = 2.6,
 	},
+	-- late-afternoon gloom under the trees: green-grey haze, close fog
+	forest = {
+		fog = Color3.fromRGB(128, 146, 126), fogStart = 60, fogEnd = 520, ambient = Color3.fromRGB(112, 124, 104),
+		indoor = Color3.fromRGB(110, 118, 100), tint = Color3.fromRGB(236, 246, 226), sat = -0.2, clock = 17.6, brightness = 1.9,
+	},
+	-- bright and clear above the clouds; the fog is the cloud sea far below
+	sky = {
+		fog = Color3.fromRGB(214, 222, 236), fogStart = 260, fogEnd = 1200, ambient = Color3.fromRGB(156, 160, 176),
+		indoor = Color3.fromRGB(140, 144, 160), tint = Color3.fromRGB(246, 248, 255), sat = -0.1, clock = 13.4, brightness = 2.6,
+	},
 }
 
 local function regionAt(pos)
-	if pos.Z > 470 and math.abs(pos.X) < 320 then
+	if pos.Y > Config.SkyFloor - 60 then
+		return "sky"
+	elseif pos.Z > 470 and math.abs(pos.X) < 320 then
 		return "castle"
 	elseif pos.Z < -470 then
 		return "peaks"
 	elseif pos.X > 460 then
 		return "canyon"
+	elseif pos.X < -470 then
+		return "forest"
 	end
 	return "meadow"
 end
@@ -12204,8 +13786,8 @@ function WorldFX.Region()
 end
 
 return WorldFX
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterCharacterScripts" referent="RBX0000002D"><Properties><string name="Name">StarterCharacterScripts</string></Properties><Item class="LocalScript" referent="RBX0000002B"><Properties><string name="Name">Animate</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default "Animate" script.
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterCharacterScripts" referent="RBX0000002F"><Properties><string name="Name">StarterCharacterScripts</string></Properties><Item class="LocalScript" referent="RBX0000002D"><Properties><string name="Name">Animate</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default "Animate" script.
 -- The bunny is animated procedurally by StarterPlayerScripts.Bunny64Client.Animator.
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX0000002C"><Properties><string name="Name">Health</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default health regeneration.
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX0000002E"><Properties><string name="Name">Health</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default health regeneration.
 -- In Bunny 64 hearts only come back from carrots and golden carrots.
 ]]></ProtectedString><token name="RunContext">0</token></Properties></Item></Item></Item></roblox>

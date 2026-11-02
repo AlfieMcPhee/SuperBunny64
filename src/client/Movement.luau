@@ -48,6 +48,8 @@ local lastBounce = 0
 local airborneSince = nil
 local sentMove = nil
 local flying = false -- admin fly mode (client/AdminPanel) takes over movement
+local windFolder = nil -- workspace.Bunny64World.Winds, found on first use
+local inWind = false
 local jumpedSinceGround = false
 local jumpRising = false
 local bufferUntil = 0
@@ -593,6 +595,39 @@ local function step(dt)
 			bounceOff(under.Instance)
 		end
 	end
+
+	-- rising winds and gusts (Cloudtop Heights): parts in the world's Winds folder
+	if not windFolder then
+		local world = workspace:FindFirstChild("Bunny64World")
+		windFolder = world and world:FindFirstChild("Winds")
+	end
+	local nowInWind = false
+	if windFolder then
+		local pos = root.Position
+		for _, w in ipairs(windFolder:GetChildren()) do
+			local force = w:GetAttribute("Wind")
+			if typeof(force) == "Vector3" and w:IsA("BasePart") then
+				local lp = w.CFrame:PointToObjectSpace(pos)
+				local half = w.Size / 2
+				if math.abs(lp.X) < half.X and math.abs(lp.Z) < half.Z and lp.Y > -half.Y - 3 and lp.Y < half.Y then
+					nowInWind = true
+					local v = root.AssemblyLinearVelocity
+					local vy = force.Y > 0 and math.max(v.Y, force.Y) or v.Y
+					local push = Vector3.new(force.X, 0, force.Z) * math.clamp(dt * 3, 0, 1)
+					root.AssemblyLinearVelocity = Vector3.new(v.X + push.X, vy, v.Z + push.Z)
+					if not inWind and force.Y > 0 then
+						humanoid:ChangeState(HST.Freefall)
+						jumpRising = false
+						if move == "pound" then
+							setMove("")
+						end
+					end
+					usedDouble = false -- the wind gives you your double jump back
+				end
+			end
+		end
+	end
+	inWind = nowInWind
 
 	if move == "" and onGround and sentMove == "flip" then
 		sendMove("")

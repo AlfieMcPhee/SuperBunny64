@@ -18,11 +18,14 @@ local CF, V, R = CFrame.new, Vector3.new, CFrame.Angles
 
 local SKINS = {
 	toad = {
+		forest = { body = rgb(78, 104, 64), belly = rgb(196, 190, 150), spot = rgb(120, 92, 60), eye = rgb(200, 210, 110) },
 		meadow = { body = rgb(96, 128, 70), belly = rgb(214, 204, 160), spot = rgb(70, 96, 52), eye = rgb(214, 180, 70) },
 		canyon = { body = rgb(170, 130, 82), belly = rgb(226, 206, 166), spot = rgb(132, 96, 60), eye = rgb(226, 160, 60) },
 		peaks = { body = rgb(120, 140, 156), belly = rgb(226, 230, 232), spot = rgb(92, 108, 124), eye = rgb(150, 210, 230) },
 	},
 	bat = {
+		forest = { body = rgb(54, 60, 50), wing = rgb(80, 92, 70), eye = rgb(200, 230, 120) },
+		sky = { body = rgb(110, 116, 140), wing = rgb(160, 170, 196), eye = rgb(250, 220, 140) },
 		castle = { body = rgb(62, 44, 54), wing = rgb(92, 56, 66), eye = rgb(240, 120, 50) },
 		peaks = { body = rgb(86, 100, 120), wing = rgb(120, 140, 160), eye = rgb(160, 220, 240) },
 		meadow = { body = rgb(70, 56, 66), wing = rgb(104, 80, 92), eye = rgb(230, 200, 90) },
@@ -31,6 +34,15 @@ local SKINS = {
 		canyon = { body = rgb(112, 84, 60), spike = rgb(226, 214, 186), face = rgb(196, 160, 120), tip = rgb(226, 214, 186) },
 		castle = { body = rgb(48, 40, 40), spike = rgb(80, 70, 70), face = rgb(120, 96, 86), tip = rgb(232, 120, 50) },
 		meadow = { body = rgb(100, 84, 70), spike = rgb(214, 204, 180), face = rgb(190, 160, 128), tip = rgb(214, 204, 180) },
+	},
+	mossling = {
+		forest = { moss = rgb(92, 118, 64), moss2 = rgb(72, 96, 52), face = rgb(120, 92, 66), eye = rgb(226, 214, 120) },
+	},
+	snapper = {
+		forest = { stem = rgb(84, 114, 62), head = rgb(140, 70, 80), inside = rgb(200, 120, 120), leaf = rgb(70, 100, 54), tooth = rgb(236, 230, 214) },
+	},
+	puffer = {
+		sky = { cloud = rgb(226, 230, 238), shade = rgb(186, 194, 212), cheek = rgb(214, 150, 160) },
 	},
 	puffshroom = {
 		meadow = { cap = rgb(120, 82, 132), spot = rgb(222, 210, 190), stem = rgb(220, 208, 182) },
@@ -191,6 +203,83 @@ function EnemyModels.puffshroom(skinName, origin)
 	newPart(model, origin, CF(0, -0.75, -1.25), V(0.7, 0.18, 0.1), rgb(40, 30, 30))
 	model:SetAttribute("Kind", "puffshroom")
 	return model, { cap = cap, stem = stem, spots = spots }
+end
+
+-- Mossling ---------------------------------------------------------------------------------
+function EnemyModels.mossling(skinName, origin)
+	local s = skinFor("mossling", skinName)
+	local model = Instance.new("Model")
+	model.Name = "Mossling"
+	rootPart(model, origin, V(3, 3, 3))
+	newPart(model, origin, CF(0, 0, 0), V(4.2, 3.2, 4.0), s.moss, true, Enum.Material.Grass, "Body")
+	for i = 0, 5 do
+		local a = i / 6 * math.pi * 2
+		newPart(model, origin, CF(math.cos(a) * 1.5, 1.2 + (i % 2) * 0.3, math.sin(a) * 1.4 + 0.3), V(1.6, 1.1, 1.6), i % 2 == 0 and s.moss2 or s.moss, true, Enum.Material.Grass)
+	end
+	-- a sprout on top and a little bark face
+	newPart(model, origin, CF(0, 2.0, 0.2), V(0.2, 1.2, 0.2), s.moss2)
+	newPart(model, origin, CF(0.35, 2.55, 0.2) * R(0, 0, -0.6), V(0.8, 0.12, 0.45), s.moss, true)
+	newPart(model, origin, CF(-0.35, 2.5, 0.2) * R(0, 0, 0.6), V(0.8, 0.12, 0.45), s.moss2, true)
+	newPart(model, origin, CF(0, -0.2, -1.6), V(2.4, 1.6, 0.8), s.face, true)
+	eyes(model, origin, 0.0, -1.95, 0.5, 0.5, s.eye, true)
+	newPart(model, origin, CF(0, -0.6, -1.95), V(0.8, 0.14, 0.1), rgb(40, 30, 24))
+	model:SetAttribute("Kind", "mossling")
+	return model, {}
+end
+
+-- Snapper (pivot at the base of the stem; the head sits on top) ----------------------------
+function EnemyModels.snapper(skinName, origin)
+	local s = skinFor("snapper", skinName)
+	local model = Instance.new("Model")
+	model.Name = "Snapper"
+	rootPart(model, origin, V(1, 1, 1))
+	newPart(model, origin, CF(0, 1.4, 0), V(0.9, 3.2, 0.9), s.stem, false, nil, "Stem")
+	for _, sx in ipairs({ -1, 1 }) do
+		newPart(model, origin, CF(sx * 1.4, -1.1, 0) * R(0, 0, sx * -0.3), V(2.8, 0.25, 1.6), s.leaf, true)
+		newPart(model, origin, CF(0, -1.1, sx * 1.4) * R(sx * 0.3, 0, 0), V(1.6, 0.25, 2.8), s.leaf, true)
+	end
+	-- head: upper jaw fixed, lower jaw hinged at the back
+	newPart(model, origin, CF(0, 4.9, -0.3), V(3.4, 1.6, 3.6), s.head, true, nil, "Head")
+	for i = 0, 4 do
+		local a = i / 4 * math.pi - math.pi / 2
+		newPart(model, origin, CF(math.sin(a) * 1.4, 4.2, -0.3 - math.cos(a) * 1.5), V(0.3, 0.5, 0.3), s.tooth)
+	end
+	for _, sp in ipairs({ { -0.8, 5.6, 0.2 }, { 0.9, 5.5, -0.6 }, { 0.1, 5.75, 0.9 } }) do
+		newPart(model, origin, CF(sp[1], sp[2], sp[3]), V(0.7, 0.3, 0.7), s.tooth, true)
+	end
+	eyes(model, origin, 5.5, -1.6, 0.7, 0.55, nil, true)
+	local jawRest = CF(0, 3.9, 1.2)
+	local jaw = newPart(model, origin, jawRest * CF(0, 0, -1.5), V(3.0, 0.9, 3.2), s.inside, true, nil, "Jaw")
+	local jawLocal = CF(0, 0, -1.5)
+	model:SetAttribute("Kind", "snapper")
+	return model, { jaw = jaw, jawRest = jawRest, jawLocal = jawLocal }
+end
+
+-- Puffer ---------------------------------------------------------------------------------
+function EnemyModels.puffer(skinName, origin)
+	local s = skinFor("puffer", skinName)
+	local model = Instance.new("Model")
+	model.Name = "Puffer"
+	rootPart(model, origin, V(2, 2, 2))
+	local parts = {}
+	local function add(cf, size, color, ball, material)
+		local p = newPart(model, origin, cf, size, color, ball, material)
+		table.insert(parts, { part = p, cf = cf, size = size })
+		return p
+	end
+	add(CF(0, 0, 0), V(5.2, 3.8, 4.6), s.cloud, true)
+	for _, b in ipairs({ { -2.2, 0.6, 0.4, 2.8 }, { 2.2, 0.5, 0.3, 2.6 }, { 0, 1.7, 0.4, 3 }, { -1.1, -1.1, 0.8, 2.4 }, { 1.2, -1.2, 0.6, 2.2 } }) do
+		add(CF(b[1], b[2], b[3]), V(b[4], b[4] * 0.85, b[4]), b[2] < 0 and s.shade or s.cloud, true)
+	end
+	for _, sx in ipairs({ -1, 1 }) do
+		add(CF(sx * 1.5, -0.3, -2.0), V(0.9, 0.5, 0.3), s.cheek, true)
+		add(CF(sx * 0.7, 0.5, -2.25), V(0.6, 0.75, 0.3), rgb(40, 36, 48), true)
+		add(CF(sx * 0.75, 1.1, -2.2) * R(0, 0, sx * 0.4), V(0.8, 0.16, 0.2), rgb(70, 66, 84))
+	end
+	-- pursed "O" mouth, ready to blow
+	add(CF(0, -0.5, -2.3), V(0.7, 0.7, 0.3), rgb(70, 60, 76), true)
+	model:SetAttribute("Kind", "puffer")
+	return model, { puffs = parts }
 end
 
 return EnemyModels

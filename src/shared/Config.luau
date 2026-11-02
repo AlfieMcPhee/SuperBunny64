@@ -66,12 +66,16 @@ Config.BugBusterGoal = 20      -- Grumblebugs to bop for the "Bug Buster" golden
 Config.BugRespawnSeconds = 40
 Config.CastleGate = 10         -- golden carrots needed to open the castle gate
 Config.ThroneGate = 15         -- golden carrots needed to face King Grumble
+Config.SkyGate = 18            -- golden carrots needed to climb the beanstalk to Cloudtop Heights
+Config.SkyFloor = 360          -- below this height, a bunny who was in the sky is caught and put back
 
 Config.Regions = {
 	{ id = "meadow", name = "CARROT MEADOW" },
 	{ id = "peaks", name = "FROSTBITE PEAKS" },
 	{ id = "canyon", name = "DUSTBOWL CANYON" },
 	{ id = "castle", name = "INFERNAL CASTLE" },
+	{ id = "forest", name = "WHISPERWOOD" },
+	{ id = "sky", name = "CLOUDTOP HEIGHTS" },
 }
 
 Config.Goldens = {
@@ -99,11 +103,25 @@ Config.Goldens = {
 	{ id = "rampart", region = "castle", name = "Rampart Watch", hint = "Walk the castle walls to the north-east tower." },
 	{ id = "keep", region = "castle", name = "Keep Climb", hint = "Climb the ledges inside the keep. Don't touch the lava." },
 	{ id = "boss", region = "castle", name = "King Grumble's Crown", hint = "Defeat King Grumble in the throne room above the castle.", req = "boss" },
+	-- Whisperwood
+	{ id = "eldertree", region = "forest", name = "Elder Tree Crown", hint = "Climb the shelf fungus spiralling up the Elder Tree." },
+	{ id = "treetop", region = "forest", name = "Treetop Village", hint = "Cross the rope bridges between the treehouses. One bridge is missing a few planks." },
+	{ id = "grove", region = "forest", name = "Bouncy Grove", hint = "Bounce from mushroom to mushroom to reach the floating log." },
+	{ id = "bog", region = "forest", name = "Bog Hop", hint = "Hop the lily pads across the misty bog. Some of them sink." },
+	-- Cloudtop Heights
+	{ id = "cloudhop", region = "sky", name = "Cloud Hopper", hint = "Hop the drifting clouds east of the beanstalk." },
+	{ id = "rainbow", region = "sky", name = "Rainbow's End", hint = "Follow the rainbow bridge to its end. Watch for gaps." },
+	{ id = "crowsnest", region = "sky", name = "Crow's Nest", hint = "Climb the mast of Captain Gust's airship." },
+	{ id = "updraft", region = "sky", name = "Updraft Spire", hint = "Ride the rising winds up the tall spire." },
+	-- Granny Clover's lost grandkits
+	{ id = "kits", region = "meadow", name = "Granny's Lost Kits", hint = "Granny Clover's five grandkits wandered off - one in every land. Bring them home!", req = "silver" },
 	-- Silver carrot hunts: find all five silver carrots in a region
 	{ id = "silver_meadow", region = "meadow", name = "Meadow Silver Hunt", hint = "Five silver carrots hide around the meadow: high, low and far.", req = "silver" },
 	{ id = "silver_peaks", region = "peaks", name = "Peaks Silver Hunt", hint = "Five silver carrots glint in the snow, up the mountain and by the pond.", req = "silver" },
 	{ id = "silver_canyon", region = "canyon", name = "Canyon Silver Hunt", hint = "Five silver carrots in the canyon. Look on top of things.", req = "silver" },
 	{ id = "silver_castle", region = "castle", name = "Castle Silver Hunt", hint = "Five silver carrots in and around the castle. One is very warm.", req = "silver" },
+	{ id = "silver_forest", region = "forest", name = "Whisperwood Silver Hunt", hint = "Five silver carrots glimmer in the forest gloom.", req = "silver" },
+	{ id = "silver_sky", region = "sky", name = "Cloudtop Silver Hunt", hint = "Five silver carrots float among the clouds.", req = "silver" },
 	-- Time trials: step on the glowing start pad and race the clock
 	{ id = "trial_summit", region = "peaks", name = "Summit Sprint", hint = "Race from the pad by Pip to the summit before time runs out.", req = "trial" },
 	{ id = "trial_boulder", region = "canyon", name = "Boulder Dash", hint = "Race up Boulder Run to the temple. Boulders don't wait.", req = "trial" },
@@ -141,6 +159,38 @@ Config.SilverSets = {
 			Vector3.new(674.8, 52.5, 93.6), -- a ledge on Eagle's Mesa
 		},
 	},
+	-- Granny's lost grandkits (shown as baby bunnies, not carrots)
+	kits = {
+		style = "kit",
+		reward = Vector3.new(-50, 6, -14),
+		spots = {
+			Vector3.new(-80, 3, -46), -- hiding in Granny's carrot patch
+			Vector3.new(-69, 3, -570), -- out in the snow near the ice chute landing
+			Vector3.new(838, 64, 160), -- inside the canyon temple
+			Vector3.new(-152, 3, 648), -- behind a vent on the castle approach
+			Vector3.new(-760, 3, 82), -- among the Elder Tree's roots
+		},
+	},
+	silver_forest = {
+		reward = Vector3.new(-600, 7, 60),
+		spots = {
+			Vector3.new(-780 + math.cos(4.5) * 26, 83.5, 60 + math.sin(4.5) * 26), -- an Elder Tree shelf
+			Vector3.new(-630, 51.5, 100), -- on a treehouse roof
+			Vector3.new(-880, 39.5, 20), -- above a grove mushroom
+			Vector3.new(-720, 4.5, -116), -- on a bog lily pad
+			Vector3.new(-990, 3.5, 60), -- the far western shore
+		},
+	},
+	silver_sky = {
+		reward = Vector3.new(48, 425, -72),
+		spots = {
+			Vector3.new(139, 431.5, -66), -- mid-way along the cloud hops
+			Vector3.new(60, 439, -156), -- over the rainbow bridge gap
+			Vector3.new(-52, 426, -20), -- the airship's bow
+			Vector3.new(172.4, 483.5, -167.1), -- second ledge of the Updraft Spire
+			Vector3.new(40, 436, -40), -- on top of the cloud pillar by the beanstalk
+		},
+	},
 	silver_castle = {
 		reward = Vector3.new(0, 8, 760),
 		spots = {
@@ -176,6 +226,9 @@ Config.Checkpoints = {
 	courtyard = { name = "Castle Courtyard", pos = Vector3.new(0, 7, 715) },
 	keep = { name = "The Keep", pos = Vector3.new(0, 8, 832) },
 	dungeon = { name = "Dungeon Gate", pos = Vector3.new(180, 5, 700) },
+	forest = { name = "Whisperwood", pos = Vector3.new(-580, 5, 40) },
+	beanstalk = { name = "The Beanstalk", pos = Vector3.new(-140, 5, 140) },
+	sky = { name = "Cloudtop Heights", pos = Vector3.new(60, 425, -60) },
 	throne = { name = "Throne Room", pos = Vector3.new(0, 206, 752) },
 }
 
@@ -185,6 +238,8 @@ Config.Warps = {
 	{ id = "peaks", name = "FROSTBITE PEAKS", pos = Vector3.new(24, 0, -530) },
 	{ id = "canyon", name = "DUSTBOWL CANYON", pos = Vector3.new(540, 0, 24) },
 	{ id = "castle", name = "INFERNAL CASTLE", pos = Vector3.new(26, 0, 575) },
+	{ id = "forest", name = "WHISPERWOOD", pos = Vector3.new(-592, 0, 72) },
+	{ id = "sky", name = "CLOUDTOP HEIGHTS", pos = Vector3.new(76, 420, -46) },
 }
 
 -- Stamps: in-game achievements (Pause > STAMPS). Put a Roblox badge id in
@@ -194,15 +249,18 @@ Config.Stamps = {
 	{ id = "golden10", name = "HALFWAY HOP", desc = "Find 10 golden carrots." },
 	{ id = "golden20", name = "CARROT CHAMPION", desc = "Find every golden carrot." },
 	{ id = "carrots", name = "CRUNCH TIME", desc = "Collect every single carrot." },
-	{ id = "regions", name = "SIGHTSEER", desc = "Visit all four regions." },
-	{ id = "friends", name = "SOCIAL BUNNY", desc = "Chat with all six friends." },
+	{ id = "regions", name = "SIGHTSEER", desc = "Visit all six lands." },
+	{ id = "friends", name = "SOCIAL BUNNY", desc = "Chat with every friend in every land." },
 	{ id = "bops50", name = "BUG SQUASHER", desc = "Bop 50 baddies." },
 	{ id = "crates", name = "CRATE EXPECTATIONS", desc = "Smash 20 heart crates." },
 	{ id = "longjump", name = "FLYING SIDEWAYS", desc = "Long jump 25 times." },
 	{ id = "walljump", name = "BOING BOING BOING", desc = "Wall jump 3 times in a row." },
 	{ id = "boss", name = "CROWN JEWEL", desc = "Defeat King Grumble." },
 	{ id = "bossnohit", name = "UNTOUCHABLE", desc = "Defeat King Grumble without getting hurt." },
-	{ id = "speedy", name = "SPEEDY BUNNY", desc = "Find every golden carrot in under 3 hours." },
+	{ id = "speedy", name = "SPEEDY BUNNY", desc = "Find every golden carrot in under 4 hours." },
+	{ id = "sky", name = "HEAD IN THE CLOUDS", desc = "Climb the beanstalk to Cloudtop Heights." },
+	{ id = "kits", name = "GRANNY'S HERO", desc = "Bring all five lost grandkits home." },
+	{ id = "silvers", name = "SILVER LINING", desc = "Finish every silver carrot hunt." },
 }
 Config.Badges = {
 	-- golden20 = 1234567890,
@@ -230,6 +288,10 @@ Config.Tips = {
 	{ id = "spikes", pos = Vector3.new(690, 4, -60), radius = 30, text = "Thornhogs are all spikes. Only a ground pound shockwave works: {crouch} in mid-air near them." },
 	{ id = "lava", pos = Vector3.new(0, 5, 565), radius = 24, text = "Lava bounces you out, but it costs a heart. Checkpoint flags glow gold when they're yours." },
 	{ id = "boss", pos = Vector3.new(0, 206, 752), radius = 24, text = "King Grumble only shows his weak spots when he's dazed. Make him charge a pillar!" },
+	{ id = "mossling", pos = Vector3.new(-600, 4, 40), radius = 30, text = "Mosslings hide in the forest floor and pop up as you pass. Stomp them, or {roll} into them!" },
+	{ id = "bouncy", pos = Vector3.new(-870, 6, 20), radius = 18, text = "Land on a mushroom cap to bounce. Hold {crouch} in the air for a ground pound to bounce even higher." },
+	{ id = "updraft", pos = Vector3.new(180, 424, -150), radius = 30, text = "Stand in the rising wind to float upward. Steer to drift onto the ledges." },
+	{ id = "puffer", pos = Vector3.new(60, 425, -60), radius = 30, text = "Puffers blow gusts that can push you off the clouds. Stomp them from above!" },
 }
 
 -- Friendly characters. Each NPC picks the LAST dialogue set whose conditions
@@ -270,7 +332,18 @@ Config.NPCs = {
 			} },
 			{ goldens = 3, lines = {
 				"You found the one on my roof! Oh, you're a treasure.",
-				"When you get tired, come back and sit a while. The meadow will still be here.",
+				"Sweetpea... could I ask a favour? My five grandkits went exploring and haven't come home.",
+				"One in every land, I'd wager. Little rascals. If you see them, bring them back to me?",
+			} },
+			{ kits = 1, lines = {
+				"You found one of my grandkits! Oh, thank goodness. The others can't be far... well. They can be quite far.",
+			} },
+			{ kits = 3, lines = {
+				"Three home safe! They're telling me ALL about their adventures. Loudly.",
+			} },
+			{ has = "kits", lines = {
+				"All five of my grandkits, home for supper! I could hug you till your ears pop.",
+				"I left something shiny by the crates for you. Don't tell the kits, they'll want one too.",
 			} },
 			{ boss = true, lines = {
 				"I heard the castle went quiet. Was that you? Of course it was.",
@@ -327,6 +400,78 @@ Config.NPCs = {
 			} },
 		},
 	},
+	burrows = {
+		name = "MAYOR BURROWS", kind = "mayor", voice = 0.75,
+		dialogue = {
+			{ lines = {
+				"Ahem! Welcome, welcome, citizen, to Carrot Meadow - the finest meadow in all the islands!",
+				"I am Mayor Burrows. I was elected unanimously. By myself. Nobody else ran.",
+				"Our golden carrots have gone astray. Find them and you'll have the gratitude of the whole meadow!",
+			} },
+			{ goldens = 10, lines = {
+				"Ten golden carrots! I shall have a statue made of you. A small one. Budgets, you understand.",
+			} },
+			{ goldens = 18, lines = {
+				"The old beanstalk on the west side has started growing again! Up past the clouds, they say.",
+				"Eighteen golden carrots should be enough to convince it to let you climb.",
+			} },
+			{ boss = true, lines = {
+				"You defeated King Grumble! I hereby declare today Bunny Day. Every year. Forever.",
+				"...Pending council approval. I am the council.",
+			} },
+		},
+	},
+	fern = {
+		name = "RANGER FERN", kind = "fox", voice = 0.95,
+		dialogue = {
+			{ lines = {
+				"Shh! Keep your voice down. The woods are listening. Well, the Mosslings are, anyway.",
+				"They hide in the ground and pop up when you walk past. Stomp them before they stomp you.",
+				"The Elder Tree in the middle is the oldest thing on these islands. Shelf fungus grows all the way up it.",
+				"And mind the bog to the south. The lily pads don't all stay afloat.",
+			} },
+			{ goldens = 22, lines = {
+				"You're getting a name for yourself, bunny. Even the Snappers are nervous. Probably.",
+			} },
+		},
+	},
+	hoot = {
+		name = "PROFESSOR HOOT", kind = "owl", voice = 0.6,
+		dialogue = {
+			{ lines = {
+				"Hoo! A visitor to the treetops. Do mind the gaps in the bridges. Gravity is very strict here.",
+				"I study the golden carrots, you know. Fascinating vegetables. They seem to want to be found.",
+				"There is a mushroom grove to the west. The caps are bouncier than a professor at a conference.",
+			} },
+			{ goldens = 25, lines = {
+				"My research suggests you have found more golden carrots than anyone. My research is you. I asked you.",
+			} },
+		},
+	},
+	gust = {
+		name = "CAPTAIN GUST", kind = "bird", voice = 1.0,
+		dialogue = {
+			{ lines = {
+				"Ahoy, landlubber! Welcome aboard the Cumulus, finest airship in the sky!",
+				"Somethin' golden's stuck up in my crow's nest. Climb the rigging if ye've the stomach for it!",
+				"And mind them Puffers. Nasty clouds. One sneeze and yer overboard.",
+			} },
+			{ has = "crowsnest", lines = {
+				"Ye made it up the mast! Ye've the makings of a fine sky pirate, bunny.",
+			} },
+		},
+	},
+	nimbus = {
+		name = "NIMBUS", kind = "sheep", voice = 1.25,
+		dialogue = {
+			{ lines = {
+				"Oh! Hello! I'm Nimbus. I'm a cloud. Well, a sheep. People mix us up.",
+				"You climbed the WHOLE beanstalk? That's so many leaves!",
+				"The rising winds by the tall spire can carry you up. Just stand in them and let go of your worries.",
+				"The rainbow bridge goes all the way to the end of the rainbow. Obviously.",
+			} },
+		},
+	},
 	ember = {
 		name = "SIR EMBER", kind = "knightbug", voice = 0.6,
 		dialogue = {
@@ -356,7 +501,7 @@ Config.FurColors = {
 	{ name = "ROSE", fur = rgb(190, 140, 140), cream = rgb(236, 214, 204) },
 	{ name = "MOSS", fur = rgb(120, 128, 92), cream = rgb(214, 210, 180) },
 	-- post-game reward
-	{ name = "GOLDEN", fur = rgb(214, 172, 72), cream = rgb(244, 226, 170), need = 26 },
+	{ name = "GOLDEN", fur = rgb(214, 172, 72), cream = rgb(244, 226, 170), need = #Config.Goldens },
 }
 Config.AccentColors = {
 	{ name = "CRIMSON", color = rgb(140, 50, 48) },
@@ -379,6 +524,8 @@ Config.Hats = {
 	{ id = "propeller", name = "PROPELLER CAP", need = 10 },
 	{ id = "viking", name = "VIKING HELM", need = 13 },
 	{ id = "wizard", name = "WIZARD HAT", need = 16 },
+	{ id = "leafcap", name = "LEAF CAP", need = 20 },
+	{ id = "pilot", name = "SKY PILOT CAP", need = 26 },
 	{ id = "crown", name = "KING'S CROWN", need = 0, boss = true },
 }
 Config.Necks = {
@@ -421,6 +568,8 @@ Config.Music = {
 	peaks = "",
 	canyon = "",
 	castle = "",
+	forest = "",
+	sky = "",
 	boss = "",
 }
 Config.MusicVolume = 0.35
@@ -494,6 +643,8 @@ Config.BugSkins = {
 	peaks = { shell = rgb(94, 118, 140), shell2 = rgb(70, 90, 110), spot = rgb(222, 228, 232), body = rgb(40, 46, 56), eye = rgb(150, 210, 230) },
 	canyon = { shell = rgb(150, 100, 60), shell2 = rgb(120, 78, 46), spot = rgb(84, 58, 40), body = rgb(56, 40, 30), eye = rgb(220, 180, 90) },
 	castle = { shell = rgb(54, 46, 46), shell2 = rgb(38, 32, 32), spot = rgb(222, 96, 40), body = rgb(30, 24, 24), eye = rgb(240, 120, 50) },
+	forest = { shell = rgb(70, 96, 70), shell2 = rgb(52, 74, 54), spot = rgb(196, 176, 110), body = rgb(40, 44, 36), eye = rgb(210, 220, 120) },
+	sky = { shell = rgb(176, 184, 206), shell2 = rgb(146, 154, 180), spot = rgb(240, 226, 170), body = rgb(70, 74, 92), eye = rgb(250, 220, 140) },
 }
 
 return Config

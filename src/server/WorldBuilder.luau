@@ -5,6 +5,8 @@
 	  Frostbite Peaks          north (z -720)    World/Peaks
 	  Dustbowl Canyon          east  (x 720)     World/Canyon
 	  Infernal Castle          south (z 800)     World/Castle
+	  Whisperwood              west  (x -780)    World/Forest
+	  Cloudtop Heights         sky   (y 420)     World/Sky
 ]]
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
@@ -16,6 +18,8 @@ local Meadow = require(folder:WaitForChild("Meadow"))
 local Peaks = require(folder:WaitForChild("Peaks"))
 local Canyon = require(folder:WaitForChild("Canyon"))
 local Castle = require(folder:WaitForChild("Castle"))
+local Forest = require(folder:WaitForChild("Forest"))
+local Sky = require(folder:WaitForChild("Sky"))
 
 local WorldBuilder = {}
 WorldBuilder.Castle = Castle
@@ -102,7 +106,7 @@ function WorldBuilder.Build()
 	setupLighting()
 	buildSea()
 	-- each region builds in protected mode: one mistake can't wipe out the world
-	for _, region in ipairs({ { "Meadow", Meadow }, { "Peaks", Peaks }, { "Canyon", Canyon }, { "Castle", Castle } }) do
+	for _, region in ipairs({ { "Meadow", Meadow }, { "Peaks", Peaks }, { "Canyon", Canyon }, { "Castle", Castle }, { "Forest", Forest }, { "Sky", Sky } }) do
 		local ok, err = pcall(region[2].Build, B)
 		if not ok then
 			warn("[Bunny64] Building " .. region[1] .. " failed: " .. tostring(err))

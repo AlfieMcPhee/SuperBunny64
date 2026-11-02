@@ -715,16 +715,20 @@ end
 -- The world from above: islands, routes, golden carrots (gold = found),
 -- discovered warps, checkpoints and you.
 local MAP_ISLANDS = {
-	{ x = 0, z = 0, r = 246, color = Color3.fromRGB(104, 136, 72), name = "CARROT MEADOW" },
-	{ x = 0, z = -720, r = 246, color = Color3.fromRGB(214, 220, 226), name = "FROSTBITE PEAKS" },
-	{ x = 720, z = 0, r = 226, color = Color3.fromRGB(184, 134, 92), name = "DUSTBOWL CANYON" },
-	{ x = 0, z = 800, r = 276, color = Color3.fromRGB(78, 64, 64), name = "INFERNAL CASTLE" },
+	{ x = 0, z = 0, r = 246, color = Color3.fromRGB(104, 136, 72), name = "CARROT MEADOW", region = "meadow" },
+	{ x = 0, z = -720, r = 246, color = Color3.fromRGB(214, 220, 226), name = "FROSTBITE PEAKS", region = "peaks" },
+	{ x = 720, z = 0, r = 226, color = Color3.fromRGB(184, 134, 92), name = "DUSTBOWL CANYON", region = "canyon" },
+	{ x = 0, z = 800, r = 276, color = Color3.fromRGB(78, 64, 64), name = "INFERNAL CASTLE", region = "castle" },
+	{ x = -780, z = 60, r = 234, color = Color3.fromRGB(70, 98, 60), name = "WHISPERWOOD", region = "forest" },
 	{ x = -330, z = 40, r = 48, color = Color3.fromRGB(104, 136, 72) },
+	{ x = -460, z = 40, r = 12, color = Color3.fromRGB(104, 136, 72) },
+	-- Cloudtop Heights floats high above the meadow, so it's drawn see-through on top
+	{ x = 110, z = -150, r = 130, color = Color3.fromRGB(236, 240, 248), name = "CLOUDTOP HEIGHTS", region = "sky", see = 0.55 },
 }
 local MAP_ROUTES = { -- straight links between islands: { x1, z1, x2, z2, width }
-	{ 0, -222, 0, -522, 44 }, { 222, 0, 522, 0, 14 }, { 0, 222, 0, 552, 24 },
+	{ 0, -222, 0, -522, 44 }, { 222, 0, 522, 0, 14 }, { 0, 222, 0, 552, 24 }, { -362, 40, -566, 40, 8 },
 }
-local MAP_MIN = Vector2.new(-420, -1000)
+local MAP_MIN = Vector2.new(-1040, -1000)
 local MAP_MAX = Vector2.new(980, 1100)
 
 function Menus.ShowMap(back)
@@ -768,6 +772,7 @@ function Menus.ShowMap(back)
 		f.Position = toMap(isl.x, isl.z)
 		f.Size = UDim2.fromOffset(isl.r * 2 * scale, isl.r * 2 * scale)
 		f.BackgroundColor3 = isl.color
+		f.BackgroundTransparency = isl.see or 0
 		f.BorderSizePixel = 0
 		UI.corner(f, 999)
 		UI.stroke(f, 2, Color3.fromRGB(220, 206, 160), Enum.ApplyStrokeMode.Border)
@@ -775,8 +780,7 @@ function Menus.ShowMap(back)
 		if isl.name then
 			local got, total = 0, 0
 			for _, g in ipairs(Config.Goldens) do
-				local region = ({ ["CARROT MEADOW"] = "meadow", ["FROSTBITE PEAKS"] = "peaks", ["DUSTBOWL CANYON"] = "canyon", ["INFERNAL CASTLE"] = "castle" })[isl.name]
-				if g.region == region then
+				if g.region == isl.region then
 					total += 1
 					if snap.slot and snap.slot.goldens[g.id] then
 						got += 1

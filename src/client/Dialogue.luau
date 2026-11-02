@@ -28,6 +28,12 @@ local talkStart = 0
 local function pickLines(spec, slot)
 	local goldens = slot and slot.goldenCount or 0
 	local boss = slot and slot.bossDefeated or false
+	local kits = 0
+	for sid in pairs(slot and slot.silvers or {}) do
+		if string.sub(sid, 1, 7) == "s_kits_" then
+			kits += 1
+		end
+	end
 	local chosen = spec.dialogue[1].lines
 	for _, set in ipairs(spec.dialogue) do
 		local ok = true
@@ -35,6 +41,12 @@ local function pickLines(spec, slot)
 			ok = false
 		end
 		if set.boss and not boss then
+			ok = false
+		end
+		if set.kits and kits < set.kits then
+			ok = false
+		end
+		if set.has and not (slot and slot.goldens[set.has]) then
 			ok = false
 		end
 		if ok then

@@ -307,6 +307,7 @@ local function onCharacter(player, character)
 		end
 		if st then
 			st.safe = cf
+			st.sky = cf.Position.Y > Config.SkyFloor
 			st.invulnUntil = os.clock() + 2
 		end
 	end
@@ -404,6 +405,22 @@ Collect.OnServerEvent:Connect(function(player, id)
 			end
 		end
 		push(player, { kind = "silver", set = silver.set, got = got, total = #set.spots })
+		if got >= #set.spots then
+			if silver.set == "kits" then
+				awardStamp(player, "kits")
+			end
+			-- every hunt done?
+			local all = true
+			for sid in pairs(info.silvers) do
+				if not slot.silvers[sid] then
+					all = false
+					break
+				end
+			end
+			if all then
+				awardStamp(player, "silvers")
+			end
+		end
 		return
 	end
 
@@ -447,7 +464,7 @@ Collect.OnServerEvent:Connect(function(player, id)
 			end
 			if n >= #Config.Goldens then
 				awardStamp(player, "golden20")
-				if DataService.GetPlayTime(player) < 3 * 3600 then
+				if DataService.GetPlayTime(player) < 4 * 3600 then
 					awardStamp(player, "speedy")
 				end
 			end
@@ -641,6 +658,7 @@ end
 local function teleport(player, cf)
 	if state[player] then
 		state[player].trial = nil -- warping out of a time trial cancels it
+		state[player].sky = cf.Position.Y > Config.SkyFloor
 	end
 	local char = player.Character
 	if char then
@@ -675,7 +693,15 @@ for _, d in ipairs(info.solidFolder:GetDescendants()) do
 					teleport(player, checkpointCF("throne"))
 					push(player, { kind = "checkpoint", id = "throne" })
 				else
-					Effect:FireClient(player, "locked", Config.ThroneGate)
+					Effect:FireClient(player, "locked", Config.ThroneGate, "king")
+				end
+			elseif part:GetAttribute("Beanstalk") then
+				if count(slot.goldens) >= Config.SkyGate then
+					slot.checkpoint = "sky"
+					teleport(player, checkpointCF("sky"))
+					push(player, { kind = "checkpoint", id = "sky" })
+				else
+					Effect:FireClient(player, "locked", Config.SkyGate, "beanstalk")
 				end
 			end
 		end)
@@ -699,12 +725,19 @@ safeStart("HazardService", HazardService.Start, info, {
 })
 
 safeStart("EnemyService", EnemyService.Start, info, {
-	effect = function(kind, pos)
-		Effect:FireAllClients(kind, pos)
+	effect = function(kind, pos, extra)
+		Effect:FireAllClients(kind, pos, extra)
 	end,
 	bopped = onBopped,
 	bounce = function(player, vel, keepHorizontal)
 		Bounce:FireClient(player, vel, keepHorizontal, "stomp")
+	end,
+	-- a Puffer's gust: shoves the bunny without hurting it
+	gust = function(player, vel)
+		local char = player.Character
+		if char and char:GetAttribute("Move") ~= "fly" then
+			Bounce:FireClient(player, vel, false, "gust")
+		end
 	end,
 	hurt = function(player, fromPos)
 		hurt(player, fromPos, nil, false)
@@ -860,8 +893,21 @@ RunService.Heartbeat:Connect(function(dt)
 			local pos = root.Position
 			local hit = workspace:Raycast(pos, Vector3.new(0, -3.4, 0), floorParams)
 			local inWater = pos.Y < Config.WaterLevel - 2.5 or (hit and hit.Instance:GetAttribute("Water"))
+			-- Cloudtop Heights: falling off the clouds catches you and puts you back
+			if pos.Y > Config.SkyFloor then
+				st.sky = true
+			elseif st.sky and pos.Y < Config.SkyFloor - 25 then
+				st.sky = false
+				if st.safe.Position.Y > Config.SkyFloor and player.Character:GetAttribute("Move") ~= "fly" then
+					inWater = true
+				end
+			end
 			if inWater then
-				Effect:FireAllClients("splash", Vector3.new(pos.X, hit and hit.Position.Y or Config.WaterLevel, pos.Z))
+				if pos.Y > Config.WaterLevel + 20 then
+					Effect:FireAllClients("poof", pos) -- caught by the clouds, not the sea
+				else
+					Effect:FireAllClients("splash", Vector3.new(pos.X, hit and hit.Position.Y or Config.WaterLevel, pos.Z))
+				end
 				hurt(player, pos, Vector3.zero, true)
 				if hum.Health > 0 then
 					player.Character:PivotTo(st.safe)
@@ -908,16 +954,23 @@ RunService.Heartbeat:Connect(function(dt)
 
 			-- regions visited (for the SIGHTSEER stamp)
 			local region = "meadow"
-			if pos.Z > 470 and math.abs(pos.X) < 320 then
+			if pos.Y > Config.SkyFloor - 60 then
+				region = "sky"
+			elseif pos.Z > 470 and math.abs(pos.X) < 320 then
 				region = "castle"
 			elseif pos.Z < -470 then
 				region = "peaks"
 			elseif pos.X > 460 then
 				region = "canyon"
+			elseif pos.X < -470 then
+				region = "forest"
 			end
 			slot.regions = slot.regions or {}
 			if not slot.regions[region] then
 				slot.regions[region] = true
+				if region == "sky" then
+					awardStamp(player, "sky")
+				end
 				if count(slot.regions) >= #Config.Regions then
 					awardStamp(player, "regions")
 				end
@@ -930,7 +983,8 @@ RunService.Heartbeat:Connect(function(dt)
 				end
 			end
 			for _, w in ipairs(Config.Warps) do
-				if not slot.warps[w.id] and (Vector3.new(pos.X, 0, pos.Z) - Vector3.new(w.pos.X, 0, w.pos.Z)).Magnitude < 16 then
+				if not slot.warps[w.id] and (Vector3.new(pos.X, 0, pos.Z) - Vector3.new(w.pos.X, 0, w.pos.Z)).Magnitude < 16
+					and math.abs(pos.Y - w.pos.Y) < 30 then
 					slot.warps[w.id] = true
 					push(player, { kind = "warpfound", id = w.id })
 				end

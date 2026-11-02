@@ -286,6 +286,23 @@ local function hatSpec(id)
 		end
 		add("ball", CF(x + 0.15, 3.95, 0.5), V(0.35, 0.35, 0.35), P.Gold, SMOOTH)
 		add("ball", CF(0.5, 1.55, -0.62), V(0.32, 0.32, 0.12), P.Gold, SMOOTH)
+	elseif id == "leafcap" then
+		-- a big forest leaf worn like a cap, stalk and all
+		local leaf = Color3.fromRGB(96, 128, 64)
+		add("ball", CF(0, 0.92, 0.1) * ROT(-0.12, 0, 0), V(2.9, 0.75, 3.2), leaf, SMOOTH)
+		add("ball", CF(0, 0.98, -1.25) * ROT(-0.35, 0, 0), V(1.7, 0.3, 1.4), leaf, SMOOTH)
+		add("block", CF(0, 1.32, 0.15), V(0.12, 0.08, 3.0), Color3.fromRGB(150, 172, 96), SMOOTH)
+		add("block", CF(0.1, 1.45, 1.6) * ROT(0.6, 0, 0), V(0.16, 0.16, 0.9), Color3.fromRGB(110, 86, 54), SMOOTH)
+	elseif id == "pilot" then
+		-- leather flying cap with goggles
+		local leather = Color3.fromRGB(122, 84, 56)
+		add("ball", CF(0, 0.9, 0.05), V(2.8, 1.6, 2.75), leather, Enum.Material.Leather)
+		for _, sx in ipairs({ -1, 1 }) do
+			add("block", CF(sx * 1.3, 0.3, 0.1) * ROT(0, 0, sx * 0.12), V(0.25, 1.1, 0.9), leather, Enum.Material.Leather)
+			add("cyl", CF(sx * 0.5, 1.2, -1.15) * ROT(0, math.pi / 2, 0), V(0.3, 0.75, 0.75), Color3.fromRGB(140, 120, 70), Enum.Material.Metal)
+			add("cyl", CF(sx * 0.5, 1.2, -1.32) * ROT(0, math.pi / 2, 0), V(0.06, 0.55, 0.55), Color3.fromRGB(150, 190, 200), Enum.Material.Glass)
+		end
+		add("block", CF(0, 1.25, -1.1), V(1.0, 0.18, 0.2), Color3.fromRGB(60, 46, 36), SMOOTH)
 	elseif id == "crown" then
 		add("cyl", vcyl(CF(0, 1.0, 0)), V(0.42, 2.1, 2.1), P.Gold, Enum.Material.Metal)
 		for i = 0, 7 do

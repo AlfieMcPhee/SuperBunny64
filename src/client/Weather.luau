@@ -4,6 +4,8 @@
 	  peaks   gentle snowfall
 	  canyon  wind-blown dust
 	  castle  rising embers
+	  forest  drifting fireflies
+	  sky     wisps of cloud streaming past
 	Uses particle textures that ship with Roblox, so no uploads are needed.
 ]]
 
@@ -35,6 +37,16 @@ local STYLES = {
 		texture = FIRE, rate = 14, lifetime = NumberRange.new(3, 5), speed = NumberRange.new(2, 5),
 		accel = Vector3.new(0.5, 2.5, 0.2), size = 0.3, color = Color3.fromRGB(255, 150, 70), light = 1,
 		offset = Vector3.new(0, -8, 0), dir = Enum.NormalId.Top, spread = 40,
+	},
+	forest = {
+		texture = SPARK, rate = 9, lifetime = NumberRange.new(4, 7), speed = NumberRange.new(0.3, 1.2),
+		accel = Vector3.new(0.3, 0.15, -0.2), size = 0.3, color = Color3.fromRGB(214, 236, 130), light = 1,
+		offset = Vector3.new(0, 2, 0), dir = Enum.NormalId.Top, spread = 180,
+	},
+	sky = {
+		texture = SMOKE, rate = 3, lifetime = NumberRange.new(5, 7), speed = NumberRange.new(6, 9),
+		accel = Vector3.new(1.5, 0, 0.5), size = 6, color = Color3.fromRGB(240, 244, 252), light = 0.1,
+		offset = Vector3.new(-30, -6, 0), dir = Enum.NormalId.Right, spread = 25, transparency = 0.82,
 	},
 }
 

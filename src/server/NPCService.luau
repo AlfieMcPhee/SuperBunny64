@@ -130,13 +130,111 @@ function BUILD.knightbug(model, base)
 	end
 end
 
+function BUILD.fox(model, base)
+	local orange = rgb(176, 104, 58)
+	local cream = rgb(230, 216, 190)
+	part(model, base * CFrame.new(0, 2.1, 0), Vector3.new(2.8, 3.6, 2.6), rgb(84, 100, 66), true, Enum.Material.Fabric) -- ranger coat
+	part(model, base * CFrame.new(0, 2.2, -0.85), Vector3.new(1.6, 2.4, 1.0), cream, true)
+	part(model, base * CFrame.new(0, 4.3, -0.1), Vector3.new(2.6, 2.2, 2.4), orange, true)
+	part(model, base * CFrame.new(0, 4.0, -1.3), Vector3.new(1.3, 1.0, 1.6), cream, true) -- muzzle
+	part(model, base * CFrame.new(0, 4.25, -2.1), Vector3.new(0.45, 0.4, 0.4), P.Button, true)
+	for _, sx in ipairs({ -1, 1 }) do
+		part(model, base * CFrame.new(sx * 0.85, 5.6, 0) * CFrame.Angles(0, 0, sx * -0.25), Vector3.new(0.9, 1.5, 0.4), orange) -- ears
+		part(model, base * CFrame.new(sx * 0.85, 5.55, -0.12) * CFrame.Angles(0, 0, sx * -0.25), Vector3.new(0.5, 1.0, 0.2), rgb(60, 40, 34))
+	end
+	eyes(model, base, 4.6, -1.1, 0.55, 0.38)
+	-- ranger hat
+	part(model, base * CFrame.new(0, 5.5, -0.1) * CFrame.Angles(0, 0, math.rad(90)), Vector3.new(0.15, 3.4, 3.4), rgb(150, 124, 80), false).Shape = Enum.PartType.Cylinder
+	part(model, base * CFrame.new(0, 5.9, -0.1), Vector3.new(1.7, 0.9, 1.7), rgb(150, 124, 80), true)
+	-- big bushy tail
+	part(model, base * CFrame.new(0.6, 1.4, 1.8) * CFrame.Angles(0.7, 0.3, 0), Vector3.new(1.4, 3.4, 1.4), orange, true)
+	part(model, base * CFrame.new(0.95, 0.4, 2.8) * CFrame.Angles(0.7, 0.3, 0), Vector3.new(1.0, 1.2, 1.0), cream, true)
+	-- lantern
+	local lamp = part(model, base * CFrame.new(-1.7, 2.2, -0.6), Vector3.new(0.7, 0.9, 0.7), rgb(255, 214, 140), false, Enum.Material.Neon)
+	local light = Instance.new("PointLight")
+	light.Range = 14
+	light.Brightness = 1.2
+	light.Color = rgb(255, 200, 130)
+	light.Parent = lamp
+end
+
+function BUILD.owl(model, base)
+	local brown = rgb(120, 96, 72)
+	part(model, base * CFrame.new(0, 2.6, 0), Vector3.new(3.6, 4.6, 3.2), brown, true)
+	part(model, base * CFrame.new(0, 2.3, -1.0), Vector3.new(2.6, 3.2, 1.4), rgb(214, 196, 160), true)
+	for _, sx in ipairs({ -1, 1 }) do
+		part(model, base * CFrame.new(sx * 0.75, 4.1, -1.25), Vector3.new(1.4, 1.4, 0.4), rgb(236, 226, 200), true) -- face discs
+		part(model, base * CFrame.new(sx * 1.85, 2.6, 0) * CFrame.Angles(0, 0, sx * 0.2), Vector3.new(0.7, 3.2, 2.4), rgb(100, 78, 58), true) -- wings
+		part(model, base * CFrame.new(sx * 0.9, 5.2, -0.1) * CFrame.Angles(0, 0, sx * -0.4), Vector3.new(0.45, 1.0, 0.4), brown) -- ear tufts
+	end
+	eyes(model, base, 4.1, -1.5, 0.75, 0.6)
+	part(model, base * CFrame.new(0, 3.6, -1.55), Vector3.new(0.4, 0.6, 0.4), rgb(214, 160, 70), true)
+	-- spectacles and a mortarboard
+	for _, sx in ipairs({ -1, 1 }) do
+		local lens = part(model, base * CFrame.new(sx * 0.75, 4.1, -1.65), Vector3.new(1.1, 1.1, 0.08), rgb(170, 140, 70), false, Enum.Material.Metal)
+		lens.Transparency = 0.55
+	end
+	part(model, base * CFrame.new(0, 5.0, 0), Vector3.new(2.2, 0.6, 2.2), rgb(40, 38, 44))
+	part(model, base * CFrame.new(0, 5.35, 0) * CFrame.Angles(0, math.pi / 4, 0), Vector3.new(3.0, 0.15, 3.0), rgb(40, 38, 44))
+	part(model, base * CFrame.new(1.2, 4.9, -0.6), Vector3.new(0.12, 1.0, 0.12), P.Gold)
+	for _, sx in ipairs({ -1, 1 }) do
+		part(model, base * CFrame.new(sx * 0.6, 0.25, -0.4), Vector3.new(0.9, 0.4, 1.0), rgb(214, 160, 70), true)
+	end
+end
+
+function BUILD.bird(model, base)
+	local blue = rgb(76, 104, 140)
+	part(model, base * CFrame.new(0, 2.4, 0), Vector3.new(3.0, 3.8, 3.0), rgb(130, 64, 56), true, Enum.Material.Fabric) -- captain's coat
+	for k = 0, 2 do
+		part(model, base * CFrame.new(0, 1.6 + k * 0.8, -1.45), Vector3.new(0.3, 0.3, 0.2), P.Gold, true, Enum.Material.Metal)
+	end
+	part(model, base * CFrame.new(0, 4.5, -0.1), Vector3.new(2.6, 2.4, 2.5), blue, true)
+	part(model, base * CFrame.new(0, 4.3, -1.0), Vector3.new(1.6, 1.4, 0.8), rgb(226, 220, 206), true)
+	part(model, base * CFrame.new(0, 4.3, -1.75) * CFrame.Angles(-0.2, 0, 0), Vector3.new(0.7, 0.5, 1.2), rgb(220, 170, 70), true) -- beak
+	eyes(model, base, 4.85, -1.15, 0.55, 0.4)
+	-- eyepatch and tricorn hat
+	part(model, base * CFrame.new(0.55, 4.85, -1.3), Vector3.new(0.6, 0.6, 0.1), rgb(30, 26, 26), true)
+	part(model, base * CFrame.new(0, 5.4, 1.1) * CFrame.Angles(0.5, 0, 0), Vector3.new(1.9, 0.1, 1.0), rgb(30, 26, 26))
+	part(model, base * CFrame.new(0, 5.8, 0), Vector3.new(2.8, 0.9, 2.2), rgb(40, 34, 34), true)
+	part(model, base * CFrame.new(0, 5.6, -0.2) * CFrame.Angles(0, 0, math.rad(90)), Vector3.new(0.15, 3.4, 3.0), rgb(40, 34, 34)).Shape = Enum.PartType.Cylinder
+	part(model, base * CFrame.new(0, 6.1, -1.0), Vector3.new(0.7, 0.4, 0.1), P.Gold, false, Enum.Material.Metal)
+	for _, sx in ipairs({ -1, 1 }) do
+		part(model, base * CFrame.new(sx * 1.6, 2.6, 0.2) * CFrame.Angles(0, 0, sx * 0.25), Vector3.new(0.6, 2.6, 1.8), blue, true)
+		part(model, base * CFrame.new(sx * 0.5, 0.2, -0.3), Vector3.new(0.5, 0.3, 1.0), rgb(220, 170, 70), true)
+	end
+	part(model, base * CFrame.new(0, 2.2, 1.7) * CFrame.Angles(-0.6, 0, 0), Vector3.new(1.4, 1.8, 0.3), blue) -- tail feathers
+	-- telescope
+	part(model, base * CFrame.new(1.9, 3.1, -0.8) * CFrame.Angles(0, 0, math.rad(90)) * CFrame.Angles(0.3, 0, 0), Vector3.new(2.0, 0.35, 0.35), P.Gold, false, Enum.Material.Metal).Shape = Enum.PartType.Cylinder
+end
+
+function BUILD.sheep(model, base)
+	local wool = rgb(236, 236, 240)
+	for i = 0, 7 do
+		local a = i / 8 * math.pi * 2
+		part(model, base * CFrame.new(math.cos(a) * 1.4, 2.4 + math.sin(a * 2) * 0.3, math.sin(a) * 1.3), Vector3.new(2.4, 2.2, 2.4), wool, true)
+	end
+	part(model, base * CFrame.new(0, 2.6, 0), Vector3.new(3.8, 3.2, 3.8), wool, true)
+	part(model, base * CFrame.new(0, 3.9, 0), Vector3.new(2.6, 1.6, 2.6), wool, true)
+	part(model, base * CFrame.new(0, 2.9, -2.1), Vector3.new(1.6, 1.9, 1.5), rgb(70, 66, 74), true) -- face
+	eyes(model, base, 3.15, -2.8, 0.38, 0.32)
+	for _, sx in ipairs({ -1, 1 }) do
+		part(model, base * CFrame.new(sx * 1.05, 3.2, -1.9) * CFrame.Angles(0, 0, sx * 0.9), Vector3.new(0.4, 1.0, 0.25), rgb(70, 66, 74), true) -- ears
+		part(model, base * CFrame.new(sx * 0.4, 2.4, -2.75), Vector3.new(0.35, 0.2, 0.1), rgb(214, 150, 160), true) -- blush
+	end
+	for _, l in ipairs({ { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } }) do
+		part(model, base * CFrame.new(l[1], 0.5, l[2]), Vector3.new(0.5, 1.0, 0.5), rgb(70, 66, 74))
+	end
+end
+
 local function build(def, spec)
 	local model = Instance.new("Model")
 	model.Name = "NPC_" .. def.id
 	local flatFacing = (def.facing * Vector3.new(1, 0, 1)).Unit
 	local base = CFrame.lookAt(def.pos, def.pos + flatFacing) -- front (-Z) faces `facing`
-	if spec.kind == "granny" then
-		local bunny = BunnyModel.BuildPreview({ fur = 4, accent = 5, hat = "flowers", neck = "scarf" })
+	if spec.kind == "granny" or spec.kind == "mayor" then
+		local look = spec.kind == "granny" and { fur = 4, accent = 5, hat = "flowers", neck = "scarf" }
+			or { fur = 2, accent = 1, hat = "tophat", neck = "bell" }
+		local bunny = BunnyModel.BuildPreview(look)
 		bunny:PivotTo(base * CFrame.new(0, 2.6, 0))
 		for _, d in ipairs(bunny:GetDescendants()) do
 			if d:IsA("BasePart") then

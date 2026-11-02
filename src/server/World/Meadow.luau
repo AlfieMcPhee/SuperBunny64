@@ -31,7 +31,7 @@ function Meadow.Build(B)
 	-- keep gameplay spots and the three exit corridors flat
 	local keepFlat = {
 		{ V(0, 0, 60), 34 }, { V(-60, 0, -40), 30 }, { V(-130, 0, -120), 60 }, { V(110, 0, 140), 32 },
-		{ V(140, 0, -90), 68 }, { V(12, 0, 40), 10 }, { V(-24, 0, 44), 12 },
+		{ V(140, 0, -90), 68 }, { V(12, 0, 40), 10 }, { V(-24, 0, 44), 12 }, { V(-145, 0, 125), 28 },
 	}
 	local function flatOK(p, radius)
 		if p.Magnitude + radius > 200 then
@@ -89,7 +89,7 @@ function Meadow.Build(B)
 	----------------------------------------------------------------- spawn
 	local spawnPos = V(0, 0, 60)
 	B.cyl(0, -0.5, 60, 7, 0.9, P.Stone, Enum.Material.Slate)
-	B.sign(V(12, 0, 40), V(-0.5, 0, 0.85).Unit, "CARROT MEADOW", "North: Peaks / East: Canyon / South: Castle")
+	B.sign(V(12, 0, 40), V(-0.5, 0, 0.85).Unit, "CARROT MEADOW", "N: Peaks / E: Canyon / S: Castle / W: Woods")
 	B.carrotRing(spawnPos + V(0, 3, 0), 22, 8)
 	B.fence(V(-30, 0, 90), V(-10, 0, 98))
 	B.fence(V(-10, 0, 98), V(12, 0, 98))
@@ -369,8 +369,54 @@ function Meadow.Build(B)
 		B.sign(V(16, 0, 214), V(0, 0, -1), "INFERNAL CASTLE", "10 golden carrots open the gate")
 	end
 
+	----------------------------------------------------------------- the beanstalk (up to Cloudtop Heights)
+	do
+		local bx, bz = -145, 120
+		local STALK = Color3.fromRGB(92, 128, 70)
+		local STALK_DARK = Color3.fromRGB(70, 104, 56)
+		local base = B.cyl(bx, -0.6, bz, 7, 1.4, STALK_DARK, Enum.Material.Grass)
+		base.Name = "BeanstalkBase"
+		base:SetAttribute("Beanstalk", true)
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "BeanstalkPrompt"
+		prompt.ActionText = "Climb"
+		prompt.ObjectText = "The Beanstalk"
+		prompt.KeyboardKeyCode = Enum.KeyCode.F
+		prompt.GamepadKeyCode = Enum.KeyCode.ButtonY
+		prompt.MaxActivationDistance = 14
+		prompt.RequiresLineOfSight = false
+		prompt.HoldDuration = 0.4
+		prompt.Parent = base
+		-- two twisting stalks climbing up into a cloud bank
+		for k = 0, 1 do
+			for i = 0, 29 do
+				local a = i * 0.45 + k * math.pi
+				local y = i * 10
+				local p0 = V(bx + math.cos(a) * 2.2, y, bz + math.sin(a) * 2.2)
+				local p1 = V(bx + math.cos(a + 0.45) * 2.2, y + 10.5, bz + math.sin(a + 0.45) * 2.2)
+				B.make("Part", {
+					Size = V(3.2, 3.2, (p1 - p0).Magnitude + 1),
+					CFrame = CFrame.lookAt((p0 + p1) / 2, p1),
+					Color = k == 0 and STALK or STALK_DARK,
+					Material = Enum.Material.Grass,
+				})
+				if i % 2 == k then
+					B.blob(CFrame.new(p0 + V(math.cos(a) * 4, 0, math.sin(a) * 4)) * CFrame.Angles(0, -a, 0.35), V(7, 0.6, 4), STALK_DARK)
+				end
+			end
+		end
+		for i = 0, 5 do
+			local a = i / 6 * math.pi * 2
+			B.blob(V(bx + math.cos(a) * 18, 300 + (i % 2) * 6, bz + math.sin(a) * 14), V(46, 14, 34), Color3.fromRGB(232, 234, 240))
+		end
+		B.sign(V(bx + 12, 0, bz + 6), V(1, 0, 0.3).Unit, "THE BEANSTALK", Config.SkyGate .. " golden carrots to climb")
+		B.checkpointFlag("beanstalk")
+		B.carrotRing(V(bx, 3, bz), 12, 6)
+	end
+
 	----------------------------------------------------------------- friends & heart crates
 	B.npc("shellby", 30, 66, V(-1, 0, 0.2))
+	B.npc("burrows", -24, 44, V(1, 0, 0.4))
 	B.npc("clover", -54, -24, V(0, 0, 1))
 	B.npc("nibbles", 8, 518, V(-1, 0, -0.3))
 	B.crate(26, 48)
@@ -382,7 +428,7 @@ function Meadow.Build(B)
 	for _, p in ipairs({ V(-80, 0, 70), V(60, 0, 50), V(-150, 0, 20), V(160, 0, 60) }) do
 		B.enemy("toad", p, "meadow", 26)
 	end
-	for _, p in ipairs({ V(-40, 0, -80), V(90, 0, -10), V(-110, 0, 110) }) do
+	for _, p in ipairs({ V(-40, 0, -80), V(90, 0, -10), V(-96, 0, 92) }) do
 		B.enemy("puffshroom", p, "meadow")
 	end
 	B.enemy("bat", V(-96, 40, -112), "meadow")
@@ -399,7 +445,7 @@ function Meadow.Build(B)
 	----------------------------------------------------------------- scatter scenery
 	local avoid = {
 		{ V(0, 0, 60), 30 }, { V(-60, 0, -40), 26 }, { V(-130, 0, -120), 56 }, { V(110, 0, 140), 28 },
-		{ V(140, 0, -90), 64 }, { V(12, 0, 40), 8 }, { V(-24, 0, 44), 10 },
+		{ V(140, 0, -90), 64 }, { V(12, 0, 40), 8 }, { V(-24, 0, 44), 10 }, { V(-145, 0, 125), 26 },
 	}
 	local function ok(p, extra)
 		if p.Magnitude > 205 then
