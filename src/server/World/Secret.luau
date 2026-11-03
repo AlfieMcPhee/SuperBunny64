@@ -22,9 +22,9 @@ local Config = require(Shared:WaitForChild("Config"))
 
 local Secret = {}
 
-local STONE = Color3.fromRGB(70, 62, 82)
+local STONE = Color3.fromRGB(112, 102, 134)
 local STONE_DARK = Color3.fromRGB(46, 40, 56)
-local TRIM = Color3.fromRGB(110, 96, 130)
+local TRIM = Color3.fromRGB(150, 118, 214) -- glowing edges, so every landing reads clearly
 local CRYSTAL = Color3.fromRGB(160, 120, 230)
 
 function Secret.Build(B)
@@ -37,7 +37,7 @@ function Secret.Build(B)
 		thick = thick or 4
 		local p = B.block(CFrame.new(cx, top - thick / 2, cz), V(sx, thick, sz), color or STONE, M.Slate)
 		-- a lighter rim so edges read clearly in the dark
-		local rim = B.block(CFrame.new(cx, top - 0.2, cz), V(sx + 0.3, 0.5, sz + 0.3), TRIM, M.Slate, B.decor)
+		local rim = B.block(CFrame.new(cx, top - 0.2, cz), V(sx + 0.3, 0.5, sz + 0.3), TRIM, M.Neon, B.decor)
 		rim.CanCollide = false
 		rim.CanQuery = false
 		-- jagged rock hanging underneath
@@ -100,7 +100,7 @@ function Secret.Build(B)
 	crystal(V(X - 8, 158, -1507))
 	crystal(V(X + 8, 158, -1523))
 	B.block(CFrame.new(X, 157, -1545), V(3, 2, 40), STONE, M.Slate)
-	local beamRim = B.block(CFrame.new(X, 157.9, -1545), V(3.3, 0.4, 40), TRIM, M.Slate, B.decor)
+	local beamRim = B.block(CFrame.new(X, 157.9, -1545), V(3.3, 0.4, 40), TRIM, M.Neon, B.decor)
 	beamRim.CanCollide = false
 	for i, f in ipairs({ { -1534, 2.0 }, { -1547, -2.4 }, { -1559, 2.8 } }) do
 		B.firebar(V(X, 159.6, f[1]), 6, f[2], i * 1.3, true) -- no post: jump over the middle
@@ -131,7 +131,7 @@ function Secret.Build(B)
 	slab(X, 158, -1662, 24, 26, 5)
 	for _, side in ipairs({ -1, 1 }) do
 		B.block(CFrame.new(X + side * 5.5, 190, -1667), V(2, 64, 14), STONE, M.Slate)
-		local stripe = B.block(CFrame.new(X + side * 4.45, 190, -1667), V(0.1, 64, 1), TRIM, M.Slate, B.decor)
+		local stripe = B.block(CFrame.new(X + side * 4.45, 190, -1667), V(0.1, 64, 1), TRIM, M.Neon, B.decor)
 		stripe.CanCollide = false
 	end
 	B.block(CFrame.new(X, 190, -1675), V(13, 64, 2), STONE_DARK, M.Slate) -- back wall
@@ -147,7 +147,7 @@ function Secret.Build(B)
 	--------------------------------------------------------------- The Gaps (long jumps)
 	for i, z in ipairs({ -1737, -1771, -1805 }) do
 		B.cyl(X, 222 - 60, z, 3.5, 60, STONE, M.Slate)
-		B.cyl(X, 221.6, z, 3.8, 0.5, TRIM, M.Slate)
+		B.cyl(X, 221.6, z, 3.8, 0.5, TRIM, M.Neon)
 		if i == 3 then
 			B.golden("underburrow", V(X, 227, z))
 		else
@@ -163,7 +163,7 @@ function Secret.Build(B)
 		B.info.bossArenas = B.info.bossArenas or {}
 		B.info.bossArenas.shade = { center = c, radius = r }
 		B.cyl(c.X, c.Y - 6, c.Z, r, 6, STONE, M.Slate)
-		B.cyl(c.X, c.Y - 0.3, c.Z, r + 0.4, 0.5, TRIM, M.Slate)
+		B.cyl(c.X, c.Y - 0.3, c.Z, r + 0.4, 0.5, TRIM, M.Neon)
 		B.cyl(c.X, c.Y - 0.05, c.Z, 6, 0.2, CRYSTAL, M.Neon).CanCollide = false
 		local under = B.blob(c - V(0, 18, 0), V(r * 1.6, 26, r * 1.6), STONE_DARK, M.Slate)
 		under.CastShadow = false

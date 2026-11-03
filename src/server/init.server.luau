@@ -590,6 +590,9 @@ SetOptions.OnServerEvent:Connect(function(player, options)
 	if type(options.tips) == "boolean" then
 		o.tips = options.tips
 	end
+	if options.camera == "follow" or options.camera == "free" then
+		o.camera = options.camera
+	end
 	if type(options.assist) == "boolean" and options.assist ~= o.assist then
 		o.assist = options.assist
 		local _, hum = getRoot(player)

@@ -82,9 +82,11 @@ local LOOKS = {
 		indoor = Color3.fromRGB(110, 118, 100), tint = Color3.fromRGB(236, 246, 226), sat = -0.2, clock = 17.6, brightness = 1.9,
 	},
 	-- the Underburrow: deep violet dark, crystals and torches doing the lighting
+	-- (bright enough to read every jump: the mood comes from the violet haze,
+	-- the glowing edges and the crystals, not from darkness)
 	secret = {
-		fog = Color3.fromRGB(34, 26, 52), fogStart = 30, fogEnd = 420, ambient = Color3.fromRGB(96, 86, 124),
-		indoor = Color3.fromRGB(96, 86, 124), tint = Color3.fromRGB(226, 214, 255), sat = -0.15, clock = 0.4, brightness = 1.2,
+		fog = Color3.fromRGB(78, 64, 110), fogStart = 140, fogEnd = 760, ambient = Color3.fromRGB(176, 166, 198),
+		indoor = Color3.fromRGB(176, 166, 198), tint = Color3.fromRGB(238, 230, 255), sat = -0.05, clock = 14.2, brightness = 2.1,
 	},
 	-- bright and clear above the clouds; the fog is the cloud sea far below
 	sky = {

@@ -75,8 +75,14 @@ function BugModel.Build(skinName, scale, origin)
 		part(CF(sx * 0.72, 3.25, -4.15), V(0.38, 0.38, 0.38), skin.body, true)
 		-- legs: thigh angled up and out, shin down to the ground
 		for i, z in ipairs({ -1.4, 0.3, 1.9 }) do
-			local thigh = part(CF(sx * 2.05, 1.65, z) * R(0, 0, sx * 0.45), V(1.5, 0.34, 0.34), skin.body)
-			local shin = part(CF(sx * 2.75, 0.75, z + (i - 2) * 0.25) * R(0, 0, sx * -0.15), V(0.3, 1.6, 0.3), skin.body)
+			local thigh = part(CF(sx * 2.05, 1.65, z) * R(0, 0, sx * 0.45), V(1.5, 0.34, 0.34), skin.body, false, nil, "Leg")
+			local shin = part(CF(sx * 2.75, 0.75, z + (i - 2) * 0.25) * R(0, 0, sx * -0.15), V(0.3, 1.6, 0.3), skin.body, false, nil, "Leg")
+			-- the client scuttles the legs about a hip at (side * 1.3, 1.65, z)
+			for _, p in ipairs({ thigh, shin }) do
+				p:SetAttribute("LegSide", sx)
+				p:SetAttribute("LegIndex", i)
+				p:SetAttribute("LegZ", z * scale)
+			end
 			table.insert(legs, { thigh = thigh, shin = shin, side = sx, index = i })
 		end
 	end

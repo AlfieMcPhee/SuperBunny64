@@ -108,6 +108,28 @@ class Parser:
         self.t = toks
         self.p = 0
         self.loop_depth = 0
+        # scope tracking, to catch names used before their `local` declaration
+        self.scopes = [set()]
+        self.top_locals = {}  # name -> line of its file-level `local`
+        self.global_uses = []  # (name, line) for names not resolved to any local
+
+    # scopes -----------------------------------------------------------------------
+    def push(self):
+        self.scopes.append(set())
+
+    def pop(self):
+        self.scopes.pop()
+
+    def declare(self, name, line):
+        self.scopes[-1].add(name)
+        if len(self.scopes) == 1 and name not in self.top_locals:
+            self.top_locals[name] = line
+
+    def use(self, name, line):
+        for scope in reversed(self.scopes):
+            if name in scope:
+                return
+        self.global_uses.append((name, line))
 
     # helpers -----------------------------------------------------------------
     def peek(self, k=0):
@@ -191,13 +213,19 @@ class Parser:
                 self.p += 1
                 self.expr()
                 self.expect("then", "after 'if' condition")
+                self.push()
                 self.block({"elseif", "else", "end"})
+                self.pop()
                 while self.accept("elseif"):
                     self.expr()
                     self.expect("then", "after 'elseif' condition")
+                    self.push()
                     self.block({"elseif", "else", "end"})
+                    self.pop()
                 if self.accept("else"):
+                    self.push()
                     self.block({"end"})
+                    self.pop()
                 self.expect("end", "to close 'if'")
                 return
             if kw == "while":
@@ -205,18 +233,22 @@ class Parser:
                 self.expr()
                 self.expect("do", "after 'while' condition")
                 self.loop_depth += 1
+                self.push()
                 self.block({"end"})
+                self.pop()
                 self.loop_depth -= 1
                 self.expect("end", "to close 'while'")
                 return
             if kw == "do":
                 self.p += 1
+                self.push()
                 self.block({"end"})
+                self.pop()
                 self.expect("end", "to close 'do'")
                 return
             if kw == "for":
                 self.p += 1
-                self.name()
+                names = [(self.peek()[2], self.name())]
                 self.maybe_type()
                 if self.accept("="):
                     self.expr()
@@ -226,48 +258,60 @@ class Parser:
                         self.expr()
                 else:
                     while self.accept(","):
-                        self.name()
+                        names.append((self.peek()[2], self.name()))
                         self.maybe_type()
                     self.expect("in", "in generic 'for'")
                     self.explist()
                 self.expect("do", "in 'for'")
                 self.loop_depth += 1
+                self.push()
+                for line, n in names:
+                    self.declare(n, line)
                 self.block({"end"})
+                self.pop()
                 self.loop_depth -= 1
                 self.expect("end", "to close 'for'")
                 return
             if kw == "repeat":
                 self.p += 1
                 self.loop_depth += 1
+                self.push()
                 self.block({"until"})
                 self.loop_depth -= 1
                 self.expect("until", "to close 'repeat'")
                 self.expr()
+                self.pop()
                 return
             if kw == "function":
                 self.p += 1
-                self.name()
+                line = self.peek()[2]
+                self.use(self.name(), line)
+                method = False
                 while self.accept("."):
                     self.name()
                 if self.accept(":"):
                     self.name()
+                    method = True
                 if not self.is_("("):
                     self.error("function names can only be dotted names (use `t[\"x\"] = function() ... end` for other keys)")
-                self.funcbody()
+                self.funcbody(method)
                 return
             if kw == "local":
                 self.p += 1
                 if self.accept("function"):
-                    self.name()
+                    line = self.peek()[2]
+                    self.declare(self.name(), line)
                     self.funcbody()
                     return
-                self.name()
+                names = [(self.peek()[2], self.name())]
                 self.maybe_type()
                 while self.accept(","):
-                    self.name()
+                    names.append((self.peek()[2], self.name()))
                     self.maybe_type()
                 if self.accept("="):
                     self.explist()
+                for line, n in names:
+                    self.declare(n, line)
                 return
             if kw == "break":
                 if self.loop_depth == 0:
@@ -308,14 +352,18 @@ class Parser:
         if kind != "call":
             self.error("syntax error: expected a statement (an assignment or a function call)")
 
-    def funcbody(self):
+    def funcbody(self, method=False):
         self.expect("(", "to start function parameters")
+        self.push()
+        if method:
+            self.declare("self", self.peek()[2])
         if not self.is_(")"):
             while True:
                 if self.accept("..."):
                     self.maybe_type()
                     break
-                self.name()
+                line = self.peek()[2]
+                self.declare(self.name(), line)
                 self.maybe_type()
                 if not self.accept(","):
                     break
@@ -326,6 +374,7 @@ class Parser:
         self.loop_depth = 0
         self.block({"end"})
         self.loop_depth = saved
+        self.pop()
         self.expect("end", "to close 'function'")
 
     # expressions --------------------------------------------------------------------
@@ -386,6 +435,7 @@ class Parser:
         tok = self.peek()
         if tok[0] == "name":
             self.p += 1
+            self.use(tok[1], tok[2])
             return "var"
         if self.accept("("):
             self.expr()
@@ -450,6 +500,13 @@ def check(path):
     if parser.peek()[0] != "eof":
         tok = parser.peek()
         raise LuauSyntaxError(f"line {tok[2]}: unexpected '{tok[1]}'")
+    # A name that resolves to no local where it's used, but IS declared as a
+    # file-level local later on, is a forward reference: at run time it reads
+    # a nil global and crashes. (Declare it earlier, e.g. `local thing` at the top.)
+    for name, line in parser.global_uses:
+        decl = parser.top_locals.get(name)
+        if decl is not None and decl > line:
+            raise LuauSyntaxError(f"line {line}: '{name}' is used before its local declaration on line {decl}")
 
 
 def main():

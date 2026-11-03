@@ -28,6 +28,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local ContextActionService = game:GetService("ContextActionService")
+local TweenService = game:GetService("TweenService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
 local Config = require(Shared:WaitForChild("Config"))
@@ -74,6 +75,9 @@ local stamina, staminaMax = 3, 3
 local staminaRegenAt = 0
 local zipFolder = nil -- workspace.Bunny64World.Ziplines
 local zip = nil -- { a, b, dir, len, t, speed } while riding a zipline
+local zipAlign, zipOrient, zipPulley, zipSound -- the ride's constraints, pulley and whirr
+local releaseZip -- (defined with the zipline code below)
+local rollPower = 1 -- 0.6 for a tired roll
 local zipReleasedAt = -10
 local lastLaunch = 0
 local COYOTE_TIME = 0.13
@@ -255,8 +259,9 @@ local function startRoll()
 		return
 	end
 	local tired = not spend("roll")
+	rollPower = tired and 0.6 or 1
 	moveDir = facingDir()
-	moveSpeed = Config.RollSpeed * (tired and 0.6 or 1)
+	moveSpeed = Config.RollSpeed * rollPower
 	setMove("roll")
 	setPlane(moveDir * moveSpeed)
 	Effects.Play("Roll", 0.9)
@@ -319,11 +324,7 @@ local function crouch()
 		return
 	end
 	if move == "zip" and zip then
-		-- drop off the zipline
-		zip = nil
-		zipReleasedAt = os.clock()
-		setMove("")
-		humanoid:ChangeState(HST.Freefall)
+		releaseZip(false) -- drop off the zipline
 		return
 	end
 	if move == "" or move == "longjump" or move == "dive" or move == "backflip" then
@@ -392,17 +393,7 @@ local function tryJumpMove()
 		return
 	end
 	if move == "zip" and zip then
-		-- let go of the zipline with a hop
-		local v = zip.dir * zip.speed * 0.8
-		zip = nil
-		zipReleasedAt = now
-		setMove("")
-		usedDouble = false
-		flipAt = now
-		sendMove("flip")
-		humanoid:ChangeState(HST.Freefall)
-		root.AssemblyLinearVelocity = v + Vector3.new(0, 46, 0)
-		Effects.Play("Jump", 1.1)
+		releaseZip(true) -- let go of the zipline with a hop
 		return
 	end
 	if move == "dive" then
@@ -504,6 +495,10 @@ local function onCharacter(char)
 	root = char:WaitForChild("HumanoidRootPart")
 	move = ""
 	zip = nil
+	if zipPulley then
+		zipPulley:Destroy()
+	end
+	zipAlign, zipOrient, zipPulley, zipSound = nil, nil, nil, nil
 	usedDouble = false
 	divedSinceGround = false
 	sentMove = nil
@@ -746,208 +741,212 @@ local function bounceOff(part)
 	Effects.Burst(part.Position + Vector3.new(0, part.Size.Y / 2, 0), part.Color, 10, 8, 0.7, 3)
 end
 
-local function step(dt)
-	if not root or not humanoid or humanoid.Health <= 0 or flying then
+--------------------------------------------------------------------------------
+-- Ziplines: grab the rope and ride a pulley down it
+--------------------------------------------------------------------------------
+
+local DEFAULT_FOV = 65
+
+local function cameraFov(fov, time)
+	local cam = workspace.CurrentCamera
+	if cam then
+		TweenService:Create(cam, TweenInfo.new(time or 0.4, Enum.EasingStyle.Sine), { FieldOfView = fov }):Play()
+	end
+end
+
+local function buildPulley()
+	local model = Instance.new("Model")
+	model.Name = "ZipPulley"
+	local function piece(size, color, material, cf, shape)
+		local p = Instance.new("Part")
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.Size = size
+		p.Color = color
+		p.Material = material
+		if shape then
+			p.Shape = shape
+		end
+		p:SetAttribute("Offset", cf)
+		p.Parent = model
+		return p
+	end
+	local metal = Color3.fromRGB(70, 72, 80)
+	-- a wheel riding on the cable, a housing, and a bar to hang from
+	local wheel = piece(Vector3.new(0.5, 1.3, 1.3), Color3.fromRGB(40, 40, 46), Enum.Material.Metal, CFrame.new(), Enum.PartType.Cylinder)
+	piece(Vector3.new(0.9, 1.6, 0.35), Config.Palette.Roof, Enum.Material.SmoothPlastic, CFrame.new(0, -0.35, 0))
+	for _, sx in ipairs({ -1, 1 }) do
+		piece(Vector3.new(0.18, 1.4, 0.18), metal, Enum.Material.Metal, CFrame.new(sx * 0.7, -1.15, 0))
+	end
+	piece(Vector3.new(1.9, 0.26, 0.26), Config.Palette.WoodLight, Enum.Material.Wood, CFrame.new(0, -1.85, 0))
+	model.PrimaryPart = wheel
+	model.Parent = Effects.Folder
+	return model
+end
+
+local function placePulley(at, along)
+	if not zipPulley then
 		return
 	end
-	local now = os.clock()
-	local onGround = grounded()
-	if onGround then
-		lastGrounded = now
-		airborneSince = nil
-	elseif not airborneSince then
-		airborneSince = now
-	end
-
-	local vel = root.AssemblyLinearVelocity
-	if emote then
-		local moving = humanoid.MoveDirection.Magnitude > 0.1 or not onGround or move ~= ""
-		if moving or (emote == "wave" and now - emoteStart > 2.6) then
-			endEmote()
+	local flat = Vector3.new(along.X, 0, along.Z)
+	local base = flat.Magnitude > 0.01 and CFrame.lookAt(at, at + flat) or CFrame.new(at)
+	local spin = CFrame.Angles(os.clock() * -18, 0, 0)
+	for _, p in ipairs(zipPulley:GetChildren()) do
+		local off = p:GetAttribute("Offset") or CFrame.new()
+		if p == zipPulley.PrimaryPart then
+			-- the wheel turns as you ride (cylinders spin about their X axis)
+			p.CFrame = base * CFrame.Angles(0, math.pi / 2, 0) * spin
+		else
+			p.CFrame = base * off
 		end
 	end
-	-- variable jump height: letting go early cuts the jump short
-	if jumpRising then
-		if vel.Y <= 0 then
-			jumpRising = false
-		elseif move == "" and vel.Y > 16 and not jumpHeld() then
-			root.AssemblyLinearVelocity = Vector3.new(vel.X, vel.Y * 0.45, vel.Z)
-			jumpRising = false
+end
+
+local function endZip()
+	zip = nil
+	zipReleasedAt = os.clock()
+	for _, inst in ipairs({ zipAlign, zipOrient, zipPulley, zipSound }) do
+		if inst then
+			inst:Destroy()
 		end
 	end
-	-- stamina refills on the ground
-	if onGround and stamina < staminaMax and now > staminaRegenAt and move ~= "roll" and move ~= "slide" then
-		local before = math.floor(stamina)
-		stamina = math.min(staminaMax, stamina + Config.Stamina.regen * dt)
-		if math.floor(stamina) ~= before or stamina >= staminaMax then
-			staminaChanged()
-		end
+	zipAlign, zipOrient, zipPulley, zipSound = nil, nil, nil, nil
+	cameraFov(DEFAULT_FOV, 0.6)
+	if move == "zip" then
+		setMove("")
 	end
+	if humanoid then
+		humanoid:ChangeState(HST.Freefall)
+	end
+end
 
-	-- running builds up to full speed; hard turns at speed skid
-	local boost = character:GetAttribute("SpeedBoost") or 1
-	local top = Config.WalkSpeed * boost
-	local md = humanoid.MoveDirection
-	local hv = Vector3.new(vel.X, 0, vel.Z)
-	if move == "crouch" then
-		runSpeed = 7
-	elseif now < staggerUntil then
-		runSpeed = Config.RunStartSpeed * 0.5
-	elseif md.Magnitude < 0.1 then
-		if onGround then
-			runSpeed = Config.RunStartSpeed * boost
-		end
-	elseif onGround and move == "" and hv.Magnitude > top * 0.7 and md:Dot(hv.Unit) < -0.55 and now > skidUntil then
-		skidUntil = now + 0.2
-		runSpeed = 4
-		Effects.Play("Roll", 1.6)
-		Effects.Burst(root.Position - Vector3.new(0, 2.5, 0), DUST, 6, 4, 0.5, 1)
-		sendMove("skid")
-		task.delay(0.22, function()
-			if move == "" and sentMove == "skid" then
-				sendMove("")
-			end
-		end)
-	elseif now > skidUntil then
-		local rate = Config.RunAccel * (onGround and 1 or 0.6)
-		runSpeed = math.min(top, math.max(runSpeed, Config.RunStartSpeed * boost) + rate * dt)
-	end
-	runSpeed = math.max(runSpeed, 1)
-	if math.abs(humanoid.WalkSpeed - runSpeed) > 0.05 then
-		humanoid.WalkSpeed = runSpeed
-	end
+local function startZip(a, b, t)
+	local ab = b - a
+	zip = { a = a, b = b, dir = ab.Unit, len = ab.Magnitude, t = t, speed = math.max(flatVelocity().Magnitude * 0.6, 20) }
+	setMove("zip")
+	usedDouble = false
+	jumpRising = false
+	humanoid:ChangeState(HST.Physics)
+	local att = root:FindFirstChild("MoveAttachment")
+	zipAlign = Instance.new("AlignPosition")
+	zipAlign.Mode = Enum.PositionAlignmentMode.OneAttachment
+	zipAlign.Attachment0 = att
+	zipAlign.RigidityEnabled = true
+	zipAlign.Position = root.Position
+	zipAlign.Parent = root
+	zipOrient = Instance.new("AlignOrientation")
+	zipOrient.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	zipOrient.Attachment0 = att
+	zipOrient.RigidityEnabled = true
+	zipOrient.CFrame = root.CFrame.Rotation
+	zipOrient.Parent = root
+	zipPulley = buildPulley()
+	zipSound = Instance.new("Sound")
+	zipSound.SoundId = Config.Sounds.Roll.id
+	zipSound.Looped = true
+	zipSound.Volume = 0.3
+	zipSound.PlaybackSpeed = 0.6
+	zipSound.Parent = root
+	zipSound:Play()
+	cameraFov(DEFAULT_FOV + 9, 0.8)
+	Effects.Play("Stomp", 1.4)
+	Effects.Burst(a:Lerp(b, t), Color3.fromRGB(255, 220, 150), 6, 4, 0.4, 0, Enum.Material.Neon)
+end
 
-	-- heavier falls (not while pounding or riding the wind)
-	if not onGround and vel.Y < 0 and move ~= "pound" and not inWind then
-		local vy = math.max(vel.Y - Config.Gravity * (Config.FallGravityMult - 1) * dt, -Config.MaxFallSpeed)
-		root.AssemblyLinearVelocity = Vector3.new(vel.X, vy, vel.Z)
-		vel = root.AssemblyLinearVelocity
+-- Let go of the zipline: a hop (jump) or a drop (crouch)
+releaseZip = function(hop)
+	if not zip then
+		return
 	end
-
-	-- running dust
-	if onGround and move == "" and now > nextDust and Vector3.new(vel.X, 0, vel.Z).Magnitude > 20 then
-		nextDust = now + 0.16
-		Effects.Burst(root.Position - Vector3.new(0, 2.5, 0), DUST, 2, 2, 0.45, 0.8)
+	local v = zip.dir * zip.speed
+	endZip()
+	if hop then
+		flipAt = os.clock()
+		sendMove("flip")
+		root.AssemblyLinearVelocity = Vector3.new(v.X * 0.85, 46, v.Z * 0.85)
+		Effects.Play("Jump", 1.1)
+	else
+		root.AssemblyLinearVelocity = Vector3.new(v.X * 0.6, math.min(v.Y, 0), v.Z * 0.6)
 	end
-	lastVy = vel.Y
+end
 
-	-- landed on a bounce pad?
-	if root.AssemblyLinearVelocity.Y < 5 then
-		local under = floorHit()
-		if under and under.Instance:GetAttribute("Bounce") and root.Position.Y - under.Position.Y < 3.6 then
-			bounceOff(under.Instance)
-		end
-	end
-
-	-- spring pads fling you
-	if root.AssemblyLinearVelocity.Y < 5 and now - lastLaunch > 0.5 then
-		local under = floorHit()
-		local launchVel = under and under.Instance:GetAttribute("Launch")
-		if typeof(launchVel) == "Vector3" and root.Position.Y - under.Position.Y < 3.8 then
-			lastLaunch = now
-			launch(launchVel, "bounce")
-			flipAt = now
-			sendMove("flip")
-			if Vector3.new(launchVel.X, 0, launchVel.Z).Magnitude > 5 then
-				-- carry the throw exactly, so the pad lands you where it aims
-				moveDir = Vector3.new(launchVel.X, 0, launchVel.Z).Unit
-				moveSpeed = Vector3.new(launchVel.X, 0, launchVel.Z).Magnitude
-				setMove("spring")
-				setPlane(moveDir * moveSpeed)
-				usedDouble = false
-			end
-			Effects.Play("Boing", 1.1)
-			Effects.Burst(under.Position, under.Instance.Color, 10, 6, 0.6, 4)
-		end
-	end
-
-	-- ziplines: jump up into the rope to grab it
+local function stepZipGrab(now)
 	if not zipFolder then
 		local world = workspace:FindFirstChild("Bunny64World")
 		zipFolder = world and world:FindFirstChild("Ziplines")
-	end
-	if zipFolder and not zip and (move == "" or move == "longjump" or move == "dive" or move == "walljump" or move == "backflip")
-		and now - zipReleasedAt > 0.6 then
-		local hands = root.Position + Vector3.new(0, 3, 0)
-		for _, rope in ipairs(zipFolder:GetChildren()) do
-			local a, b = rope:GetAttribute("ZipA"), rope:GetAttribute("ZipB")
-			if typeof(a) == "Vector3" and typeof(b) == "Vector3" then
-				local ab = b - a
-				local t = math.clamp((hands - a):Dot(ab) / ab:Dot(ab), 0, 1)
-				local closest = a + ab * t
-				if t < 0.95 and (hands - closest).Magnitude < 2.8 then
-					zip = { a = a, b = b, dir = ab.Unit, len = ab.Magnitude, t = t, speed = math.max(flatVelocity().Magnitude * 0.6, 18) }
-					setMove("zip")
-					humanoid:ChangeState(HST.Physics)
-					Effects.Play("Roll", 1.3)
-					break
-				end
-			end
+		if not zipFolder then
+			return
 		end
 	end
-	if move == "zip" and zip then
-		local slope = math.max(0, -zip.dir.Y)
-		zip.speed = math.min(Config.ZipSpeed, zip.speed + (14 + 60 * slope) * dt)
-		zip.t += zip.speed * dt / zip.len
-		local flatDir = Vector3.new(zip.dir.X, 0, zip.dir.Z)
-		if zip.t >= 1 then
-			-- off the end, flying
-			local v = zip.dir * zip.speed
-			zip = nil
-			zipReleasedAt = now
-			setMove("")
-			usedDouble = false
-			humanoid:ChangeState(HST.Freefall)
-			root.AssemblyLinearVelocity = Vector3.new(v.X, math.max(v.Y, 0) + 20, v.Z)
-		else
-			local p = zip.a:Lerp(zip.b, zip.t) - Vector3.new(0, 3.3, 0)
-			root.CFrame = flatDir.Magnitude > 0.01 and CFrame.lookAt(p, p + flatDir) or CFrame.new(p)
-			root.AssemblyLinearVelocity = zip.dir * zip.speed
-			if now > nextDust then
-				nextDust = now + 0.08
-				Effects.Burst(zip.a:Lerp(zip.b, zip.t), Color3.fromRGB(255, 220, 150), 1, 2, 0.3, -1, Enum.Material.Neon)
-			end
-		end
+	if zip or now - zipReleasedAt < 0.6 then
 		return
 	end
-
-	-- rising winds and gusts (Cloudtop Heights): parts in the world's Winds folder
-	if not windFolder then
-		local world = workspace:FindFirstChild("Bunny64World")
-		windFolder = world and world:FindFirstChild("Winds")
+	if not (move == "" or move == "longjump" or move == "dive" or move == "walljump" or move == "backflip" or move == "spring") then
+		return
 	end
-	local nowInWind = false
-	if windFolder then
-		local pos = root.Position
-		for _, w in ipairs(windFolder:GetChildren()) do
-			local force = w:GetAttribute("Wind")
-			if typeof(force) == "Vector3" and w:IsA("BasePart") then
-				local lp = w.CFrame:PointToObjectSpace(pos)
-				local half = w.Size / 2
-				if math.abs(lp.X) < half.X and math.abs(lp.Z) < half.Z and lp.Y > -half.Y - 3 and lp.Y < half.Y then
-					nowInWind = true
-					local v = root.AssemblyLinearVelocity
-					local vy = force.Y > 0 and math.max(v.Y, force.Y) or v.Y
-					local push = Vector3.new(force.X, 0, force.Z) * math.clamp(dt * 3, 0, 1)
-					root.AssemblyLinearVelocity = Vector3.new(v.X + push.X, vy, v.Z + push.Z)
-					if not inWind and force.Y > 0 then
-						humanoid:ChangeState(HST.Freefall)
-						jumpRising = false
-						if move == "pound" then
-							setMove("")
-						end
-					end
-					usedDouble = false -- the wind gives you your double jump back
-				end
+	local hands = root.Position + Vector3.new(0, 3, 0)
+	for _, rope in ipairs(zipFolder:GetChildren()) do
+		local a, b = rope:GetAttribute("ZipA"), rope:GetAttribute("ZipB")
+		if typeof(a) == "Vector3" and typeof(b) == "Vector3" then
+			local ab = b - a
+			local t = math.clamp((hands - a):Dot(ab) / ab:Dot(ab), 0, 1)
+			if t < 0.94 and (hands - (a + ab * t)).Magnitude < 3.4 then
+				startZip(a, b, t)
+				return
 			end
 		end
 	end
-	inWind = nowInWind
+end
 
+local function stepZipRide(dt, now)
+	if not zipAlign or not zipAlign.Parent then
+		endZip()
+		return
+	end
+	-- gravity pulls you faster on steep lines; there's always a little push
+	local slope = math.max(0, -zip.dir.Y)
+	zip.speed = math.min(Config.ZipSpeed, zip.speed + (12 + 70 * slope) * dt)
+	zip.t += zip.speed * dt / zip.len
+	if zip.t >= 1 then
+		-- off the end: flung forward with all that speed
+		local v = zip.dir * zip.speed
+		endZip()
+		flipAt = now
+		sendMove("flip")
+		root.AssemblyLinearVelocity = Vector3.new(v.X, math.max(v.Y, 0) + 24, v.Z)
+		Effects.Play("DoubleJump", 1.1)
+		return
+	end
+	local ropePoint = zip.a:Lerp(zip.b, zip.t)
+	local flatDir = Vector3.new(zip.dir.X, 0, zip.dir.Z)
+	zipAlign.Position = ropePoint - Vector3.new(0, 3.3, 0)
+	if flatDir.Magnitude > 0.01 then
+		zipOrient.CFrame = CFrame.lookAt(Vector3.zero, flatDir.Unit)
+	end
+	root.AssemblyLinearVelocity = zip.dir * zip.speed
+	placePulley(ropePoint, zip.dir)
+	if zipSound then
+		zipSound.PlaybackSpeed = 0.6 + zip.speed / Config.ZipSpeed * 0.9
+	end
+	if now > nextDust then
+		nextDust = now + 0.05
+		Effects.Burst(ropePoint, Color3.fromRGB(255, 214, 140), 2, 3, 0.25, -2, Enum.Material.Neon)
+	end
+end
+
+--------------------------------------------------------------------------------
+-- The per-frame update, in protected pieces: the core moves always run first,
+-- and if an optional system (stamina, pads, wind...) ever errors, it reports
+-- once in the Output window and the rest of the bunny keeps working.
+--------------------------------------------------------------------------------
+
+local function stepMoves(dt, now, onGround)
 	if move == "" and onGround and sentMove == "flip" then
 		sendMove("")
 	end
-
 	if move == "roll" or move == "longjump" or move == "slide" then
 		if now - moveStart > 0.1 then
 			followActual()
@@ -962,7 +961,7 @@ local function step(dt)
 		end
 	elseif move == "roll" then
 		local t = now - moveStart
-		moveSpeed = Config.RollSpeed * (1 - 0.35 * t / Config.RollTime)
+		moveSpeed = Config.RollSpeed * rollPower * (1 - 0.35 * t / Config.RollTime)
 		setPlane(moveDir * moveSpeed)
 		if t > Config.RollTime then
 			lastRollEnd = now
@@ -973,10 +972,9 @@ local function step(dt)
 		local md = humanoid.MoveDirection
 		if md.Magnitude > 0.1 then
 			local want = Vector3.new(md.X, 0, md.Z).Unit
-			local blend = math.clamp(dt * 2.4, 0, 1)
-			moveDir = (moveDir:Lerp(want, blend)).Unit
+			moveDir = (moveDir:Lerp(want, math.clamp(dt * 2.4, 0, 1))).Unit
 		end
-		moveSpeed = math.max(moveSpeed - 9 * dt, 26)
+		moveSpeed = math.max(moveSpeed - 9 * dt, math.min(moveSpeed, 26))
 		setPlane(moveDir * moveSpeed)
 		if onGround and t > 0.15 then
 			setMove("")
@@ -984,9 +982,9 @@ local function step(dt)
 		end
 	elseif move == "dive" then
 		local t = now - moveStart
-		local mdir = humanoid.MoveDirection
-		if mdir.Magnitude > 0.1 then
-			moveDir = (moveDir:Lerp(Vector3.new(mdir.X, 0, mdir.Z).Unit, math.clamp(dt * 2, 0, 1))).Unit
+		local md = humanoid.MoveDirection
+		if md.Magnitude > 0.1 then
+			moveDir = (moveDir:Lerp(Vector3.new(md.X, 0, md.Z).Unit, math.clamp(dt * 2, 0, 1))).Unit
 		end
 		moveSpeed = math.max(moveSpeed - 14 * dt, 32)
 		setPlane(moveDir * moveSpeed)
@@ -1000,14 +998,9 @@ local function step(dt)
 		elseif t > 3 then
 			setMove("")
 		end
-	elseif move == "spring" then
+	elseif move == "spring" or move == "backflip" then
 		setPlane(moveDir * moveSpeed)
 		if (onGround and now - moveStart > 0.15) or now - moveStart > 4 then
-			setMove("")
-		end
-	elseif move == "backflip" then
-		setPlane(moveDir * moveSpeed)
-		if (onGround and now - moveStart > 0.15) or now - moveStart > 3 then
 			setMove("")
 		end
 	elseif move == "crouch" then
@@ -1034,8 +1027,7 @@ local function step(dt)
 			end
 			local speed = v.Magnitude
 			if onChute then
-				-- chutes keep you moving forward, fast
-				speed = math.clamp(speed + 22 * dt, 30, Config.ChuteSpeed)
+				speed = math.clamp(speed + 22 * dt, 30, Config.ChuteSpeed) -- chutes keep you moving, fast
 			else
 				speed = math.max(0, speed - Config.SlideFriction * dt)
 			end
@@ -1071,6 +1063,191 @@ local function step(dt)
 			startSlide(true)
 		end
 	end
+end
+
+local function stepStamina(dt, now, onGround)
+	if onGround and stamina < staminaMax and now > staminaRegenAt and move ~= "roll" and move ~= "slide" then
+		local before = math.floor(stamina * 4)
+		stamina = math.min(staminaMax, stamina + Config.Stamina.regen * dt)
+		if math.floor(stamina * 4) ~= before or stamina >= staminaMax then
+			staminaChanged()
+		end
+	end
+end
+
+-- running builds up to full speed; hard turns at speed skid
+local function stepRunSpeed(dt, now, onGround, vel)
+	local boost = character:GetAttribute("SpeedBoost") or 1
+	local top = Config.WalkSpeed * boost
+	local md = humanoid.MoveDirection
+	local hv = Vector3.new(vel.X, 0, vel.Z)
+	if move == "crouch" then
+		runSpeed = 7
+	elseif now < staggerUntil then
+		runSpeed = Config.RunStartSpeed * 0.5
+	elseif md.Magnitude < 0.1 then
+		if onGround then
+			runSpeed = Config.RunStartSpeed * boost
+		end
+	elseif onGround and move == "" and hv.Magnitude > top * 0.7 and md:Dot(hv.Unit) < -0.55 and now > skidUntil then
+		skidUntil = now + 0.2
+		runSpeed = 4
+		Effects.Play("Roll", 1.6)
+		Effects.Burst(root.Position - Vector3.new(0, 2.5, 0), DUST, 6, 4, 0.5, 1)
+		sendMove("skid")
+		task.delay(0.22, function()
+			if move == "" and sentMove == "skid" then
+				sendMove("")
+			end
+		end)
+	elseif now > skidUntil then
+		local rate = Config.RunAccel * (onGround and 1 or 0.6)
+		runSpeed = math.min(top, math.max(runSpeed, Config.RunStartSpeed * boost) + rate * dt)
+	end
+	runSpeed = math.max(runSpeed, 1)
+	if math.abs(humanoid.WalkSpeed - runSpeed) > 0.05 then
+		humanoid.WalkSpeed = runSpeed
+	end
+end
+
+-- heavier falls (not while pounding or riding the wind)
+local function stepGravity(dt, onGround)
+	local vel = root.AssemblyLinearVelocity
+	if not onGround and vel.Y < 0 and move ~= "pound" and not inWind then
+		local vy = math.max(vel.Y - Config.Gravity * (Config.FallGravityMult - 1) * dt, -Config.MaxFallSpeed)
+		root.AssemblyLinearVelocity = Vector3.new(vel.X, vy, vel.Z)
+	end
+end
+
+-- mushrooms bounce you up; spring pads throw you where they aim
+local function stepPads(now)
+	if root.AssemblyLinearVelocity.Y >= 5 then
+		return
+	end
+	local under = floorHit()
+	if not under then
+		return
+	end
+	local part = under.Instance
+	local height = root.Position.Y - under.Position.Y
+	if part:GetAttribute("Bounce") and height < 3.6 then
+		bounceOff(part)
+		return
+	end
+	local launchVel = part:GetAttribute("Launch")
+	if typeof(launchVel) == "Vector3" and height < 3.8 and now - lastLaunch > 0.5 then
+		lastLaunch = now
+		launch(launchVel, "bounce")
+		flipAt = now
+		sendMove("flip")
+		local flat = Vector3.new(launchVel.X, 0, launchVel.Z)
+		if flat.Magnitude > 5 then
+			-- carry the throw exactly, so the pad lands you where it aims
+			moveDir = flat.Unit
+			moveSpeed = flat.Magnitude
+			setMove("spring")
+			setPlane(moveDir * moveSpeed)
+			usedDouble = false
+		end
+		Effects.Play("Boing", 1.1)
+		Effects.Burst(under.Position, part.Color, 10, 6, 0.6, 4)
+	end
+end
+
+-- rising winds and gusts (Cloudtop Heights): parts in the world's Winds folder
+local function stepWind(dt)
+	if not windFolder then
+		local world = workspace:FindFirstChild("Bunny64World")
+		windFolder = world and world:FindFirstChild("Winds")
+	end
+	local nowInWind = false
+	if windFolder then
+		local pos = root.Position
+		for _, w in ipairs(windFolder:GetChildren()) do
+			local force = w:GetAttribute("Wind")
+			if typeof(force) == "Vector3" and w:IsA("BasePart") then
+				local lp = w.CFrame:PointToObjectSpace(pos)
+				local half = w.Size / 2
+				if math.abs(lp.X) < half.X and math.abs(lp.Z) < half.Z and lp.Y > -half.Y - 3 and lp.Y < half.Y then
+					nowInWind = true
+					local v = root.AssemblyLinearVelocity
+					local vy = force.Y > 0 and math.max(v.Y, force.Y) or v.Y
+					local push = Vector3.new(force.X, 0, force.Z) * math.clamp(dt * 3, 0, 1)
+					root.AssemblyLinearVelocity = Vector3.new(v.X + push.X, vy, v.Z + push.Z)
+					if not inWind and force.Y > 0 then
+						humanoid:ChangeState(HST.Freefall)
+						jumpRising = false
+						if move == "pound" then
+							setMove("")
+						end
+					end
+					usedDouble = false -- the wind gives you your double jump back
+				end
+			end
+		end
+	end
+	inWind = nowInWind
+end
+
+local warnedParts = {}
+local function safely(name, fn, ...)
+	local ok, err = pcall(fn, ...)
+	if not ok and not warnedParts[name] then
+		warnedParts[name] = true
+		warn(string.format("[Bunny64] Movement (%s): %s", name, tostring(err)))
+	end
+end
+
+local function step(dt)
+	if not root or not humanoid or humanoid.Health <= 0 or flying then
+		return
+	end
+	dt = math.min(dt, 0.1)
+	local now = os.clock()
+	local onGround = grounded()
+	if onGround then
+		lastGrounded = now
+		airborneSince = nil
+	elseif not airborneSince then
+		airborneSince = now
+	end
+	local vel = root.AssemblyLinearVelocity
+	if emote then
+		local moving = humanoid.MoveDirection.Magnitude > 0.1 or not onGround or move ~= ""
+		if moving or (emote == "wave" and now - emoteStart > 2.6) then
+			endEmote()
+		end
+	end
+	-- variable jump height: letting go early cuts the jump short
+	if jumpRising then
+		if vel.Y <= 0 then
+			jumpRising = false
+		elseif move == "" and vel.Y > 16 and not jumpHeld() then
+			root.AssemblyLinearVelocity = Vector3.new(vel.X, vel.Y * 0.45, vel.Z)
+			jumpRising = false
+		end
+	end
+
+	if move == "zip" then
+		safely("zipline", stepZipRide, dt, now)
+		lastVy = root.AssemblyLinearVelocity.Y
+		return
+	end
+	safely("moves", stepMoves, dt, now, onGround)
+	safely("stamina", stepStamina, dt, now, onGround)
+	safely("run", stepRunSpeed, dt, now, onGround, vel)
+	safely("gravity", stepGravity, dt, onGround)
+	safely("pads", stepPads, now)
+	safely("zipgrab", stepZipGrab, now)
+	safely("wind", stepWind, dt)
+
+	-- running dust
+	vel = root.AssemblyLinearVelocity
+	if onGround and move == "" and now > nextDust and Vector3.new(vel.X, 0, vel.Z).Magnitude > 20 then
+		nextDust = now + 0.16
+		Effects.Burst(root.Position - Vector3.new(0, 2.5, 0), DUST, 2, 2, 0.45, 0.8)
+	end
+	lastVy = vel.Y
 end
 
 --------------------------------------------------------------------------------

@@ -174,4 +174,46 @@ for f in sorted(ROOT.rglob("*.luau")):
         print(f"SYNTAX {f.relative_to(ROOT.parent)}: {e}")
 if not syntax_ok:
     sys.exit(1)
+
+# ---------------------------------------------------------------------------
+# Fourth pass: calls between modules. `Hud.SetStamina(...)` in one file must
+# match a `function Hud.SetStamina` (or `Hud.SetStamina = ...`) somewhere, or
+# it only fails at run time inside Roblox. Module names are their file names.
+def strip(src):
+    src = re.sub(r"--\[(=*)\[.*?\]\1\]", "", src, flags=re.S)
+    src = re.sub(r"--[^\n]*", "", src)
+    src = re.sub(r"\[(=*)\[.*?\]\1\]", '""', src, flags=re.S)
+    src = re.sub(r'"(\\.|[^"\\\n])*"', '""', src)
+    src = re.sub(r"'(\\.|[^'\\\n])*'", "''", src)
+    return src
+
+files = sorted(ROOT.rglob("*.luau"))
+modules = {}
+for f in files:
+    name = f.stem if f.stem != "init.server" and f.stem != "init.client" else None
+    if name and name[0].isupper():
+        modules[name] = f
+sources = {f: strip(f.read_text()) for f in files}
+defined = {m: set() for m in modules}
+for f, src in sources.items():
+    for m in modules:
+        for member in re.findall(r"\bfunction\s+" + m + r"\.(\w+)", src):
+            defined[m].add(member)
+        for member in re.findall(r"(?<![.\w])" + m + r"\.(\w+)\s*=[^=]", src):
+            defined[m].add(member)
+        for member in re.findall(r"(?<![.\w])" + m + r"\.(\w+)\s*\+=", src):
+            defined[m].add(member)
+api_ok = True
+for f, src in sources.items():
+    for m in modules:
+        # only where this file actually has a local by that name (a require or the module itself)
+        if not re.search(r"\blocal\s+" + m + r"\b", src):
+            continue
+        for lineno, line in enumerate(src.split("\n"), 1):
+            for member in re.findall(r"(?<![.\w])" + m + r"\.(\w+)", line):
+                if member not in defined[m]:
+                    api_ok = False
+                    print(f"API {f.relative_to(ROOT.parent)}:{lineno}: {m}.{member} is not defined in {modules[m].name}")
+if not api_ok:
+    sys.exit(1)
 print("all checks passed")

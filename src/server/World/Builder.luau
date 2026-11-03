@@ -541,12 +541,14 @@ function B.zipline(a, b)
 		B.block(CFrame.new(p.X, gy + h / 2, p.Z), Vector3.new(1.2, h, 1.2), P.Wood, Enum.Material.Wood)
 		B.block(CFrame.new(p.X, p.Y + 1.6, p.Z), Vector3.new(2.4, 0.6, 2.4), P.WoodLight, Enum.Material.Wood)
 	end
+	-- a steel cable
 	local rope = B.make("Part", {
 		Name = "Zipline",
-		Size = Vector3.new(0.35, 0.35, (b - a).Magnitude),
-		CFrame = CFrame.lookAt((a + b) / 2, b),
-		Color = Color3.fromRGB(150, 128, 92),
-		Material = Enum.Material.Fabric,
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new((b - a).Magnitude, 0.32, 0.32),
+		CFrame = CFrame.lookAt((a + b) / 2, b) * CFrame.Angles(0, math.pi / 2, 0),
+		Color = Color3.fromRGB(78, 80, 88),
+		Material = Enum.Material.Metal,
 		CanCollide = false,
 		CanQuery = false,
 		CanTouch = false,
@@ -554,14 +556,29 @@ function B.zipline(a, b)
 	}, B.zips)
 	rope:SetAttribute("ZipA", a)
 	rope:SetAttribute("ZipB", b)
-	-- a little handle waiting at the top
-	B.make("Part", {
-		Size = Vector3.new(1.6, 0.4, 0.4),
-		CFrame = CFrame.lookAt(a, b) * CFrame.new(0, -0.6, -2),
-		Color = Config.Palette.Roof,
-		CanCollide = false,
-		CanQuery = false,
-	}, B.decor)
+	-- a pulley and handle waiting at the top, and a lamp so you can spot it from afar
+	local dir = (b - a).Unit
+	local flat = Vector3.new(dir.X, 0, dir.Z)
+	local face = flat.Magnitude > 0.01 and CFrame.lookAt(a, a + flat) or CFrame.new(a)
+	local parked = face + dir * 2
+	local function deco(size, cf, color, material, shape)
+		return B.make("Part", {
+			Size = size, CFrame = cf, Color = color, Material = material or Enum.Material.Metal,
+			Shape = shape or Enum.PartType.Block, CanCollide = false, CanQuery = false, CastShadow = false,
+		}, B.decor)
+	end
+	deco(Vector3.new(0.5, 1.3, 1.3), parked * CFrame.Angles(0, math.pi / 2, 0), Color3.fromRGB(40, 40, 46), Enum.Material.Metal, Enum.PartType.Cylinder)
+	deco(Vector3.new(0.9, 1.6, 0.35), parked * CFrame.new(0, -0.35, 0), P.Roof, Enum.Material.SmoothPlastic)
+	for _, sx in ipairs({ -1, 1 }) do
+		deco(Vector3.new(0.18, 1.4, 0.18), parked * CFrame.new(sx * 0.7, -1.15, 0), Color3.fromRGB(70, 72, 80))
+	end
+	deco(Vector3.new(1.9, 0.26, 0.26), parked * CFrame.new(0, -1.85, 0), P.WoodLight, Enum.Material.Wood)
+	local lamp = deco(Vector3.new(0.8, 0.8, 0.8), CFrame.new(a + Vector3.new(0, 2.4, 0)), Color3.fromRGB(255, 214, 120), Enum.Material.Neon, Enum.PartType.Ball)
+	local glow = Instance.new("PointLight")
+	glow.Color = Color3.fromRGB(255, 214, 140)
+	glow.Range = 14
+	glow.Brightness = 1.2
+	glow.Parent = lamp
 	return rope
 end
 

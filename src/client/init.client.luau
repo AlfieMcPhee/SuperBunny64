@@ -24,6 +24,7 @@ local Dialogue = require(script:WaitForChild("Dialogue"))
 local PhotoMode = require(script:WaitForChild("PhotoMode"))
 local Weather = require(script:WaitForChild("Weather"))
 local Baddies = require(script:WaitForChild("Baddies"))
+local CameraRig = require(script:WaitForChild("CameraRig"))
 
 local player = Players.LocalPlayer
 
@@ -73,6 +74,7 @@ local function applySnapshot(s)
 	snap = s
 	Menus.SetSnapshot(s)
 	Effects.SetOptions(s.menu.options)
+	CameraRig.SetFollow((s.menu.options or {}).camera ~= "free")
 	AdminPanel.SetAdmin(s.isAdmin)
 	Collectibles.Sync(s.slot)
 	if s.slot then
@@ -413,6 +415,7 @@ Menus.Init({
 	Movement = Movement,
 	Hud = Hud,
 	WorldFX = WorldFX,
+	CameraRig = CameraRig,
 	onPlay = function()
 		WorldFX.ResetRegion()
 		AdminPanel.SetVisible(true)
@@ -452,6 +455,10 @@ Dialogue.Init({
 })
 task.spawn(Shadows.Init)
 Baddies.Init()
+CameraRig.Blocked = function()
+	return Menus.Screen() ~= nil
+end
+CameraRig.Init()
 Weather.Init()
 WorldFX.OnRegion = Weather.SetRegion
 Effects.SetMusic("title")

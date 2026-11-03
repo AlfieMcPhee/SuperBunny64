@@ -119,16 +119,23 @@ function Hud.Init(menuCallback)
 		hearts[i] = h
 	end
 
-	-- stamina: green pips under the hearts (shown while not full)
+	-- stamina: green pips under the hearts (and a ring over the bunny's head while in use)
 	staminaRow = Instance.new("Frame")
 	staminaRow.BackgroundTransparency = 1
-	staminaRow.Size = UDim2.fromOffset(200, 18)
-	staminaRow.Position = UDim2.fromOffset(6, 88)
+	staminaRow.Size = UDim2.fromOffset(280, 20)
+	staminaRow.Position = UDim2.fromOffset(4, 88)
 	staminaRow.Parent = root
 	local sLayout = Instance.new("UIListLayout")
 	sLayout.FillDirection = Enum.FillDirection.Horizontal
+	sLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 	sLayout.Padding = UDim.new(0, 4)
+	sLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	sLayout.Parent = staminaRow
+	local sTitle = UI.label(staminaRow, {
+		Text = "STAMINA", Font = UI.TITLE, TextSize = 14, Size = UDim2.fromOffset(64, 18),
+		TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = Color3.fromRGB(176, 220, 140), Stroke = 2,
+	})
+	sTitle.LayoutOrder = 0
 	for i = 1, Config.Stamina.max do
 		local back = Instance.new("Frame")
 		back.Size = UDim2.fromOffset(28, 12)
@@ -136,6 +143,7 @@ function Hud.Init(menuCallback)
 		back.BorderSizePixel = 0
 		UI.corner(back, 5)
 		UI.stroke(back, 2, UI.Ink, Enum.ApplyStrokeMode.Border)
+		back.LayoutOrder = i
 		back.Parent = staminaRow
 		local fill = Instance.new("Frame")
 		fill.Name = "Fill"
@@ -146,7 +154,6 @@ function Hud.Init(menuCallback)
 		fill.Parent = back
 		staminaPips[i] = back
 	end
-	staminaRow.Visible = false
 
 	goldenLabel = counter(root, P.Gold, 36)
 	carrotLabel = counter(root, P.Carrot, 84)
@@ -428,28 +435,78 @@ function Hud.Pulse(label)
 	TweenService:Create(scale, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 end
 
-local staminaHideAt = 0
+-- A little ring of pips floating over the bunny's head while stamina is in use
+local headGui, headPips = nil, {}
+local function headMeter()
+	local char = player.Character
+	local head = char and char:FindFirstChild("Head")
+	if not head then
+		return nil
+	end
+	if headGui and headGui.Parent and headGui.Adornee == head then
+		return headGui
+	end
+	if headGui then
+		headGui:Destroy()
+	end
+	headGui = Instance.new("BillboardGui")
+	headGui.Name = "Bunny64Stamina"
+	headGui.Size = UDim2.fromOffset(120, 16)
+	headGui.StudsOffsetWorldSpace = Vector3.new(0, 4.2, 0)
+	headGui.AlwaysOnTop = true
+	headGui.LightInfluence = 0
+	headGui.Adornee = head
+	headGui.Enabled = false
+	local row = Instance.new("Frame")
+	row.BackgroundTransparency = 1
+	row.Size = UDim2.fromScale(1, 1)
+	row.Parent = headGui
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Horizontal
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	layout.Padding = UDim.new(0, 3)
+	layout.Parent = row
+	headPips = {}
+	for i = 1, Config.Stamina.max do
+		local back = Instance.new("Frame")
+		back.Size = UDim2.fromOffset(18, 9)
+		back.BackgroundColor3 = Color3.fromRGB(30, 34, 30)
+		back.BorderSizePixel = 0
+		UI.corner(back, 4)
+		UI.stroke(back, 1.5, UI.Ink, Enum.ApplyStrokeMode.Border)
+		back.Parent = row
+		local fill = Instance.new("Frame")
+		fill.Name = "Fill"
+		fill.BorderSizePixel = 0
+		UI.corner(fill, 4)
+		fill.Parent = back
+		headPips[i] = back
+	end
+	headGui.Parent = player:WaitForChild("PlayerGui")
+	return headGui
+end
+
+local function paintPips(pips, cur, max)
+	for i, pip in ipairs(pips) do
+		pip.Visible = i <= max
+		local f = math.clamp(cur - (i - 1), 0, 1)
+		local fill = pip:FindFirstChild("Fill")
+		if fill then
+			fill.Size = UDim2.fromScale(f, 1)
+			fill.BackgroundColor3 = f >= 1 and Color3.fromRGB(134, 196, 96) or Color3.fromRGB(214, 180, 80)
+		end
+	end
+end
+
 function Hud.SetStamina(cur, max)
 	if not staminaRow then
 		return
 	end
-	for i, pip in ipairs(staminaPips) do
-		pip.Visible = i <= max
-		local f = math.clamp(cur - (i - 1), 0, 1)
-		pip.Fill.Size = UDim2.fromScale(f, 1)
-		pip.Fill.BackgroundColor3 = f >= 1 and Color3.fromRGB(134, 196, 96) or Color3.fromRGB(196, 176, 90)
-	end
-	if cur < max - 0.001 then
-		staminaRow.Visible = true
-		staminaHideAt = math.huge
-	elseif staminaHideAt == math.huge then
-		-- linger a moment once full, then tuck away
-		staminaHideAt = os.clock() + 1.2
-		task.delay(1.25, function()
-			if os.clock() >= staminaHideAt then
-				staminaRow.Visible = false
-			end
-		end)
+	paintPips(staminaPips, cur, max)
+	local meter = headMeter()
+	if meter then
+		paintPips(headPips, cur, max)
+		meter.Enabled = gui.Enabled and cur < max - 0.001
 	end
 end
 
@@ -458,7 +515,6 @@ function Hud.StaminaEmpty()
 	if not staminaRow then
 		return
 	end
-	staminaRow.Visible = true
 	for _, pip in ipairs(staminaPips) do
 		pip.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
 		TweenService:Create(pip, TweenInfo.new(0.5), { BackgroundColor3 = Color3.fromRGB(40, 46, 40) }):Play()

@@ -430,7 +430,7 @@ function showOptions(back)
 	clear()
 	UI.backdrop(layer, snap.slot and 0.3 or 0.05)
 	UI.title(layer, "OPTIONS", 60, UDim2.new(0.5, 0, 0, 24), Vector2.new(0.5, 0))
-	local panel = UI.panel(layer, UDim2.fromOffset(560, 500), UDim2.fromScale(0.5, 0.56))
+	local panel = UI.panel(layer, UDim2.fromOffset(560, 560), UDim2.fromScale(0.5, 0.57))
 	local list = Instance.new("Frame")
 	list.BackgroundTransparency = 1
 	list.Size = UDim2.new(1, -40, 1, -40)
@@ -446,28 +446,34 @@ function showOptions(back)
 	local shake = UI.item(list, "", { LayoutOrder = 3 })
 	local tipsRow = UI.item(list, "", { LayoutOrder = 4 })
 	local assistRow = UI.item(list, "", { LayoutOrder = 5 })
+	local cameraRow = UI.item(list, "", { LayoutOrder = 6 })
 	local function refresh()
 		sfx.Text = "SOUND  < " .. bar(o.sfx) .. " >"
 		music.Text = "MUSIC  < " .. bar(o.music) .. " >"
 		shake.Text = "SCREEN SHAKE  < " .. (o.shake and "ON" or "OFF") .. " >"
 		tipsRow.Text = "TIPS  < " .. (o.tips ~= false and "ON" or "OFF") .. " >"
 		assistRow.Text = "ASSIST MODE  < " .. (o.assist and "ON - 5 HEARTS" or "OFF") .. " >"
+		cameraRow.Text = "CAMERA  < " .. (o.camera == "free" and "FREE" or "FOLLOW") .. " >"
 		deps.Effects.SetOptions(o)
+		if deps.CameraRig then
+			deps.CameraRig.SetFollow(o.camera ~= "free")
+		end
 	end
 	refresh()
 	local function finish()
 		deps.Remotes.SetOptions:FireServer(o)
 		back()
 	end
-	local controlsButton = UI.item(list, "CONTROLS", { LayoutOrder = 6 })
-	local backButton = UI.item(list, "BACK", { LayoutOrder = 8 })
-	UI.label(list, { Text = "8-bit music is built in. Add uploaded track ids in Config.Music to replace it.", TextSize = 14, TextWrapped = true, LayoutOrder = 7, Size = UDim2.new(1, 0, 0, 34), Stroke = 2, TextTransparency = 0.3 })
+	local controlsButton = UI.item(list, "CONTROLS", { LayoutOrder = 7 })
+	local backButton = UI.item(list, "BACK", { LayoutOrder = 9 })
+	UI.label(list, { Text = "FOLLOW swings the camera in behind you as you run. 8-bit music is built in; uploaded track ids in Config.Music replace it.", TextSize = 14, TextWrapped = true, LayoutOrder = 8, Size = UDim2.new(1, 0, 0, 34), Stroke = 2, TextTransparency = 0.3 })
 	UI.SetNav({
 		{ button = sfx, left = function() o.sfx = math.max(0, o.sfx - 1); refresh() end, right = function() o.sfx = math.min(10, o.sfx + 1); refresh() end, select = function() o.sfx = (o.sfx + 1) % 11; refresh() end },
 		{ button = music, left = function() o.music = math.max(0, o.music - 1); refresh() end, right = function() o.music = math.min(10, o.music + 1); refresh() end, select = function() o.music = (o.music + 1) % 11; refresh() end },
 		{ button = shake, left = function() o.shake = not o.shake; refresh() end, right = function() o.shake = not o.shake; refresh() end, select = function() o.shake = not o.shake; refresh() end },
 		{ button = tipsRow, left = function() o.tips = o.tips == false; refresh() end, right = function() o.tips = o.tips == false; refresh() end, select = function() o.tips = o.tips == false; refresh() end },
 		{ button = assistRow, left = function() o.assist = not o.assist; refresh() end, right = function() o.assist = not o.assist; refresh() end, select = function() o.assist = not o.assist; refresh() end },
+		{ button = cameraRow, left = function() o.camera = o.camera == "free" and "follow" or "free"; refresh() end, right = function() o.camera = o.camera == "free" and "follow" or "free"; refresh() end, select = function() o.camera = o.camera == "free" and "follow" or "free"; refresh() end },
 		{ button = controlsButton, select = function()
 			deps.Remotes.SetOptions:FireServer(o)
 			Menus.ShowControls(function()
@@ -581,7 +587,7 @@ function Menus.ShowControls(back)
 			if input.UserInputType ~= Enum.UserInputType.Keyboard and not isPad then
 				return
 			end
-			if kc == Enum.KeyCode.Unknown or kc == Enum.KeyCode.Thumbstick1 or kc == Enum.KeyCode.Thumbstick2 then
+			if kc.Value == 0 or kc == Enum.KeyCode.Thumbstick1 or kc == Enum.KeyCode.Thumbstick2 then -- (key code 0 = "no key")
 				return
 			end
 			listening:Disconnect()

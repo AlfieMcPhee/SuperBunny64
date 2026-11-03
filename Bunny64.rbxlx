@@ -2012,6 +2012,9 @@ SetOptions.OnServerEvent:Connect(function(player, options)
 	if type(options.tips) == "boolean" then
 		o.tips = options.tips
 	end
+	if options.camera == "follow" or options.camera == "free" then
+		o.camera = options.camera
+	end
 	if type(options.assist) == "boolean" and options.assist ~= o.assist then
 		o.assist = options.assist
 		local _, hum = getRoot(player)
@@ -4803,8 +4806,14 @@ function BugModel.Build(skinName, scale, origin)
 		part(CF(sx * 0.72, 3.25, -4.15), V(0.38, 0.38, 0.38), skin.body, true)
 		-- legs: thigh angled up and out, shin down to the ground
 		for i, z in ipairs({ -1.4, 0.3, 1.9 }) do
-			local thigh = part(CF(sx * 2.05, 1.65, z) * R(0, 0, sx * 0.45), V(1.5, 0.34, 0.34), skin.body)
-			local shin = part(CF(sx * 2.75, 0.75, z + (i - 2) * 0.25) * R(0, 0, sx * -0.15), V(0.3, 1.6, 0.3), skin.body)
+			local thigh = part(CF(sx * 2.05, 1.65, z) * R(0, 0, sx * 0.45), V(1.5, 0.34, 0.34), skin.body, false, nil, "Leg")
+			local shin = part(CF(sx * 2.75, 0.75, z + (i - 2) * 0.25) * R(0, 0, sx * -0.15), V(0.3, 1.6, 0.3), skin.body, false, nil, "Leg")
+			-- the client scuttles the legs about a hip at (side * 1.3, 1.65, z)
+			for _, p in ipairs({ thigh, shin }) do
+				p:SetAttribute("LegSide", sx)
+				p:SetAttribute("LegIndex", i)
+				p:SetAttribute("LegZ", z * scale)
+			end
 			table.insert(legs, { thigh = thigh, shin = shin, side = sx, index = i })
 		end
 	end
@@ -5653,20 +5662,34 @@ end
 
 return EnemyModels
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000012"><Properties><string name="Name">EnemyService</string><ProtectedString name="Source"><![CDATA[--[[
-	EnemyService - all the baddies.
+	EnemyService - all the baddies' brains and bodies.
 
-	  bug         Grumblebug      wanders, charges            stomp / pound / roll / slide
-	  toad        Hopscotch Toad  hops toward you in arcs     stomp / pound / roll / slide
-	  bat         Flitbat         circles, swoops at you      stomp / roll / long jump / pound wave
-	  thornhog    Thornhog        rolls back and forth        ONLY a ground-pound shockwave (spikes!)
-	  puffshroom  Puffshroom      puffs a ring of spores      stomp it between puffs
+	  bug         Grumblebug      wanders, spots you, charges          stomp / pound / roll / slide / dive
+	  toad        Hopscotch Toad  hops after you in big arcs           stomp / pound / roll / slide / dive
+	  bat         Flitbat         circles, swoops at you               stomp / roll / long jump / pound wave
+	  thornhog    Thornhog        patrols, charges, skids on overshoot ONLY a ground-pound shockwave (spikes!)
+	  puffshroom  Puffshroom      puffs a ring of spores               stomp it between puffs
+	  mossling    Mossling        hides in the moss, pops up, chases   stomp / pound / roll / slide / dive
+	  snapper     Snapper         rooted; rears back, lunges           stomp its head (best while it's tired)
+	  puffer      Puffer          floating cloud, blows you away       stomp it from above
 
-	Defeated baddies come back after Config.BugRespawnSeconds.
+	Ground baddies have real little bodies (like Mario 64's Goombas): velocity
+	with acceleration, gravity, ground snapping and step-ups, feelers for walls
+	and ledges (they won't wander off a cliff), and they lean to the slope
+	they're standing on. Their brains:
+	  wander (walk to a spot near home, pause, repeat)
+	  -> notice (they need to SEE you: line of sight; "!" and a hop)
+	  -> chase (accelerate toward you)
+	  -> give up ("?" and walk home) when you're too far, gone too long, or out of reach.
 
-	The server only runs their brains. Each baddie's transform is published a
-	few times a second as the model's "CF" attribute (plus "St" for its state,
-	"Alert" when it spots you and "Alive"); client/Baddies glides between
+	The server runs brains and bodies at 20 Hz for baddies near a player (the
+	rest sleep). Each baddie's transform is published ~10 times a second as the
+	model's "CF" attribute with its velocity ("Vel"), plus "St" for its state,
+	"Alert" ("!" or "?") and "Alive"; client/Baddies predicts and smooths between
 	updates and adds the snappy animation, so they move smoothly for everyone.
+
+	Defeated baddies come back after Config.BugRespawnSeconds. Bosses can call
+	in extra, temporary ones with EnemyService.Spawn.
 ]]
 
 local Players = game:GetService("Players")
@@ -5688,65 +5711,50 @@ local poundingUntil = {} -- [Player] = os.clock()
 
 local ATTACK_MOVES = { roll = true, slide = true, longjump = true, dive = true }
 local FEET = 2.6 -- HumanoidRootPart centre to feet
+local GRAVITY = 140
+local TICK = 1 / 20 -- brains and bodies run at 20 Hz
+local AWAKE_DIST = 340 -- baddies further than this from every player sleep
+local SEND_EVERY = 0.1
+local SEE_DIST = 300
+local UP = Vector3.new(0, 1, 0)
 
--- Per-kind shape: how tall the centre sits above the ground, contact radius, top height
+-- Per-kind shape: how high the centre sits above the feet, contact radius,
+-- height of the top, body radius for wall/ledge feelers
 local SHAPE = {
-	bug = { lift = 1.8, radius = 4.4, top = 4.0 },
-	toad = { lift = 1.6, radius = 3.6, top = 3.2 },
+	bug = { lift = 1.8, radius = 4.4, top = 4.0, body = 2.8 },
+	toad = { lift = 1.6, radius = 3.6, top = 3.2, body = 2.2 },
 	bat = { lift = 0, below = 1.6, radius = 3.2, top = 1.6 },
-	thornhog = { lift = 2.0, radius = 3.6, top = 4.2 },
+	thornhog = { lift = 2.0, radius = 3.6, top = 4.2, body = 2.3 },
 	puffshroom = { lift = 1.9, radius = 3.4, top = 5.0 },
-	mossling = { lift = 1.6, radius = 3.6, top = 3.4 },
+	mossling = { lift = 1.6, radius = 3.6, top = 3.4, body = 2.2 },
 	snapper = { lift = 1.5, radius = 3.4, top = 3.2 }, -- measured around its head
 	puffer = { lift = 0, below = 1.8, radius = 3.8, top = 3.4 },
 }
 
 -- Kinds that hover at their home point instead of standing on the ground
 local FLYING = { bat = true, puffer = true }
+-- Kinds that never leave their spot
+local ROOTED = { puffshroom = true, snapper = true }
 
-local function groundAt(pos)
-	local hit = workspace:Raycast(pos + Vector3.new(0, 8, 0), Vector3.new(0, -30, 0), rayParams)
-	if hit then
-		return hit.Position.Y, hit.Instance
-	end
-	return nil
+local BEHAVIOUR = {} -- (filled in below)
+
+--------------------------------------------------------------------------------
+-- Small helpers
+--------------------------------------------------------------------------------
+
+local function groundHit(pos, above, depth)
+	return workspace:Raycast(pos + Vector3.new(0, above or 4, 0), Vector3.new(0, -((above or 4) + (depth or 30)), 0), rayParams)
 end
 
-local function walkable(gy, hitPart, fromY, maxStep)
-	if not gy or gy < Config.WaterLevel + 1 or math.abs(gy - fromY) > (maxStep or 3) then
-		return false
-	end
-	if hitPart and (hitPart:GetAttribute("Moving") or hitPart:GetAttribute("Lava") or hitPart:GetAttribute("Water") or hitPart:GetAttribute("Slide")) then
-		return false
-	end
-	return true
+local function badFloor(part)
+	return part and (part:GetAttribute("Lava") or part:GetAttribute("Water") or part:GetAttribute("Slide") or part:GetAttribute("Moving"))
 end
 
 local function center(e)
 	if FLYING[e.kind] then
 		return e.pos
 	end
-	return e.pos + Vector3.new(0, SHAPE[e.kind].lift + (e.lift or 0), 0)
-end
-
-local function place(e, roll, pitch)
-	e.cf = CFrame.new(center(e)) * CFrame.Angles(0, e.yaw, 0) * CFrame.Angles(pitch or 0, 0, roll or 0)
-end
-
--- A "!" over its head (and a little hop) when a baddie spots you
-local function alert(e)
-	local now = os.clock()
-	if now - (e.alertAt or -10) > 3 then
-		e.alertAt = now
-		e.model:SetAttribute("Alert", workspace:GetServerTimeNow())
-	end
-end
-
--- Turn toward a heading at a limited rate, so baddies swing round rather than snap
-local function turnToward(e, yaw, rate, dt)
-	local d = (yaw - e.yaw + math.pi) % (math.pi * 2) - math.pi
-	local step = rate * dt
-	e.yaw += math.clamp(d, -step, step)
+	return e.pos + e.up * (SHAPE[e.kind].lift + (e.lift or 0))
 end
 
 local function lookYaw(from, to)
@@ -5758,7 +5766,164 @@ local function forward(yaw)
 	return Vector3.new(-math.sin(yaw), 0, -math.cos(yaw))
 end
 
+local function flat(v)
+	return Vector3.new(v.X, 0, v.Z)
+end
+
+-- Turn toward a heading at a limited rate, so baddies swing round rather than snap
+local function turnToward(e, yaw, rate, dt)
+	local d = (yaw - e.yaw + math.pi) % (math.pi * 2) - math.pi
+	local step = rate * dt
+	e.yaw += math.clamp(d, -step, step)
+	return math.abs(d) < 0.3
+end
+
+-- Build the published transform: centre, heading, tilted to the ground under it
+local function place(e, pitch, roll)
+	local fwd = forward(e.yaw)
+	local up = FLYING[e.kind] and UP or e.up
+	local right = fwd:Cross(up)
+	if right.Magnitude < 0.01 then
+		right = fwd:Cross(UP)
+	end
+	right = right.Unit
+	local look = up:Cross(right).Unit
+	local cf = CFrame.fromMatrix(center(e), right, up, -look)
+	e.cf = cf * CFrame.Angles(pitch or 0, 0, roll or 0)
+end
+
+-- "!" (spotted you) or "?" (lost you) over its head, with a little hop on "!"
+local function alert(e, kind)
+	local now = os.clock()
+	if now - (e.alertAt or -10) > 1.5 then
+		e.alertAt = now
+		e.model:SetAttribute("AlertKind", kind or "!")
+		e.model:SetAttribute("Alert", workspace:GetServerTimeNow())
+	end
+end
+
+-- Living players (and whether this baddie can see them)
+local function canSee(e, hrp)
+	local eye = center(e) + Vector3.new(0, 1.5, 0)
+	local to = hrp.Position - eye
+	local hit = workspace:Raycast(eye, to, rayParams)
+	return hit == nil or (hit.Position - eye).Magnitude > to.Magnitude - 2
+end
+
+local function nearestPlayer(e, maxDist, maxDy, needSight)
+	local best, bestDist, bestHrp = nil, maxDist, nil
+	local pos = e.pos
+	for _, player in ipairs(Players:GetPlayers()) do
+		local char = player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if hrp and hum and hum.Health > 0 and char:GetAttribute("Move") ~= "talk" then
+			local d = (hrp.Position - pos).Magnitude
+			if d < bestDist and math.abs(hrp.Position.Y - FEET - pos.Y) < maxDy and (not needSight or canSee(e, hrp)) then
+				best, bestDist, bestHrp = player, d, hrp
+			end
+		end
+	end
+	return best, bestHrp, bestDist
+end
+
+--------------------------------------------------------------------------------
+-- Bodies: walk toward a wanted velocity, with gravity, step-ups, wall and
+-- ledge feelers. Returns "wall" / "ledge" when it had to stop.
+--------------------------------------------------------------------------------
+
+local function move(e, wantVel, accel, dt, allowDrop)
+	local shape = SHAPE[e.kind]
+	-- ease the horizontal velocity toward what the brain wants
+	local hv = flat(e.vel)
+	local diff = wantVel - hv
+	local maxStep = accel * dt
+	if diff.Magnitude > maxStep then
+		diff = diff.Unit * maxStep
+	end
+	hv += diff
+
+	local blocked = nil
+	if e.grounded and hv.Magnitude > 0.5 then
+		local dir = hv.Unit
+		local reach = shape.body + 1
+		-- wall feeler at knee and body height
+		for _, h in ipairs({ 0.9, shape.lift + 0.6 }) do
+			local from = e.pos + Vector3.new(0, h, 0)
+			local hit = workspace:Raycast(from, dir * reach, rayParams)
+			if hit and hit.Normal.Y < 0.55 then
+				blocked = "wall"
+				break
+			end
+		end
+		-- ledge feeler: is there ground just ahead, not too far down?
+		if not blocked then
+			local ahead = e.pos + dir * reach
+			local hit = groundHit(ahead, 4, 12)
+			local drop = hit and (e.pos.Y - hit.Position.Y) or math.huge
+			if not hit or badFloor(hit.Instance) or hit.Position.Y < Config.WaterLevel + 1 or drop > (allowDrop or 3.5) then
+				blocked = "ledge"
+			end
+		end
+		if blocked then
+			hv = Vector3.zero
+		end
+	end
+
+	local newPos = e.pos + hv * dt
+	local vy = e.vel.Y
+	-- gravity and ground
+	local hit = groundHit(newPos, 3.2, 6 + math.max(0, -vy * dt))
+	local groundY = hit and hit.Position.Y
+	if e.grounded and groundY and newPos.Y - groundY < 3.5 and groundY - newPos.Y < 3.2 then
+		-- stay glued to the ground, stepping up or down small bumps
+		newPos = Vector3.new(newPos.X, groundY, newPos.Z)
+		vy = 0
+		e.grounded = true
+		e.groundNormal = hit.Normal
+	else
+		vy -= GRAVITY * dt
+		newPos += Vector3.new(0, vy * dt, 0)
+		if groundY and newPos.Y <= groundY and vy <= 0 then
+			newPos = Vector3.new(newPos.X, groundY, newPos.Z)
+			vy = 0
+			e.grounded = true
+			e.groundNormal = hit.Normal
+			e.landedAt = os.clock()
+		else
+			e.grounded = false
+		end
+	end
+	e.vel = Vector3.new(hv.X, vy, hv.Z)
+	e.pos = newPos
+	-- lean to the slope (smoothed), but never more than ~30 degrees
+	local n = e.grounded and e.groundNormal or UP
+	if n.Y < 0.86 then
+		n = (flat(n).Unit * 0.5 + UP * 0.866).Unit
+	end
+	e.up = e.up:Lerp(n, math.clamp(dt * 8, 0, 1)).Unit
+	return blocked
+end
+
+-- Fell somewhere it shouldn't be (the sea, lava): gone until it respawns
+local function outOfBounds(e)
+	if e.pos.Y < Config.WaterLevel - 4 then
+		return true
+	end
+	if (e.pos - e.home).Magnitude > 160 then
+		return true
+	end
+	return false
+end
+
+--------------------------------------------------------------------------------
+-- Defeat and respawn
+--------------------------------------------------------------------------------
+
 local function defeat(e, player)
+	if not e.alive then
+		return
+	end
 	e.alive = false
 	e.respawnAt = os.clock() + Config.BugRespawnSeconds
 	callbacks.effect("poof", center(e))
@@ -5766,6 +5931,20 @@ local function defeat(e, player)
 	if player then
 		callbacks.bopped(player)
 	end
+end
+
+local function reset(e, now)
+	e.pos = e.home
+	e.vel = Vector3.zero
+	e.up = UP
+	e.grounded = not FLYING[e.kind]
+	e.state = "idle"
+	e.lift = 0
+	e.t0 = now + 1 + math.random()
+	e.goal = nil
+	e.target = nil
+	e.popped = false
+	e.hadTarget = false
 end
 
 local function build(e)
@@ -5779,152 +5958,222 @@ local function build(e)
 	e.model:SetAttribute("St", "idle")
 	place(e)
 	e.model:SetAttribute("CF", e.cf)
+	e.model:SetAttribute("Vel", Vector3.zero)
 	e.model.Parent = folder
 end
 
-function EnemyService.Start(info, cb)
-	callbacks = cb
-	folder = Instance.new("Folder")
-	folder.Name = "Baddies"
-	folder.Parent = workspace
-	rayParams.FilterDescendantsInstances = { info.solidFolder, workspace.Terrain }
-
-	for _, def in ipairs(info.enemies) do
-		local home = def.pos
-		local pos = home
-		if not FLYING[def.kind] then
-			local y = groundAt(home + Vector3.new(0, 10, 0)) or home.Y
-			pos = Vector3.new(home.X, y, home.Z)
-		end
-		local e = {
-			kind = def.kind,
-			skin = def.skin,
-			home = pos,
-			pos = pos,
-			yaw = math.random() * math.pi * 2,
-			alive = true,
-			respawnAt = 0,
-			phase = math.random() * 6,
-			state = "idle",
-			t0 = os.clock() + math.random() * 2,
-			fast = def.skin == "castle",
-			range = def.range or 22,
-			axis = def.axis,
-		}
-		build(e)
-		table.insert(enemies, e)
+local function newEnemy(kind, pos, skin, range, axis, temp)
+	local p = pos
+	if not FLYING[kind] then
+		local hit = groundHit(pos, 10, 40)
+		p = Vector3.new(pos.X, hit and hit.Position.Y or pos.Y, pos.Z)
 	end
-
-	RunService.Heartbeat:Connect(function(dt)
-		EnemyService.Step(dt)
-	end)
-end
-
--- Bosses call in extra baddies: they don't respawn and vanish when despawned
-function EnemyService.Spawn(kind, pos, skin, range)
-	if not folder or not BEHAVIOUR[kind] then
-		return nil
-	end
-	local y = FLYING[kind] and pos.Y or (groundAt(pos + Vector3.new(0, 10, 0)) or pos.Y)
-	local p = Vector3.new(pos.X, y, pos.Z)
 	local e = {
-		kind = kind, skin = skin, home = p, pos = p, yaw = math.random() * math.pi * 2, alive = true, respawnAt = 0,
-		phase = math.random() * 6, state = "idle", t0 = os.clock() + 0.5, fast = skin == "castle", range = range or 30,
-		temp = true,
+		kind = kind,
+		skin = skin,
+		home = p,
+		pos = p,
+		vel = Vector3.zero,
+		up = UP,
+		grounded = not FLYING[kind],
+		yaw = math.random() * math.pi * 2,
+		alive = true,
+		respawnAt = 0,
+		phase = math.random() * 6,
+		state = "idle",
+		t0 = os.clock() + math.random() * 2,
+		fast = skin == "castle",
+		range = range or 22,
+		axis = axis,
+		temp = temp,
+		acc = math.random() * TICK,
 	}
 	build(e)
 	table.insert(enemies, e)
 	return e
 end
 
-function EnemyService.Despawn(e)
-	if e and e.model then
-		e.gone = true
-		e.alive = false
-		e.model:Destroy()
-	end
-end
+--------------------------------------------------------------------------------
+-- Brains
+--------------------------------------------------------------------------------
 
-function EnemyService.MarkPounding(player, seconds)
-	poundingUntil[player] = os.clock() + seconds
-end
-
--- Ground pound shockwave: beats every kind, even the spiky one
-function EnemyService.Shockwave(player, pos)
-	for _, e in ipairs(enemies) do
-		if e.alive then
-			local c = center(e)
-			local d = Vector3.new(c.X - pos.X, 0, c.Z - pos.Z).Magnitude
-			if d < 14 and math.abs(c.Y - pos.Y) < 9 then
-				defeat(e, player)
-			end
+-- Pick somewhere to amble to near home
+local function wanderGoal(e)
+	for _ = 1, 6 do
+		local a = math.random() * math.pi * 2
+		local r = math.random() * e.range
+		local g = e.home + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)
+		local hit = groundHit(g, 8, 20)
+		if hit and not badFloor(hit.Instance) and math.abs(hit.Position.Y - e.pos.Y) < 6 then
+			return Vector3.new(g.X, hit.Position.Y, g.Z)
 		end
 	end
+	return e.home
 end
 
-local function nearestPlayer(pos, maxDist, maxDy)
-	local best, bestDist, bestHrp = nil, maxDist, nil
-	for _, player in ipairs(Players:GetPlayers()) do
-		local char = player.Character
+-- Shared walk-about-then-chase brain (Grumblebugs, chasing Mosslings)
+local function goombaBrain(e, dt, now, opts)
+	local fromHome = flat(e.pos - e.home).Magnitude
+	if e.state == "idle" or e.state == "walk" then
+		-- look for a bunny now and then
+		if now > (e.lookAt or 0) then
+			e.lookAt = now + 0.25
+			local player, hrp = nearestPlayer(e, opts.notice, 10, true)
+			if player then
+				e.target = player
+				e.state = "notice"
+				e.t0 = now
+				e.vel = Vector3.new(0, opts.hop, 0)
+				e.grounded = false
+				alert(e, "!")
+				return Vector3.zero, opts.accel
+			end
+		end
+		if e.state == "idle" then
+			if now > e.t0 then
+				e.goal = wanderGoal(e)
+				e.state = "walk"
+				e.t0 = now + 6
+			end
+			return Vector3.zero, opts.accel
+		end
+		-- walk to the goal
+		local to = flat(e.goal - e.pos)
+		if to.Magnitude < 2 or now > e.t0 then
+			e.state = "idle"
+			e.t0 = now + 0.8 + math.random() * 1.8
+			return Vector3.zero, opts.accel
+		end
+		turnToward(e, lookYaw(Vector3.zero, to), 4, dt)
+		return forward(e.yaw) * opts.walk, opts.accel
+	elseif e.state == "notice" then
+		-- the "!" moment: hop and turn to face you
+		local hrp = e.target and e.target.Character and e.target.Character:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			turnToward(e, lookYaw(e.pos, hrp.Position), 10, dt)
+		end
+		if now - e.t0 > 0.45 then
+			e.state = "chase"
+			e.t0 = now
+		end
+		return Vector3.zero, opts.accel
+	elseif e.state == "chase" then
+		local char = e.target and e.target.Character
 		local hrp = char and char:FindFirstChild("HumanoidRootPart")
 		local hum = char and char:FindFirstChildOfClass("Humanoid")
-		if hrp and hum and hum.Health > 0 then
-			local d = (hrp.Position - pos).Magnitude
-			if d < bestDist and math.abs(hrp.Position.Y - FEET - pos.Y) < maxDy then
-				best, bestDist, bestHrp = player, d, hrp
-			end
+		local giveUp = not hrp or not hum or hum.Health <= 0 or now - e.t0 > opts.patience
+			or fromHome > e.range + opts.leash or (hrp.Position - e.pos).Magnitude > opts.notice * 1.8
+			or math.abs(hrp.Position.Y - FEET - e.pos.Y) > 14
+		if giveUp then
+			e.state = "home"
+			e.t0 = now
+			alert(e, "?")
+			return Vector3.zero, opts.accel
 		end
+		turnToward(e, lookYaw(e.pos, hrp.Position), opts.turn, dt)
+		return forward(e.yaw) * opts.run, opts.accel, 6
+	else -- "home": amble back, then carry on wandering
+		local to = flat(e.home - e.pos)
+		if to.Magnitude < 3 or now - e.t0 > 12 then
+			e.state = "idle"
+			e.t0 = now + 1
+			return Vector3.zero, opts.accel
+		end
+		if now - e.t0 < 0.8 then
+			return Vector3.zero, opts.accel -- a puzzled pause first
+		end
+		turnToward(e, lookYaw(Vector3.zero, to), 4, dt)
+		return forward(e.yaw) * opts.walk, opts.accel, 6
 	end
-	return best, bestHrp
 end
 
---------------------------------------------------------------------------------
--- Behaviours
---------------------------------------------------------------------------------
-
-local BEHAVIOUR = {}
-
 function BEHAVIOUR.bug(e, dt, now)
-	local target, hrp = nearestPlayer(e.pos, 45, 10)
-	local fromHome = Vector3.new(e.pos.X - e.home.X, 0, e.pos.Z - e.home.Z).Magnitude
-	local speed = e.fast and 9 or 7
-	if target and fromHome < 60 then
-		if not e.hadTarget then
-			alert(e)
+	local want, accel, drop = goombaBrain(e, dt, now, {
+		notice = 34, hop = 22, walk = e.fast and 8 or 6, run = e.fast and 19 or 16, accel = 40, turn = 6,
+		patience = 9, leash = 40,
+	})
+	local blocked = move(e, want, accel, dt, drop)
+	if blocked and e.state == "walk" then
+		e.state = "idle" -- bumped into something: think again
+		e.t0 = now + 0.4
+	elseif blocked and e.state == "chase" then
+		e.stuckFor = (e.stuckFor or 0) + dt
+		if e.stuckFor > 1.2 then
+			e.stuckFor = 0
+			e.state = "home"
+			e.t0 = now
+			alert(e, "?")
 		end
-		turnToward(e, lookYaw(e.pos, hrp.Position), 7, dt)
-		speed = e.fast and 19 or 15
-	elseif fromHome > e.range then
-		turnToward(e, lookYaw(e.pos, e.home), 4, dt)
-	elseif now > e.t0 then
-		e.wanderYaw = e.yaw + (math.random() - 0.5) * 2.5
-		e.t0 = now + 1 + math.random() * 2
-	end
-	e.hadTarget = target ~= nil and fromHome < 60
-	if e.wanderYaw and not e.hadTarget then
-		turnToward(e, e.wanderYaw, 3, dt)
-	end
-	local nextPos = e.pos + forward(e.yaw) * speed * dt
-	local gy, hit = groundAt(nextPos)
-	if walkable(gy, hit, e.pos.Y) then
-		e.pos = Vector3.new(nextPos.X, gy, nextPos.Z)
 	else
-		e.yaw += math.pi * (0.5 + math.random() * 0.5)
+		e.stuckFor = 0
 	end
-	e.state = speed > 10 and "chase" or "idle"
+	place(e)
+end
+
+function BEHAVIOUR.mossling(e, dt, now)
+	local HIDDEN = -2.5
+	if e.state == "hidden" or (e.state == "idle" and not e.popped) then
+		e.state = "hidden"
+		e.lift = HIDDEN + math.sin(now * 1.5 + e.phase) * 0.08
+		move(e, Vector3.zero, 40, dt)
+		if now > e.t0 then
+			e.t0 = now + 0.25
+			local player, hrp = nearestPlayer(e, 17, 8, false)
+			if player then
+				e.state = "pop"
+				e.target = player
+				e.t0 = now
+				e.yaw = lookYaw(e.pos, hrp.Position)
+				alert(e, "!")
+				callbacks.effect("poof", e.pos + Vector3.new(0, 1, 0))
+			end
+		end
+	elseif e.state == "pop" then
+		local u = math.clamp((now - e.t0) / 0.35, 0, 1)
+		e.lift = HIDDEN * (1 - u) + math.sin(u * math.pi) * 2
+		move(e, Vector3.zero, 40, dt)
+		if u >= 1 then
+			e.lift = 0
+			e.popped = true
+			e.state = "chase"
+			e.t0 = now
+		end
+	elseif e.state == "sink" then
+		local u = math.clamp((now - e.t0) / 0.5, 0, 1)
+		e.lift = HIDDEN * u
+		move(e, Vector3.zero, 40, dt)
+		if u >= 1 then
+			e.popped = false
+			e.state = "hidden"
+			e.t0 = now + 2
+		end
+	else
+		local want, accel, drop = goombaBrain(e, dt, now, {
+			notice = 20, hop = 16, walk = 9, run = 14, accel = 34, turn = 6, patience = 7, leash = 30,
+		})
+		move(e, want, accel, dt, drop)
+		if e.state == "idle" then
+			-- back home: burrow down again
+			e.state = "sink"
+			e.t0 = now
+		end
+	end
 	place(e)
 end
 
 function BEHAVIOUR.toad(e, dt, now)
+	if e.grounded and e.state == "hop" and now - e.t0 > 0.15 then
+		e.state = "idle"
+		e.t0 = now + 0.7 + math.random() * 1.0
+	end
 	if e.state == "idle" then
-		e.lift = math.abs(math.sin(now * 3 + e.phase)) * 0.12
-		place(e, 0, -0.05)
-		if now > e.t0 then
-			local _, hrp = nearestPlayer(e.pos, 40, 12)
-			local fromHome = (e.pos - e.home) * Vector3.new(1, 0, 1)
+		move(e, Vector3.zero, 60, dt)
+		if now > e.t0 and e.grounded then
+			local player, hrp = nearestPlayer(e, 40, 12, true)
+			local fromHome = flat(e.pos - e.home)
 			if hrp then
 				if not e.hadTarget then
-					alert(e)
+					alert(e, "!")
 				end
 				e.yaw = lookYaw(e.pos, hrp.Position)
 			elseif fromHome.Magnitude > e.range then
@@ -5932,49 +6181,97 @@ function BEHAVIOUR.toad(e, dt, now)
 			else
 				e.yaw += (math.random() - 0.5) * 2.4
 			end
-			e.hadTarget = hrp ~= nil
-			local dist = hrp and 14 or 10
+			e.hadTarget = player ~= nil
+			-- a big arcing hop (won't hop off a cliff)
+			local dist = player and 15 or 10
 			local dest = e.pos + forward(e.yaw) * dist
-			local gy, hit = groundAt(dest)
-			if walkable(gy, hit, e.pos.Y, 8) then
+			local hit = groundHit(dest, 10, 16)
+			if hit and not badFloor(hit.Instance) and math.abs(hit.Position.Y - e.pos.Y) < 8 then
 				e.state = "hop"
-				e.hopFrom = e.pos
-				e.hopTo = Vector3.new(dest.X, gy, dest.Z)
 				e.t0 = now
+				local airtime = 0.75
+				e.vel = forward(e.yaw) * (dist / airtime) + Vector3.new(0, GRAVITY * airtime / 2, 0)
+				e.grounded = false
 			else
 				e.yaw += math.pi
-				e.t0 = now + 0.6
+				e.t0 = now + 0.5
 			end
 		end
 	else
-		local u = math.clamp((now - e.t0) / 0.7, 0, 1)
-		local flat = e.hopFrom:Lerp(e.hopTo, u)
-		e.pos = flat
-		e.lift = math.sin(u * math.pi) * 7
-		place(e, 0, -0.35 * math.sin(u * math.pi))
-		if u >= 1 then
-			e.state = "idle"
-			e.lift = 0
-			e.t0 = now + 0.9 + math.random() * 1.2
+		move(e, flat(e.vel), 0, dt, 50)
+	end
+	place(e, e.state == "hop" and math.clamp(-e.vel.Y * 0.008, -0.35, 0.35) or 0)
+end
+
+function BEHAVIOUR.thornhog(e, dt, now)
+	-- patrols along its axis; spots you, charges, and skids when it overshoots
+	e.dir = e.dir or 1
+	local axis = e.axis or Vector3.new(1, 0, 0)
+	local want = Vector3.zero
+	local accel = 30
+	if e.state == "idle" or e.state == "walk" then
+		e.state = "walk"
+		local along = flat(e.pos - e.home):Dot(axis)
+		if along * e.dir > e.range then
+			e.dir = -e.dir
+		end
+		want = axis * e.dir * (e.fast and 11 or 9)
+		turnToward(e, lookYaw(Vector3.zero, want), 5, dt)
+		if now > (e.lookAt or 0) then
+			e.lookAt = now + 0.3
+			local player, hrp = nearestPlayer(e, 26, 5, true)
+			if player then
+				e.target = player
+				e.state = "charge"
+				e.t0 = now
+				e.chargeDir = flat(hrp.Position - e.pos).Unit
+				alert(e, "!")
+			end
+		end
+	elseif e.state == "charge" then
+		accel = 45
+		want = e.chargeDir * (e.fast and 28 or 24)
+		turnToward(e, lookYaw(Vector3.zero, e.chargeDir), 8, dt)
+		local hrp = e.target and e.target.Character and e.target.Character:FindFirstChild("HumanoidRootPart")
+		local passed = hrp and flat(hrp.Position - e.pos):Dot(e.chargeDir) < -4
+		if passed or now - e.t0 > 2.2 then
+			e.state = "skid"
+			e.t0 = now
+		end
+	else -- skid to a stop, then go back to patrolling
+		accel = 22
+		if now - e.t0 > 1.0 then
+			e.state = "walk"
 		end
 	end
+	local blocked = move(e, want, accel, dt)
+	if blocked then
+		if e.state == "walk" then
+			e.dir = -e.dir
+		elseif e.state == "charge" then
+			e.state = "skid"
+			e.t0 = now
+		end
+	end
+	place(e) -- the client spins it as it rolls
 end
 
 function BEHAVIOUR.bat(e, dt, now)
-	local hover = e.home + Vector3.new(0, 0, 0)
+	local hover = e.home
+	local old = e.pos
 	if e.state == "idle" then
 		e.orbit = (e.orbit or e.phase) + dt * 1.1
 		local want = hover + Vector3.new(math.cos(e.orbit) * 10, math.sin(now * 2 + e.phase) * 1.2, math.sin(e.orbit) * 10)
 		e.pos = e.pos:Lerp(want, math.clamp(dt * 3, 0, 1))
 		e.yaw = e.orbit + math.pi
 		if now > e.t0 then
-			local _, hrp = nearestPlayer(e.pos, 42, 30)
+			local _, hrp = nearestPlayer(e, 42, 30, true)
 			if hrp then
 				e.state = "swoop"
 				e.target = hrp.Position
 				e.t0 = now
 				e.yaw = lookYaw(e.pos, e.target)
-				alert(e)
+				alert(e, "!")
 				callbacks.effect("screech", e.pos)
 			else
 				e.t0 = now + 0.5
@@ -5995,40 +6292,8 @@ function BEHAVIOUR.bat(e, dt, now)
 			e.t0 = now + 1.8 + math.random()
 		end
 	end
-	place(e, 0, e.state == "swoop" and -0.5 or 0)
-end
-
-function BEHAVIOUR.thornhog(e, dt, now)
-	-- patrols along its axis; charges if a bunny is in front of it on the ground
-	e.dir = e.dir or 1
-	local axis = e.axis or Vector3.new(1, 0, 0)
-	local _, hrp = nearestPlayer(e.pos, 26, 5)
-	local speed = e.fast and 18 or 15
-	local moveDir = axis * e.dir
-	if hrp then
-		local to = (hrp.Position - e.pos) * Vector3.new(1, 0, 1)
-		if to.Magnitude > 0.1 then
-			if not e.hadTarget then
-				alert(e)
-			end
-			moveDir = to.Unit
-			speed = e.fast and 26 or 22
-		end
-	end
-	e.hadTarget = hrp ~= nil
-	e.state = hrp and "chase" or "idle"
-	local nextPos = e.pos + moveDir * speed * dt
-	local along = (nextPos - e.home):Dot(axis)
-	local gy, hit = groundAt(nextPos)
-	if not hrp and math.abs(along) > e.range then
-		e.dir = -e.dir
-	elseif walkable(gy, hit, e.pos.Y) and (nextPos - e.home).Magnitude < e.range + 25 then
-		e.pos = Vector3.new(nextPos.X, gy, nextPos.Z)
-	else
-		e.dir = -e.dir
-	end
-	turnToward(e, lookYaw(Vector3.zero, moveDir), 9, dt)
-	place(e) -- the client spins it as it rolls
+	e.vel = (e.pos - old) / dt
+	place(e, e.state == "swoop" and -0.5 or 0)
 end
 
 function BEHAVIOUR.puffshroom(e, dt, now)
@@ -6048,73 +6313,7 @@ function BEHAVIOUR.puffshroom(e, dt, now)
 	if e.state == "puff" and was ~= "puff" then
 		callbacks.effect("spores", center(e))
 	end
-	place(e, math.sin(now * 20) * (e.state == "swell" and 0.06 or 0))
-end
-
--- Mossling: a hump of moss until you get close, then it pops up and gives chase
-local function stepToward(e, dir, speed, dt)
-	local nextPos = e.pos + dir * speed * dt
-	local gy, hit = groundAt(nextPos)
-	if walkable(gy, hit, e.pos.Y) then
-		e.pos = Vector3.new(nextPos.X, gy, nextPos.Z)
-		return true
-	end
-	return false
-end
-
-function BEHAVIOUR.mossling(e, dt, now)
-	local HIDDEN = -2.5
-	if e.state == "idle" then
-		e.lift = HIDDEN + math.sin(now * 1.5 + e.phase) * 0.08
-		place(e)
-		if now > e.t0 then
-			local _, hrp = nearestPlayer(e.pos, 17, 8)
-			if hrp then
-				e.state = "pop"
-				e.t0 = now
-				e.yaw = lookYaw(e.pos, hrp.Position)
-				alert(e)
-				callbacks.effect("poof", e.pos + Vector3.new(0, 1, 0))
-			else
-				e.t0 = now + 0.25
-			end
-		end
-	elseif e.state == "pop" then
-		local u = math.clamp((now - e.t0) / 0.35, 0, 1)
-		e.lift = HIDDEN * (1 - u) + math.sin(u * math.pi) * 2
-		place(e)
-		if u >= 1 then
-			e.state = "chase"
-			e.t0 = now
-		end
-	elseif e.state == "chase" then
-		local _, hrp = nearestPlayer(e.pos, 40, 10)
-		local toHome = (e.home - e.pos) * Vector3.new(1, 0, 1)
-		local speed = 0
-		if hrp and now - e.t0 < 7 and toHome.Magnitude < 45 then
-			turnToward(e, lookYaw(e.pos, hrp.Position), 6, dt)
-			speed = 13
-		elseif toHome.Magnitude > 1.5 then
-			turnToward(e, lookYaw(Vector3.zero, toHome), 6, dt)
-			speed = 9
-		else
-			e.state = "sink"
-			e.t0 = now
-		end
-		if speed > 0 and not stepToward(e, forward(e.yaw), speed, dt) and not hrp then
-			e.pos = e.home -- stuck on the way home: just burrow back
-		end
-		e.lift = 0
-		place(e)
-	else -- sink back into the moss
-		local u = math.clamp((now - e.t0) / 0.5, 0, 1)
-		e.lift = HIDDEN * u
-		place(e)
-		if u >= 1 then
-			e.state = "idle"
-			e.t0 = now + 2
-		end
-	end
+	place(e)
 end
 
 -- Snapper: a rooted biting plant. Rears back (the tell), lunges, then droops
@@ -6124,12 +6323,12 @@ function BEHAVIOUR.snapper(e, dt, now)
 	if e.state == "idle" then
 		pitch = math.sin(now * 1.6 + e.phase) * 0.08
 		if now > e.t0 then
-			local _, hrp = nearestPlayer(e.pos, 13, 7)
+			local _, hrp = nearestPlayer(e, 13, 7, false)
 			if hrp then
 				e.yaw = lookYaw(e.pos, hrp.Position)
 				e.state = "wind"
 				e.t0 = now
-				alert(e)
+				alert(e, "!")
 			else
 				e.yaw += math.sin(now + e.phase) * 0.05
 				e.t0 = now + 0.2
@@ -6157,35 +6356,34 @@ function BEHAVIOUR.snapper(e, dt, now)
 			e.t0 = now + 0.8
 		end
 	end
-	place(e, 0, pitch)
-	local cf = CFrame.new(center(e)) * CFrame.Angles(0, e.yaw, 0) * CFrame.Angles(pitch, 0, 0)
-	e.head = (cf * CFrame.new(0, 4.6, 0)).Position
+	place(e, pitch)
+	e.head = (CFrame.new(center(e)) * CFrame.Angles(0, e.yaw, 0) * CFrame.Angles(pitch, 0, 0) * CFrame.new(0, 4.6, 0)).Position
 end
 
 -- Puffer: a grumpy little cloud. Drifts, turns to face you, puffs up, then
 -- blows a gust that shoves you back (straight off a cloud, if you're careless)
 function BEHAVIOUR.puffer(e, dt, now)
+	local old = e.pos
 	local drift = Vector3.new(math.cos(now * 0.5 + e.phase) * 3, math.sin(now * 1.3 + e.phase) * 0.8, math.sin(now * 0.5 + e.phase) * 3)
 	e.pos = e.pos:Lerp(e.home + drift, math.clamp(dt * 2, 0, 1))
 	if e.state == "idle" then
 		if now > e.t0 then
-			local _, hrp = nearestPlayer(e.pos, 36, 14)
+			local _, hrp = nearestPlayer(e, 36, 14, true)
 			if hrp then
 				e.yaw = lookYaw(e.pos, hrp.Position)
 				e.state = "swell"
 				e.t0 = now
-				alert(e)
+				alert(e, "!")
 			else
 				e.t0 = now + 0.4
 			end
 		end
 	elseif e.state == "swell" then
-		local _, hrp = nearestPlayer(e.pos, 40, 14)
+		local _, hrp = nearestPlayer(e, 40, 14, false)
 		if hrp then
-			e.yaw = lookYaw(e.pos, hrp.Position)
+			turnToward(e, lookYaw(e.pos, hrp.Position), 4, dt)
 		end
-		local u = math.clamp((now - e.t0) / 0.9, 0, 1)
-		if u >= 1 then
+		if now - e.t0 > 0.9 then
 			e.state = "blow"
 			e.t0 = now
 			e.blown = {}
@@ -6198,8 +6396,8 @@ function BEHAVIOUR.puffer(e, dt, now)
 			local hrp = char and char:FindFirstChild("HumanoidRootPart")
 			if hrp and not e.blown[player] then
 				local to = hrp.Position - e.pos
-				local flat = Vector3.new(to.X, 0, to.Z)
-				if flat.Magnitude < 32 and math.abs(to.Y) < 12 and flat.Magnitude > 0.1 and flat.Unit:Dot(dir) > 0.8 then
+				local f = flat(to)
+				if f.Magnitude < 32 and math.abs(to.Y) < 12 and f.Magnitude > 0.1 and f.Unit:Dot(dir) > 0.8 then
 					e.blown[player] = true
 					callbacks.gust(player, dir * 58 + Vector3.new(0, 24, 0))
 				end
@@ -6210,6 +6408,7 @@ function BEHAVIOUR.puffer(e, dt, now)
 			e.t0 = now + 2.4 + math.random()
 		end
 	end
+	e.vel = (e.pos - old) / dt
 	place(e) -- the client puffs it up and down from its state
 end
 
@@ -6219,7 +6418,7 @@ end
 
 local function contact(e, now)
 	local shape = SHAPE[e.kind]
-	if e.kind == "mossling" and (e.state == "idle" or e.state == "sink") then
+	if e.kind == "mossling" and (e.state == "hidden" or e.state == "sink") then
 		return -- tucked away under the moss
 	end
 	local c = e.head or center(e)
@@ -6230,16 +6429,16 @@ local function contact(e, now)
 		if root and hum and hum.Health > 0 then
 			local p = root.Position
 			local feet = p.Y - FEET
-			local flat = Vector3.new(p.X - c.X, 0, p.Z - c.Z).Magnitude
+			local d = Vector3.new(p.X - c.X, 0, p.Z - c.Z).Magnitude
 			local bottom = c.Y - (shape.below or shape.lift)
 			local top = bottom + shape.top
 			-- spore puffs reach further than the body
-			if e.kind == "puffshroom" and e.state == "puff" and flat < 8.5 and feet < top + 2 and feet > bottom - 3 then
+			if e.kind == "puffshroom" and e.state == "puff" and d < 8.5 and feet < top + 2 and feet > bottom - 3 then
 				callbacks.hurt(player, c)
-			elseif flat < shape.radius and feet < top + 0.8 and p.Y + 2 > bottom then
+			elseif d < shape.radius and feet < top + 0.8 and p.Y + 2 > bottom then
 				local vy = root.AssemblyLinearVelocity.Y
 				local pounding = (poundingUntil[player] or 0) > now
-				local move = char:GetAttribute("Move")
+				local mv = char:GetAttribute("Move")
 				local stomping = (vy < -1 and feet > top - 1.4) or pounding
 				if e.kind == "thornhog" then
 					-- spikes: only a shockwave works, everything else hurts
@@ -6251,22 +6450,39 @@ local function contact(e, now)
 					defeat(e, player)
 					callbacks.bounce(player, Vector3.new(0, Config.StompBounce, 0), true)
 					return
-				elseif move and ATTACK_MOVES[move] and e.kind ~= "puffshroom" and e.kind ~= "puffer" then
+				elseif mv and ATTACK_MOVES[mv] and e.kind ~= "puffshroom" and e.kind ~= "puffer" then
 					defeat(e, player)
 					return
 				else
 					callbacks.hurt(player, c)
+					-- bump back a little, like a Goomba bonking you
+					if not ROOTED[e.kind] and not FLYING[e.kind] then
+						local away = flat(e.pos - p)
+						if away.Magnitude > 0.1 then
+							e.vel = away.Unit * 10 + Vector3.new(0, 14, 0)
+							e.grounded = false
+						end
+					end
 				end
 			end
 		end
 	end
 end
 
--- Send a baddie's transform and state to clients: ~10 times a second, only
--- when it changed, and only while somebody is near enough to see it.
-local SEND_EVERY = 0.1
-local SEE_DIST = 300
+--------------------------------------------------------------------------------
+-- Publishing to clients
+--------------------------------------------------------------------------------
+
 local viewers = {}
+
+local function nearAViewer(p, dist)
+	for _, v in ipairs(viewers) do
+		if (v - p).Magnitude < dist then
+			return true
+		end
+	end
+	return false
+end
 
 local function publish(e, now)
 	if e.state ~= e.sentState then
@@ -6280,16 +6496,32 @@ local function publish(e, now)
 	local last = e.sentCf
 	if last and (last.Position - e.cf.Position).Magnitude < 0.05 and last.LookVector:Dot(e.cf.LookVector) > 0.9997
 		and last.UpVector:Dot(e.cf.UpVector) > 0.9997 then
+		if e.sentMoving then
+			e.sentMoving = false
+			e.model:SetAttribute("Vel", Vector3.zero)
+		end
 		return
 	end
-	local p = e.cf.Position
-	for _, v in ipairs(viewers) do
-		if (v - p).Magnitude < SEE_DIST then
-			e.sentCf = e.cf
-			e.model:SetAttribute("CF", e.cf)
-			return
-		end
+	if nearAViewer(e.cf.Position, SEE_DIST) then
+		e.sentCf = e.cf
+		e.sentMoving = true
+		e.model:SetAttribute("Vel", e.vel or Vector3.zero)
+		e.model:SetAttribute("CF", e.cf)
 	end
+end
+
+--------------------------------------------------------------------------------
+-- Main loop
+--------------------------------------------------------------------------------
+
+local warned = {}
+local function think(e, now)
+	BEHAVIOUR[e.kind](e, TICK, now)
+	if not FLYING[e.kind] and not ROOTED[e.kind] and outOfBounds(e) then
+		defeat(e, nil) -- fell into the sea: it'll come back later
+		return
+	end
+	contact(e, now)
 end
 
 function EnemyService.Step(dt)
@@ -6318,21 +6550,88 @@ function EnemyService.Step(dt)
 		if not e.alive then
 			if now >= e.respawnAt then
 				e.alive = true
-				e.pos = e.home
-				e.state = "idle"
-				e.lift = 0
-				e.t0 = now + 1
+				reset(e, now)
 				place(e)
 				e.sentCf = e.cf
+				e.model:SetAttribute("Vel", Vector3.zero)
 				e.model:SetAttribute("CF", e.cf)
 				e.model:SetAttribute("Alive", true)
 				callbacks.effect("poof", center(e))
 			end
 			continue
 		end
-		BEHAVIOUR[e.kind](e, dt, now)
-		contact(e, now)
+		-- far from everyone: sleep
+		if not nearAViewer(e.pos, AWAKE_DIST) then
+			continue
+		end
+		e.acc += dt
+		while e.acc >= TICK do
+			e.acc -= TICK
+			local ok, err = pcall(think, e, now)
+			if not ok then
+				if not warned[e.kind] then
+					warned[e.kind] = true
+					warn("[Bunny64] EnemyService " .. e.kind .. ": " .. tostring(err))
+				end
+				e.acc = 0
+				break
+			end
+			if not e.alive then
+				break
+			end
+		end
 		publish(e, now)
+	end
+end
+
+--------------------------------------------------------------------------------
+-- Public
+--------------------------------------------------------------------------------
+
+function EnemyService.Start(info, cb)
+	callbacks = cb
+	folder = Instance.new("Folder")
+	folder.Name = "Baddies"
+	folder.Parent = workspace
+	rayParams.FilterDescendantsInstances = { info.solidFolder, workspace.Terrain }
+	for _, def in ipairs(info.enemies) do
+		newEnemy(def.kind, def.pos, def.skin, def.range, def.axis, false)
+	end
+	RunService.Heartbeat:Connect(function(dt)
+		EnemyService.Step(math.min(dt, 0.25))
+	end)
+end
+
+-- Bosses call in extra baddies: they don't respawn and vanish when despawned
+function EnemyService.Spawn(kind, pos, skin, range)
+	if not folder or not BEHAVIOUR[kind] then
+		return nil
+	end
+	return newEnemy(kind, pos, skin, range or 30, nil, true)
+end
+
+function EnemyService.Despawn(e)
+	if e and e.model then
+		e.gone = true
+		e.alive = false
+		e.model:Destroy()
+	end
+end
+
+function EnemyService.MarkPounding(player, seconds)
+	poundingUntil[player] = os.clock() + seconds
+end
+
+-- Ground pound shockwave: beats every kind, even the spiky one
+function EnemyService.Shockwave(player, pos)
+	for _, e in ipairs(enemies) do
+		if e.alive then
+			local c = center(e)
+			local d = Vector3.new(c.X - pos.X, 0, c.Z - pos.Z).Magnitude
+			if d < 14 and math.abs(c.Y - pos.Y) < 9 then
+				defeat(e, player)
+			end
+		end
 	end
 end
 
@@ -7618,12 +7917,14 @@ function B.zipline(a, b)
 		B.block(CFrame.new(p.X, gy + h / 2, p.Z), Vector3.new(1.2, h, 1.2), P.Wood, Enum.Material.Wood)
 		B.block(CFrame.new(p.X, p.Y + 1.6, p.Z), Vector3.new(2.4, 0.6, 2.4), P.WoodLight, Enum.Material.Wood)
 	end
+	-- a steel cable
 	local rope = B.make("Part", {
 		Name = "Zipline",
-		Size = Vector3.new(0.35, 0.35, (b - a).Magnitude),
-		CFrame = CFrame.lookAt((a + b) / 2, b),
-		Color = Color3.fromRGB(150, 128, 92),
-		Material = Enum.Material.Fabric,
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new((b - a).Magnitude, 0.32, 0.32),
+		CFrame = CFrame.lookAt((a + b) / 2, b) * CFrame.Angles(0, math.pi / 2, 0),
+		Color = Color3.fromRGB(78, 80, 88),
+		Material = Enum.Material.Metal,
 		CanCollide = false,
 		CanQuery = false,
 		CanTouch = false,
@@ -7631,14 +7932,29 @@ function B.zipline(a, b)
 	}, B.zips)
 	rope:SetAttribute("ZipA", a)
 	rope:SetAttribute("ZipB", b)
-	-- a little handle waiting at the top
-	B.make("Part", {
-		Size = Vector3.new(1.6, 0.4, 0.4),
-		CFrame = CFrame.lookAt(a, b) * CFrame.new(0, -0.6, -2),
-		Color = Config.Palette.Roof,
-		CanCollide = false,
-		CanQuery = false,
-	}, B.decor)
+	-- a pulley and handle waiting at the top, and a lamp so you can spot it from afar
+	local dir = (b - a).Unit
+	local flat = Vector3.new(dir.X, 0, dir.Z)
+	local face = flat.Magnitude > 0.01 and CFrame.lookAt(a, a + flat) or CFrame.new(a)
+	local parked = face + dir * 2
+	local function deco(size, cf, color, material, shape)
+		return B.make("Part", {
+			Size = size, CFrame = cf, Color = color, Material = material or Enum.Material.Metal,
+			Shape = shape or Enum.PartType.Block, CanCollide = false, CanQuery = false, CastShadow = false,
+		}, B.decor)
+	end
+	deco(Vector3.new(0.5, 1.3, 1.3), parked * CFrame.Angles(0, math.pi / 2, 0), Color3.fromRGB(40, 40, 46), Enum.Material.Metal, Enum.PartType.Cylinder)
+	deco(Vector3.new(0.9, 1.6, 0.35), parked * CFrame.new(0, -0.35, 0), P.Roof, Enum.Material.SmoothPlastic)
+	for _, sx in ipairs({ -1, 1 }) do
+		deco(Vector3.new(0.18, 1.4, 0.18), parked * CFrame.new(sx * 0.7, -1.15, 0), Color3.fromRGB(70, 72, 80))
+	end
+	deco(Vector3.new(1.9, 0.26, 0.26), parked * CFrame.new(0, -1.85, 0), P.WoodLight, Enum.Material.Wood)
+	local lamp = deco(Vector3.new(0.8, 0.8, 0.8), CFrame.new(a + Vector3.new(0, 2.4, 0)), Color3.fromRGB(255, 214, 120), Enum.Material.Neon, Enum.PartType.Ball)
+	local glow = Instance.new("PointLight")
+	glow.Color = Color3.fromRGB(255, 214, 140)
+	glow.Range = 14
+	glow.Brightness = 1.2
+	glow.Parent = lamp
 	return rope
 end
 
@@ -10578,9 +10894,9 @@ local Config = require(Shared:WaitForChild("Config"))
 
 local Secret = {}
 
-local STONE = Color3.fromRGB(70, 62, 82)
+local STONE = Color3.fromRGB(112, 102, 134)
 local STONE_DARK = Color3.fromRGB(46, 40, 56)
-local TRIM = Color3.fromRGB(110, 96, 130)
+local TRIM = Color3.fromRGB(150, 118, 214) -- glowing edges, so every landing reads clearly
 local CRYSTAL = Color3.fromRGB(160, 120, 230)
 
 function Secret.Build(B)
@@ -10593,7 +10909,7 @@ function Secret.Build(B)
 		thick = thick or 4
 		local p = B.block(CFrame.new(cx, top - thick / 2, cz), V(sx, thick, sz), color or STONE, M.Slate)
 		-- a lighter rim so edges read clearly in the dark
-		local rim = B.block(CFrame.new(cx, top - 0.2, cz), V(sx + 0.3, 0.5, sz + 0.3), TRIM, M.Slate, B.decor)
+		local rim = B.block(CFrame.new(cx, top - 0.2, cz), V(sx + 0.3, 0.5, sz + 0.3), TRIM, M.Neon, B.decor)
 		rim.CanCollide = false
 		rim.CanQuery = false
 		-- jagged rock hanging underneath
@@ -10656,7 +10972,7 @@ function Secret.Build(B)
 	crystal(V(X - 8, 158, -1507))
 	crystal(V(X + 8, 158, -1523))
 	B.block(CFrame.new(X, 157, -1545), V(3, 2, 40), STONE, M.Slate)
-	local beamRim = B.block(CFrame.new(X, 157.9, -1545), V(3.3, 0.4, 40), TRIM, M.Slate, B.decor)
+	local beamRim = B.block(CFrame.new(X, 157.9, -1545), V(3.3, 0.4, 40), TRIM, M.Neon, B.decor)
 	beamRim.CanCollide = false
 	for i, f in ipairs({ { -1534, 2.0 }, { -1547, -2.4 }, { -1559, 2.8 } }) do
 		B.firebar(V(X, 159.6, f[1]), 6, f[2], i * 1.3, true) -- no post: jump over the middle
@@ -10687,7 +11003,7 @@ function Secret.Build(B)
 	slab(X, 158, -1662, 24, 26, 5)
 	for _, side in ipairs({ -1, 1 }) do
 		B.block(CFrame.new(X + side * 5.5, 190, -1667), V(2, 64, 14), STONE, M.Slate)
-		local stripe = B.block(CFrame.new(X + side * 4.45, 190, -1667), V(0.1, 64, 1), TRIM, M.Slate, B.decor)
+		local stripe = B.block(CFrame.new(X + side * 4.45, 190, -1667), V(0.1, 64, 1), TRIM, M.Neon, B.decor)
 		stripe.CanCollide = false
 	end
 	B.block(CFrame.new(X, 190, -1675), V(13, 64, 2), STONE_DARK, M.Slate) -- back wall
@@ -10703,7 +11019,7 @@ function Secret.Build(B)
 	--------------------------------------------------------------- The Gaps (long jumps)
 	for i, z in ipairs({ -1737, -1771, -1805 }) do
 		B.cyl(X, 222 - 60, z, 3.5, 60, STONE, M.Slate)
-		B.cyl(X, 221.6, z, 3.8, 0.5, TRIM, M.Slate)
+		B.cyl(X, 221.6, z, 3.8, 0.5, TRIM, M.Neon)
 		if i == 3 then
 			B.golden("underburrow", V(X, 227, z))
 		else
@@ -10719,7 +11035,7 @@ function Secret.Build(B)
 		B.info.bossArenas = B.info.bossArenas or {}
 		B.info.bossArenas.shade = { center = c, radius = r }
 		B.cyl(c.X, c.Y - 6, c.Z, r, 6, STONE, M.Slate)
-		B.cyl(c.X, c.Y - 0.3, c.Z, r + 0.4, 0.5, TRIM, M.Slate)
+		B.cyl(c.X, c.Y - 0.3, c.Z, r + 0.4, 0.5, TRIM, M.Neon)
 		B.cyl(c.X, c.Y - 0.05, c.Z, 6, 0.2, CRYSTAL, M.Neon).CanCollide = false
 		local under = B.blob(c - V(0, 18, 0), V(r * 1.6, 26, r * 1.6), STONE_DARK, M.Slate)
 		under.CastShadow = false
@@ -11193,7 +11509,7 @@ function WorldBuilder.Build()
 end
 
 return WorldBuilder
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000038"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="EnableMouseLockOption">false</bool></Properties><Item class="StarterPlayerScripts" referent="RBX00000034"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX00000033"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterPlayer" referent="RBX00000039"><Properties><string name="Name">StarterPlayer</string><bool name="LoadCharacterAppearance">false</bool><bool name="EnableMouseLockOption">false</bool></Properties><Item class="StarterPlayerScripts" referent="RBX00000035"><Properties><string name="Name">StarterPlayerScripts</string></Properties><Item class="LocalScript" referent="RBX00000034"><Properties><string name="Name">Bunny64Client</string><ProtectedString name="Source"><![CDATA[--[[
 	Bunny 64 - client entry point. Wires together menus, HUD, movement,
 	animation, collectibles and world effects, and reacts to server events.
 ]]
@@ -11219,6 +11535,7 @@ local Dialogue = require(script:WaitForChild("Dialogue"))
 local PhotoMode = require(script:WaitForChild("PhotoMode"))
 local Weather = require(script:WaitForChild("Weather"))
 local Baddies = require(script:WaitForChild("Baddies"))
+local CameraRig = require(script:WaitForChild("CameraRig"))
 
 local player = Players.LocalPlayer
 
@@ -11268,6 +11585,7 @@ local function applySnapshot(s)
 	snap = s
 	Menus.SetSnapshot(s)
 	Effects.SetOptions(s.menu.options)
+	CameraRig.SetFollow((s.menu.options or {}).camera ~= "free")
 	AdminPanel.SetAdmin(s.isAdmin)
 	Collectibles.Sync(s.slot)
 	if s.slot then
@@ -11608,6 +11926,7 @@ Menus.Init({
 	Movement = Movement,
 	Hud = Hud,
 	WorldFX = WorldFX,
+	CameraRig = CameraRig,
 	onPlay = function()
 		WorldFX.ResetRegion()
 		AdminPanel.SetVisible(true)
@@ -11647,6 +11966,10 @@ Dialogue.Init({
 })
 task.spawn(Shadows.Init)
 Baddies.Init()
+CameraRig.Blocked = function()
+	return Menus.Screen() ~= nil
+end
+CameraRig.Init()
 Weather.Init()
 WorldFX.OnRegion = Weather.SetRegion
 Effects.SetMusic("title")
@@ -12066,10 +12389,17 @@ return AdminPanel
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000025"><Properties><string name="Name">Animator</string><ProtectedString name="Source"><![CDATA[--[[
 	Animator - procedural animation for every bunny in the server.
 
-	No animation assets: each frame we compute a pose from the bunny's
-	velocity and current move, blend toward it, and write Motor6D.Transform.
-	Ears hang on little springs so they flop when you land or run.
-	Other players' moves come from the "Move" attribute the server sets.
+	No animation assets: each frame we work out a pose from what the bunny is
+	doing (its move and velocity), ease toward it, and write Motor6D.Transform.
+	Ears and the body hang on little springs, so landings, turns and stops
+	have follow-through instead of snapping.
+
+	The local bunny's move comes straight from Movement; other players' moves
+	come from the "Move" attribute the server sets.
+
+	Robustness: each bunny is animated inside a pcall, so a problem with one
+	(e.g. a half-loaded character) can't freeze everyone else's animation, and
+	a character whose joints aren't there yet is looked for again a moment later.
 ]]
 
 local Players = game:GetService("Players")
@@ -12082,7 +12412,7 @@ local Animator = {}
 
 local player = Players.LocalPlayer
 local Movement
-local rigs = {} -- [Model] = rig data
+local rigs = {} -- [Model] = rig data, or { retryAt = t } while its joints are missing
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Include
 
@@ -12103,6 +12433,11 @@ local function findRig(char)
 		end
 		motors[key] = m
 	end
+	local root = char:FindFirstChild("HumanoidRootPart")
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not root or not hum then
+		return nil
+	end
 	local cur = {}
 	for key in pairs(JOINTS) do
 		cur[key] = I
@@ -12112,13 +12447,25 @@ local function findRig(char)
 		cur = cur,
 		phase = math.random() * 6,
 		ears = { l = { a = 0, v = 0 }, r = { a = 0, v = 0 } },
+		lean = { x = 0, vx = 0, z = 0, vz = 0 }, -- body follow-through spring
 		twitchAt = os.clock() + 3,
 		twitch = 0,
-		root = char:FindFirstChild("HumanoidRootPart"),
-		hum = char:FindFirstChildOfClass("Humanoid"),
+		lookAt = os.clock() + 4,
+		look = 0,
+		spin = 0,
+		zipSwing = 0,
+		lastVel = Vector3.zero,
+		root = root,
+		hum = hum,
 	}
 end
 
+local function easeOut(u)
+	u = math.clamp(u, 0, 1)
+	return 1 - (1 - u) * (1 - u)
+end
+
+-- Work out the pose for one bunny this frame
 local function poseFor(rig, char, dt, now, isLocal)
 	local root, hum = rig.root, rig.hum
 	local v = root.AssemblyLinearVelocity
@@ -12126,13 +12473,18 @@ local function poseFor(rig, char, dt, now, isLocal)
 	local vy = v.Y
 	local t = now
 
+	-- acceleration in the bunny's own frame drives the body's follow-through
+	local accel = (v - rig.lastVel) / math.max(dt, 1 / 240)
+	rig.lastVel = v
+	local localAccel = root.CFrame:VectorToObjectSpace(Vector3.new(accel.X, 0, accel.Z))
+
 	-- what is this bunny doing?
 	local move, moveAge, flipAge, grounded
 	if isLocal then
 		local s = Movement.State()
-		move = s.move
-		moveAge = now - s.moveStart
-		flipAge = now - s.flipAt
+		move = s.move or ""
+		moveAge = now - (s.moveStart or now)
+		flipAge = now - (s.flipAt or -10)
 		grounded = hum.FloorMaterial ~= Enum.Material.Air
 	else
 		move = char:GetAttribute("Move") or ""
@@ -12143,7 +12495,7 @@ local function poseFor(rig, char, dt, now, isLocal)
 		if move == "flip" then
 			move = ""
 		end
-		local hit = workspace:Raycast(root.Position, Vector3.new(0, -3.6, 0), rayParams)
+		local hit = workspace:Raycast(root.Position, Vector3.new(0, -3.8, 0), rayParams)
 		grounded = hit ~= nil
 	end
 
@@ -12153,12 +12505,14 @@ local function poseFor(rig, char, dt, now, isLocal)
 	}
 	local extra = I
 	local earTarget = math.clamp(-vy * 0.018 + hv * 0.022, -0.5, 1.3)
+	local springy = true -- body follow-through on/off for this pose
 
 	if hum.Health <= 0 then
 		p.root = CFrame.new(0, -1.7, 0.4) * A(1.45, 0, 0)
 		p.lArm, p.rArm = A(0, 0, -1.6), A(0, 0, 1.6)
 		p.lLeg, p.rLeg = A(0.3, 0, -0.2), A(0.3, 0, 0.2)
 		earTarget = -0.4
+		springy = false
 	elseif move == "wave" then
 		p.rArm = A(0, 0, 2.6 + math.sin(t * 12) * 0.35)
 		p.lArm = A(0, 0, -0.2)
@@ -12180,6 +12534,7 @@ local function poseFor(rig, char, dt, now, isLocal)
 		p.lArm, p.rArm = A(0.6, 0, -0.2), A(0.6, 0, 0.2)
 		p.neck = A(-0.05, math.sin(t * 0.5) * 0.3, 0)
 		earTarget = -0.2 + math.sin(t * 1.3) * 0.1
+		springy = false
 	elseif move == "talk" then
 		p.neck = A(0.05 + math.abs(math.sin(t * 9)) * 0.08, 0, math.sin(t * 2) * 0.05)
 		p.lArm = A(0, 0, -0.25 - math.abs(math.sin(t * 4)) * 0.3)
@@ -12193,55 +12548,92 @@ local function poseFor(rig, char, dt, now, isLocal)
 		p.lLeg, p.rLeg = A(0.3 * hop, 0, -0.1), A(0.3 * hop, 0, 0.1)
 		p.neck = A(0.35, 0, 0)
 		earTarget = 1.0 - hop
+		springy = false
 	elseif move == "roll" then
-		local spin = moveAge * 17
-		extra = CFrame.new(0, -0.7, 0) * A(-spin, 0, 0)
-		p.lLeg, p.rLeg = A(1.5, 0, 0), A(1.5, 0, 0)
-		p.lArm, p.rArm = A(1.3, 0, 0.35), A(1.3, 0, -0.35)
-		p.neck = A(-0.55, 0, 0)
-		earTarget = 0.4
+		-- curled into a ball, tumbling forward as fast as we're moving
+		rig.spin += dt * (8 + hv * 0.32)
+		extra = CFrame.new(0, -1.05, 0) * A(-rig.spin, 0, 0) * CFrame.new(0, 0.25, 0)
+		p.lLeg, p.rLeg = A(1.7, 0, 0.1), A(1.7, 0, -0.1)
+		p.lArm, p.rArm = A(1.5, 0, 0.55), A(1.5, 0, -0.55)
+		p.neck = A(-0.7, 0, 0)
+		earTarget = -0.6
+		springy = false
 	elseif move == "longjump" or move == "fly" then
-		p.root = A(-1.15, 0, 0)
-		p.lArm, p.rArm = A(2.7, 0, 0.25), A(2.7, 0, -0.25)
-		p.lLeg, p.rLeg = A(-0.45, 0, -0.08), A(-0.2, 0, 0.08)
-		p.neck = A(0.75, 0, 0)
-		earTarget = 1.25
+		-- the superhero stretch
+		p.root = A(-1.2, 0, 0)
+		p.lArm, p.rArm = A(2.8, 0, 0.18), A(2.8, 0, -0.18)
+		p.lLeg = A(-0.5 + math.sin(t * 10) * 0.08, 0, -0.08)
+		p.rLeg = A(-0.25 - math.sin(t * 10) * 0.08, 0, 0.08)
+		p.neck = A(0.8, 0, 0)
+		earTarget = 1.3
+		springy = false
+	elseif move == "dive" then
+		-- arms out in front, belly first, ears streaming
+		local u = easeOut(moveAge / 0.18)
+		p.root = A(-1.45 * u, 0, 0)
+		p.lArm, p.rArm = A(2.95 * u, 0, 0.2), A(2.95 * u, 0, -0.2)
+		p.lLeg, p.rLeg = A(-0.35, 0, -0.12), A(-0.35, 0, 0.12)
+		p.neck = A(0.95 * u, 0, 0)
+		earTarget = 1.35
+		springy = false
 	elseif move == "slide" then
 		p.root = CFrame.new(0, -1.05, 0) * A(-1.38, 0, math.sin(t * 9) * 0.04)
 		p.lArm, p.rArm = A(2.85, 0, 0.3), A(2.85, 0, -0.3)
 		p.lLeg, p.rLeg = A(-0.12, 0, -0.12), A(-0.12, 0, 0.12)
 		p.neck = A(0.95, 0, 0)
 		earTarget = 1.3
+		springy = false
+	elseif move == "walljump" then
+		-- kicked off the wall: spread out, then tuck into a spin
+		local u = math.clamp(moveAge / 0.3, 0, 1)
+		extra = A(-TAU * easeOut(u) * 0.5, 0, 0)
+		p.lArm, p.rArm = A(0, 0, -2.2), A(0, 0, 2.2)
+		p.lLeg, p.rLeg = A(0.9, 0, -0.3), A(-0.4, 0, 0.3)
+		earTarget = 1.1
+		springy = false
 	elseif move == "pound" then
 		local hang = Config.PoundHang
 		if moveAge < hang then
-			extra = A(0, moveAge / hang * TAU, 0)
+			-- a little somersault in the air...
+			extra = A(-TAU * easeOut(moveAge / hang), 0, 0)
+			p.lLeg, p.rLeg = A(1.6, 0, 0), A(1.6, 0, 0)
+			p.lArm, p.rArm = A(1.2, 0, 0.4), A(1.2, 0, -0.4)
+		else
+			-- ...then bottom first, straight down
+			p.root = CFrame.new(0, 0.4, 0) * A(0.2, 0, 0)
+			p.lLeg, p.rLeg = A(1.35, 0, -0.2), A(1.35, 0, 0.2)
+			p.lArm, p.rArm = A(0, 0, -2.7), A(0, 0, 2.7)
 		end
-		p.lLeg, p.rLeg = A(1.3, 0, -0.15), A(1.3, 0, 0.15)
-		p.lArm, p.rArm = A(0, 0, -2.6), A(0, 0, 2.6)
-		p.root = A(0.15, 0, 0)
-		earTarget = -0.6
-	elseif move == "zip" then
-		-- hanging from the rope by both paws, legs swinging
-		p.lArm, p.rArm = A(0, 0, -2.95), A(0, 0, 2.95)
-		p.lLeg = A(0.5 + math.sin(t * 6) * 0.35, 0, -0.1)
-		p.rLeg = A(0.5 - math.sin(t * 6) * 0.35, 0, 0.1)
-		p.root = A(0.15, 0, 0)
-		p.neck = A(-0.2, 0, 0)
-		earTarget = 1.2
-	elseif move == "dive" then
-		-- arms out in front, belly first
-		p.root = A(-1.4, 0, 0)
-		p.lArm, p.rArm = A(2.9, 0, 0.22), A(2.9, 0, -0.22)
-		p.lLeg, p.rLeg = A(-0.3, 0, -0.1), A(-0.3, 0, 0.1)
-		p.neck = A(0.9, 0, 0)
 		earTarget = 1.3
+		springy = false
+	elseif move == "zip" then
+		-- hanging from the pulley by both paws; the body swings with speed changes
+		local swing = math.clamp(-localAccel.Z * 0.012, -0.6, 0.6)
+		rig.zipSwing += (swing - rig.zipSwing) * math.clamp(dt * 3, 0, 1)
+		local sway = math.sin(t * 2.4) * 0.08
+		p.root = A(rig.zipSwing + sway, 0, math.sin(t * 1.7) * 0.05)
+		p.lArm, p.rArm = A(0, 0, -2.95), A(0, 0, 2.95)
+		local kick = math.sin(t * 7) * 0.4 * math.clamp(hv / 40, 0.3, 1)
+		p.lLeg = A(0.6 + kick, 0, -0.12)
+		p.rLeg = A(0.6 - kick, 0, 0.12)
+		p.neck = A(-0.25, 0, 0)
+		earTarget = 1.25
+		springy = false
 	elseif move == "backflip" then
-		local u = math.clamp(moveAge / 0.8, 0, 1)
-		extra = A(TAU * (1 - (1 - u) * (1 - u)), 0, 0)
-		p.lLeg, p.rLeg = A(1.4, 0, 0), A(1.4, 0, 0)
-		p.lArm, p.rArm = A(0, 0, -2.5), A(0, 0, 2.5)
+		local u = math.clamp(moveAge / 0.75, 0, 1)
+		extra = A(TAU * easeOut(u), 0, 0)
+		local tuck = math.sin(u * math.pi)
+		p.lLeg, p.rLeg = A(1.5 * tuck, 0, 0), A(1.5 * tuck, 0, 0)
+		p.lArm, p.rArm = A(0, 0, -2.6 + tuck), A(0, 0, 2.6 - tuck)
 		earTarget = -0.3
+		springy = false
+	elseif move == "spring" then
+		local u = math.clamp(moveAge / 0.6, 0, 1)
+		extra = A(-TAU * easeOut(u), 0, 0)
+		p.lArm, p.rArm = A(0, 0, -2.7), A(0, 0, 2.7)
+		p.lLeg, p.rLeg = A(0.4, 0, -0.15), A(-0.2, 0, 0.15)
+		earTarget = 1.2
+		springy = false
 	elseif move == "crouch" then
 		local crawl = math.clamp(hv / 7, 0, 1)
 		rig.phase += dt * 6 * crawl
@@ -12253,11 +12645,12 @@ local function poseFor(rig, char, dt, now, isLocal)
 		earTarget = -0.55
 	elseif move == "skid" then
 		-- heels dug in, leaning back
-		p.root = CFrame.new(0, -0.3, 0) * A(0.4, 0, 0)
+		p.root = CFrame.new(0, -0.3, 0) * A(0.45, 0, 0)
 		p.lLeg, p.rLeg = A(-0.7, 0, -0.1), A(0.25, 0, 0.1)
 		p.lArm, p.rArm = A(0, 0, -1.5), A(0, 0, 1.5)
 		p.neck = A(-0.2, 0, 0)
 		earTarget = 1.1
+		springy = false
 	elseif not grounded then
 		local rising = vy > 0
 		p.lLeg = A(rising and 0.8 or 0.35, 0, 0)
@@ -12265,40 +12658,73 @@ local function poseFor(rig, char, dt, now, isLocal)
 		p.lArm = A(0, 0, rising and -2.3 or -1.3)
 		p.rArm = A(0, 0, rising and 2.3 or 1.3)
 		p.root = A(-0.08, 0, 0)
+		if not rising and vy < -60 then
+			-- a long fall: flailing
+			p.lArm = A(0, 0, -2.4 + math.sin(t * 18) * 0.4)
+			p.rArm = A(0, 0, 2.4 - math.sin(t * 18) * 0.4)
+		end
 		if flipAge < 0.45 then
 			local u = flipAge / 0.45
-			extra = A(-TAU * (1 - (1 - u) * (1 - u)), 0, 0)
+			extra = A(-TAU * easeOut(u), 0, 0)
 			p.lLeg, p.rLeg = A(1.4, 0, 0), A(1.4, 0, 0)
 			p.lArm, p.rArm = A(1.2, 0, 0.3), A(1.2, 0, -0.3)
 		end
 	else
-		local f = math.clamp(hv / 24, 0, 1)
+		local f = math.clamp(hv / 24, 0, 1.3)
 		rig.phase += dt * (5 + hv * 0.55)
 		local s = math.sin(rig.phase)
 		p.lLeg = A(s * 0.95 * f, 0, 0)
 		p.rLeg = A(-s * 0.95 * f, 0, 0)
 		p.lArm = A(-s * 0.75 * f, 0, -0.15 - 0.1 * f)
 		p.rArm = A(s * 0.75 * f, 0, 0.15 + 0.1 * f)
-		local idle = 1 - f
+		local idle = math.clamp(1 - f, 0, 1)
 		p.root = CFrame.new(0, math.abs(math.cos(rig.phase)) * 0.28 * f + math.sin(t * 2.2) * 0.05 * idle, 0)
-			* A(-0.14 * f, 0, s * 0.05 * f)
-		p.neck = A(0.08 * f + math.sin(t * 1.7) * 0.04 * idle, math.sin(t * 0.6) * 0.15 * idle, math.sin(t * 0.9) * 0.05 * idle)
+			* A(-0.16 * f, 0, s * 0.05 * f)
+		-- now and then, an idle bunny looks around
+		if idle > 0.9 and now > rig.lookAt then
+			rig.lookAt = now + 3 + math.random() * 4
+			rig.look = (math.random() - 0.5) * 1.4
+		elseif idle < 0.5 then
+			rig.look = 0
+		end
+		p.neck = A(0.08 * f + math.sin(t * 1.7) * 0.04 * idle, rig.look * idle, math.sin(t * 0.9) * 0.05 * idle)
 		-- idle breathing in the arms
 		p.lArm = p.lArm * A(0, 0, -math.sin(t * 2.2) * 0.04 * idle)
 		p.rArm = p.rArm * A(0, 0, math.sin(t * 2.2) * 0.04 * idle)
 		-- landing squash: knees give, body dips, then springs back
 		local landAge = now - (rig.landAt or -10)
-		if landAge < 0.22 then
-			local k = 1 - landAge / 0.22
+		if landAge < 0.24 then
+			local k = 1 - landAge / 0.24
 			k = k * k * math.clamp(rig.landHard or 0.5, 0.3, 1)
-			p.root = CFrame.new(0, -0.75 * k, 0) * A(-0.25 * k, 0, 0) * p.root
-			p.lLeg = A(0.8 * k, 0, 0) * p.lLeg
-			p.rLeg = A(0.8 * k, 0, 0) * p.rLeg
-			p.lArm = A(0, 0, -0.5 * k) * p.lArm
-			p.rArm = A(0, 0, 0.5 * k) * p.rArm
-			earTarget -= 0.8 * k
+			p.root = CFrame.new(0, -0.8 * k, 0) * A(-0.28 * k, 0, 0) * p.root
+			p.lLeg = A(0.85 * k, 0, 0) * p.lLeg
+			p.rLeg = A(0.85 * k, 0, 0) * p.rLeg
+			p.lArm = A(0, 0, -0.6 * k) * p.lArm
+			p.rArm = A(0, 0, 0.6 * k) * p.rArm
+			earTarget -= 0.9 * k
 		end
 	end
+	if move ~= "roll" then
+		rig.spin = 0
+	end
+	if move ~= "zip" then
+		rig.zipSwing = 0
+	end
+
+	-- body follow-through: lean into speeding up / turning, sway back on stopping
+	local lean = rig.lean
+	if springy then
+		local tx = math.clamp(localAccel.Z * 0.004, -0.35, 0.35) -- forward/back
+		local tz = math.clamp(-localAccel.X * 0.004, -0.3, 0.3) -- side to side
+		lean.vx += ((tx - lean.x) * 90 - lean.vx * 11) * dt
+		lean.x += lean.vx * dt
+		lean.vz += ((tz - lean.z) * 90 - lean.vz * 11) * dt
+		lean.z += lean.vz * dt
+		p.root = p.root * A(lean.x, 0, lean.z)
+	else
+		lean.x, lean.vx, lean.z, lean.vz = 0, 0, 0, 0
+	end
+
 	-- remember when we touch down (and how hard) for the squash above
 	if grounded and not rig.wasGrounded then
 		rig.landAt = now
@@ -12310,47 +12736,56 @@ local function poseFor(rig, char, dt, now, isLocal)
 	return p, extra, earTarget
 end
 
+local function apply(rig, char, dt, now, isLocal)
+	local pose, extra, earTarget = poseFor(rig, char, dt, now, isLocal)
+	local alpha = 1 - math.exp(-dt * 16)
+	for key, target in pairs(pose) do
+		rig.cur[key] = rig.cur[key]:Lerp(target, alpha)
+	end
+	rig.motors.root.Transform = rig.cur.root * extra
+	rig.motors.neck.Transform = rig.cur.neck
+	rig.motors.lArm.Transform = rig.cur.lArm
+	rig.motors.rArm.Transform = rig.cur.rArm
+	rig.motors.lLeg.Transform = rig.cur.lLeg
+	rig.motors.rLeg.Transform = rig.cur.rLeg
+
+	-- floppy ears on springs
+	if now > rig.twitchAt then
+		rig.twitchAt = now + 2 + math.random() * 4
+		rig.twitch = math.random() < 0.5 and 1 or -1
+	end
+	for side, ear in pairs(rig.ears) do
+		local target = earTarget
+		if (side == "r" and rig.twitch > 0.3) or (side == "l" and rig.twitch < -0.3) then
+			target -= 0.35
+		end
+		ear.v += (target - ear.a) * 110 * dt - ear.v * 9 * dt
+		ear.a += ear.v * dt
+	end
+	rig.twitch *= math.exp(-dt * 6)
+	local sway = math.sin(now * 2.3) * 0.05
+	rig.motors.lEar.Transform = A(rig.ears.l.a, 0, -math.max(0, rig.ears.l.a) * 0.25 + sway)
+	rig.motors.rEar.Transform = A(rig.ears.r.a * 0.92, 0, math.max(0, rig.ears.r.a) * 0.25 - sway)
+end
+
+local warned = {}
 local function update(dt)
+	dt = math.clamp(dt or 1 / 60, 1 / 240, 0.1)
 	local now = os.clock()
 	for _, plr in ipairs(Players:GetPlayers()) do
 		local char = plr.Character
-		if char and char:GetAttribute("Bunny") and char.Parent then
+		if char and char.Parent and char:GetAttribute("Bunny") then
 			local rig = rigs[char]
-			if rig == nil then
-				rig = findRig(char) or false
+			if rig == nil or (rig.retryAt and now > rig.retryAt) then
+				rig = findRig(char) or { retryAt = now + 0.5 }
 				rigs[char] = rig
 			end
-			if rig and rig.root and rig.hum and rig.root.Parent then
-				local isLocal = plr == player
-				local pose, extra, earTarget = poseFor(rig, char, dt, now, isLocal)
-				local alpha = 1 - math.exp(-dt * 16)
-				for key, target in pairs(pose) do
-					rig.cur[key] = rig.cur[key]:Lerp(target, alpha)
+			if rig.motors and rig.root.Parent then
+				local ok, err = pcall(apply, rig, char, dt, now, plr == player)
+				if not ok and not warned[tostring(err)] then
+					warned[tostring(err)] = true
+					warn("[Bunny64] Animator: " .. tostring(err))
 				end
-				rig.motors.root.Transform = rig.cur.root * extra
-				rig.motors.neck.Transform = rig.cur.neck
-				rig.motors.lArm.Transform = rig.cur.lArm
-				rig.motors.rArm.Transform = rig.cur.rArm
-				rig.motors.lLeg.Transform = rig.cur.lLeg
-				rig.motors.rLeg.Transform = rig.cur.rLeg
-
-				-- floppy ears
-				if now > rig.twitchAt then
-					rig.twitchAt = now + 2 + math.random() * 4
-					rig.twitch = math.random() < 0.5 and 1 or -1
-				end
-				for side, ear in pairs(rig.ears) do
-					local target = earTarget
-					if (side == "r" and rig.twitch > 0.3) or (side == "l" and rig.twitch < -0.3) then
-						target -= 0.35
-					end
-					ear.v += (target - ear.a) * 110 * dt - ear.v * 9 * dt
-					ear.a += ear.v * dt
-				end
-				rig.twitch *= math.exp(-dt * 6)
-				local sway = math.sin(now * 2.3) * 0.05
-				rig.motors.lEar.Transform = A(rig.ears.l.a, 0, -math.max(0, rig.ears.l.a) * 0.25 + sway)
-				rig.motors.rEar.Transform = A(rig.ears.r.a * 0.92, 0, math.max(0, rig.ears.r.a) * 0.25 - sway)
 			end
 		end
 	end
@@ -12366,32 +12801,43 @@ function Animator.Init(movement)
 	Movement = movement
 	local worldFolder = workspace:WaitForChild("Bunny64World")
 	rayParams.FilterDescendantsInstances = { worldFolder:WaitForChild("Solid"), workspace.Terrain }
-	RunService.Stepped:Connect(function(_, dt)
-		update(dt)
+	-- Motor6D.Transform is written just before physics each frame
+	local ok, preSim = pcall(function()
+		return RunService.PreSimulation
 	end)
+	if ok and preSim then
+		preSim:Connect(function(dt)
+			update(dt)
+		end)
+	else
+		RunService.Stepped:Connect(function(_, dt)
+			update(dt)
+		end)
+	end
 end
 
 return Animator
 ]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000026"><Properties><string name="Name">Baddies</string><ProtectedString name="Source"><![CDATA[--[[
 	Baddies - draws every baddie smoothly on this player's screen.
 
-	The server runs their brains and publishes, a few times a second:
-	  CF     where the baddie's root is (position, heading, tilt)
-	  St     what it's doing (idle, chase, hop, swoop, wind, lunge, swell, blow...)
-	  Alert  a timestamp when it spots someone
-	  Alive  false while it's been bopped
-	Here we glide between those updates every frame and add the animation
-	that needs to be snappy: waddles, rolling spikes, wing flaps, jaw snaps,
-	puffing up, a "!" when they notice you, and a squash when they're bopped.
-	The parts are only moved locally, so this costs no network traffic.
+	The server runs their brains and bodies and publishes, ~10 times a second:
+	  CF         where the baddie's root is (position, heading, slope tilt)
+	  Vel        how fast it's moving (so we can predict between updates)
+	  St         what it's doing (idle, walk, chase, hop, swoop, wind, lunge...)
+	  Alert      a timestamp when it spots you ("!") or loses you ("?", AlertKind)
+	  Alive      false while it's been bopped
+
+	Every frame we predict where it is now (last position + velocity * time
+	since the update), glide toward that, and add the animation that has to
+	be snappy: six scuttling bug legs, waddles, a rolling Thornhog, wing flaps,
+	jaw snaps, puffing up, the "!" / "?" and a squash when bopped. Parts are
+	moved locally only, so this costs no network traffic.
 ]]
 
-local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local Baddies = {}
 
-local player = Players.LocalPlayer
 local tracked = {} -- [Model] = data
 local DRAW_DIST = 340
 local A = CFrame.Angles
@@ -12418,6 +12864,7 @@ local function makeBang(rootPart, height)
 	gui.Enabled = false
 	gui.Adornee = rootPart
 	local t = Instance.new("TextLabel")
+	t.Name = "Mark"
 	t.BackgroundTransparency = 1
 	t.Size = UDim2.fromScale(1, 1)
 	t.Font = Enum.Font.LuckiestGuy
@@ -12445,24 +12892,35 @@ local function register(model)
 		return
 	end
 	local rest = rootPart.CFrame
-	local parts, offsets, sizes, roles = {}, {}, {}, {}
+	local parts, offsets, sizes, roles, legs = {}, {}, {}, {}, {}
 	local top = 2
 	for _, d in ipairs(model:GetDescendants()) do
 		if d:IsA("BasePart") then
 			table.insert(parts, d)
+			local i = #parts
 			local off = rest:ToObjectSpace(d.CFrame)
-			offsets[#parts] = off
-			sizes[#parts] = d.Size
+			offsets[i] = off
+			sizes[i] = d.Size
 			top = math.max(top, off.Y + d.Size.Y / 2)
 			if d.Name == "Wing" or d.Name == "WingTip" then
-				roles[#parts] = "wing"
+				roles[i] = "wing"
 			elseif d.Name == "BackLeg" then
-				roles[#parts] = "leg"
+				roles[i] = "leg"
 			elseif d.Name == "Jaw" then
-				roles[#parts] = "jaw"
+				roles[i] = "jaw"
+			elseif d.Name == "Leg" and d:GetAttribute("LegSide") then
+				roles[i] = "bugleg"
+				-- hip (in the root's space) and gait phase for this leg
+				local side = d:GetAttribute("LegSide")
+				local index = d:GetAttribute("LegIndex") or 1
+				legs[i] = {
+					hinge = CFrame.new(side * 1.3, -0.15, d:GetAttribute("LegZ") or 0),
+					phase = (index % 2 == 0) == (side > 0) and 0 or math.pi, -- tripod gait
+				}
 			end
 		end
 	end
+	local cf = model:GetAttribute("CF") or rest
 	local data = {
 		model = model,
 		kind = model:GetAttribute("Kind") or "bug",
@@ -12470,8 +12928,11 @@ local function register(model)
 		offsets = offsets,
 		sizes = sizes,
 		roles = roles,
-		cur = model:GetAttribute("CF") or rest,
-		prevPos = nil,
+		legs = legs,
+		target = cf,
+		vel = model:GetAttribute("Vel") or Vector3.zero,
+		recvAt = os.clock(),
+		cur = cf,
 		speed = 0,
 		phase = math.random() * 6,
 		spin = 0,
@@ -12485,12 +12946,26 @@ local function register(model)
 		cfs = table.create(#parts),
 	}
 	data.bang = makeBang(rootPart, top + 1.5)
+	model:GetAttributeChangedSignal("CF"):Connect(function()
+		data.target = model:GetAttribute("CF") or data.target
+		data.vel = model:GetAttribute("Vel") or Vector3.zero
+		data.recvAt = os.clock()
+	end)
+	model:GetAttributeChangedSignal("Vel"):Connect(function()
+		data.vel = model:GetAttribute("Vel") or Vector3.zero
+	end)
 	model:GetAttributeChangedSignal("St"):Connect(function()
 		data.state = model:GetAttribute("St") or "idle"
 		data.stateAt = os.clock()
 	end)
 	model:GetAttributeChangedSignal("Alert"):Connect(function()
 		data.alertAt = os.clock()
+		local mark = data.bang and data.bang:FindFirstChild("Mark")
+		if mark then
+			local kind = model:GetAttribute("AlertKind") or "!"
+			mark.Text = kind
+			mark.TextColor3 = kind == "?" and Color3.fromRGB(190, 210, 255) or Color3.fromRGB(255, 220, 90)
+		end
 	end)
 	model:GetAttributeChangedSignal("Alive"):Connect(function()
 		local alive = model:GetAttribute("Alive") ~= false
@@ -12498,13 +12973,14 @@ local function register(model)
 			data.alive = alive
 			data.aliveAt = os.clock()
 			if alive then
-				data.cur = model:GetAttribute("CF") or data.cur
+				data.target = model:GetAttribute("CF") or data.target
+				data.cur = data.target
+				data.vel = Vector3.zero
 				setHidden(data, false)
 			end
 		end
 	end)
 	if not data.alive then
-		data.aliveAt = -10
 		setHidden(data, true)
 	end
 	tracked[model] = data
@@ -12514,21 +12990,29 @@ end
 local function animate(data, base, now, dt)
 	local kind = data.kind
 	local stateAge = now - data.stateAt
+	local speed = data.speed
 
-	-- walking waddle / rolling, from how fast it's actually moving
-	if kind == "bug" or kind == "mossling" then
-		local f = math.clamp(data.speed / 10, 0, 1.4)
+	-- gaits, from how fast it's actually moving
+	if kind == "bug" then
+		data.phase += dt * (4 + speed * 1.1)
+		local f = math.clamp(speed / 12, 0, 1.2)
+		base = base * CFrame.new(0, math.abs(math.sin(data.phase * 2)) * 0.12 * f + math.sin(now * 2 + data.spin) * 0.04, 0)
+			* A(0, 0, math.sin(data.phase) * 0.04 * f)
+	elseif kind == "mossling" then
+		local f = math.clamp(speed / 10, 0, 1.4)
 		if f > 0.05 then
-			data.phase += dt * (6 + data.speed * 1.1)
+			data.phase += dt * (6 + speed * 1.1)
 			local s = math.sin(data.phase)
-			base = base * CFrame.new(0, math.abs(s) * 0.3 * f, 0) * A(0, 0, s * (kind == "mossling" and 0.14 or 0.07) * f)
+			base = base * CFrame.new(0, math.abs(s) * 0.3 * f, 0) * A(0, 0, s * 0.14 * f)
 		else
-			-- idle breathing
 			base = base * CFrame.new(0, math.sin(now * 2 + data.phase) * 0.06, 0)
 		end
 	elseif kind == "thornhog" then
-		data.spin += data.speed * dt / 2.2
+		data.spin += speed * dt / 2.2
 		base = base * A(-data.spin, 0, 0)
+		if data.state == "skid" then
+			base = base * A(0, 0, math.sin(now * 40) * 0.05)
+		end
 	elseif kind == "toad" and data.state == "idle" then
 		-- throat puffing while it sits
 		base = base * CFrame.new(0, math.abs(math.sin(now * 3 + data.phase)) * 0.1, 0)
@@ -12547,20 +13031,22 @@ local function animate(data, base, now, dt)
 		base = base * A(0, 0, math.sin(now * 40) * 0.05)
 	end
 
-	-- noticed you: a quick hop
+	-- noticed you: a quick hop for anyone who doesn't do their own
 	local alertAge = now - data.alertAt
-	if alertAge < 0.35 then
+	if alertAge < 0.35 and kind ~= "bug" and kind ~= "mossling" then
 		base = CFrame.new(0, math.sin(alertAge / 0.35 * math.pi) * 1.6, 0) * base
 	end
 	if data.bang then
-		data.bang.Enabled = alertAge < 0.8 and data.alive
+		data.bang.Enabled = alertAge < 0.9 and data.alive
 	end
 
-	-- bopped: a squashed spin into the ground, then hidden
+	-- bopped: squashed flat into the ground, then gone
+	local squash = 1
 	if not data.alive then
 		local a = now - data.aliveAt
-		if a < 0.35 then
-			base = base * CFrame.new(0, -a * 5, 0) * A(0, a * 22, a * 2)
+		if a < 0.4 then
+			squash = math.max(0.15, 1 - a * 4)
+			base = base * CFrame.new(0, -(1 - squash) * 1.2, 0)
 		else
 			setHidden(data, true)
 		end
@@ -12583,13 +13069,19 @@ local function animate(data, base, now, dt)
 	end
 	local legKick = 0
 	if kind == "toad" and data.state == "hop" then
-		legKick = math.sin(math.clamp(stateAge / 0.7, 0, 1) * math.pi)
+		legKick = math.sin(math.clamp(stateAge / 0.75, 0, 1) * math.pi)
 	end
+	local stride = math.clamp(speed / 10, 0, 1) * 0.45
 	local cfs = data.cfs
 	for i, p in ipairs(data.parts) do
 		local off = data.offsets[i]
 		local role = data.roles[i]
-		if role == "wing" then
+		if role == "bugleg" then
+			local leg = data.legs[i]
+			local swing = math.sin(data.phase + leg.phase) * stride
+			local lift = math.max(0, math.cos(data.phase + leg.phase)) * stride * 0.6
+			off = leg.hinge * A(0, swing, 0) * CFrame.new(0, lift, 0) * leg.hinge:Inverse() * off
+		elseif role == "wing" then
 			local side = off.X >= 0 and 1 or -1
 			local hinge = CFrame.new(side * 1.0, 0.3, 0.1)
 			off = hinge * A(0, 0, side * flap) * hinge:Inverse() * off
@@ -12599,12 +13091,15 @@ local function animate(data, base, now, dt)
 		elseif role == "leg" and legKick > 0 then
 			off = off * CFrame.new(0, -legKick * 0.6, legKick * 0.9)
 		end
-		if data.scale ~= 1 then
-			off = CFrame.new(off.Position * data.scale) * off.Rotation
-			local want = data.sizes[i] * data.scale
+		local s = data.scale
+		if s ~= 1 or squash ~= 1 then
+			off = CFrame.new(off.X * s, off.Y * s * squash, off.Z * s) * off.Rotation
+			local want = data.sizes[i] * Vector3.new(s, s * squash, s)
 			if (p.Size - want).Magnitude > 0.05 then
 				p.Size = want
 			end
+		elseif p.Size ~= data.sizes[i] then
+			p.Size = data.sizes[i]
 		end
 		cfs[i] = base * off
 	end
@@ -12612,33 +13107,38 @@ local function animate(data, base, now, dt)
 end
 
 local frame = 0
+local warned = {}
 local function update(dt)
 	frame += 1
+	dt = math.min(dt, 0.1)
 	local now = os.clock()
 	local cam = workspace.CurrentCamera
 	local camPos = cam and cam.CFrame.Position or Vector3.zero
-	local alpha = 1 - math.exp(-dt * 13)
 	for model, data in pairs(tracked) do
 		if not model.Parent then
 			tracked[model] = nil
 		elseif not (data.hidden and not data.alive) then
-			local target = model:GetAttribute("CF")
-			if target then
-				local dist = (target.Position - camPos).Magnitude
-				-- far away ones only need updating every few frames
-				if dist < DRAW_DIST and (dist < 150 or (frame + data.phase * 10) % 3 < 1) then
-					if (target.Position - data.cur.Position).Magnitude > 30 then
-						data.cur = target -- too far behind (just came into view): snap
-					else
-						data.cur = data.cur:Lerp(target, alpha)
-					end
-					local pos = data.cur.Position
-					if data.prevPos and dt > 0 then
-						local flat = Vector3.new(pos.X - data.prevPos.X, 0, pos.Z - data.prevPos.Z)
-						data.speed += (flat.Magnitude / dt - data.speed) * math.clamp(dt * 8, 0, 1)
-					end
-					data.prevPos = pos
-					animate(data, data.cur, now, dt)
+			local dist = (data.target.Position - camPos).Magnitude
+			-- far away ones only need updating every few frames
+			if dist < DRAW_DIST and (dist < 150 or (frame + math.floor(data.phase * 10)) % 3 == 0) then
+				local stepDt = dist < 150 and dt or dt * 3
+				-- predict where it is now from its last update and velocity
+				local ahead = math.min(now - data.recvAt, 0.25)
+				local predicted = data.target + data.vel * ahead
+				local gap = (predicted.Position - data.cur.Position).Magnitude
+				if gap > 25 then
+					data.cur = predicted -- too far behind (just came into view): snap
+				else
+					local posAlpha = 1 - math.exp(-stepDt * 16)
+					local rotAlpha = 1 - math.exp(-stepDt * 10)
+					local pos = data.cur.Position:Lerp(predicted.Position, posAlpha)
+					data.cur = CFrame.new(pos) * data.cur.Rotation:Lerp(predicted.Rotation, rotAlpha)
+				end
+				data.speed += (Vector3.new(data.vel.X, 0, data.vel.Z).Magnitude - data.speed) * math.clamp(stepDt * 8, 0, 1)
+				local ok, err = pcall(animate, data, data.cur, now, stepDt)
+				if not ok and not warned[data.kind] then
+					warned[data.kind] = true
+					warn("[Bunny64] Baddies (" .. data.kind .. "): " .. tostring(err))
 				end
 			end
 		end
@@ -12660,7 +13160,103 @@ function Baddies.Init()
 end
 
 return Baddies
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">Chiptune</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000027"><Properties><string name="Name">CameraRig</string><ProtectedString name="Source"><![CDATA[--[[
+	CameraRig - an SM64-style follow camera on top of Roblox's camera.
+
+	With CAMERA set to FOLLOW (Options), the camera swings round behind the
+	bunny while you run, like a cameraman following you, so you can just play
+	with one stick. It never fights you:
+	  * it waits a moment after you move the camera yourself (mouse drag,
+	    touch drag, right stick)
+	  * it doesn't swing when you run toward the camera (you'd lose the view)
+	  * it stays put during menus, photo mode, emotes and while standing still
+	FREE leaves the camera entirely to the player.
+
+	It works by rotating the camera about its focus after Roblox's camera
+	module has run each frame; Roblox's camera carries on from the new angle.
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local CameraRig = {}
+
+local player = Players.LocalPlayer
+local follow = true
+local enabled = true
+local lastManual = 0
+
+function CameraRig.SetFollow(on)
+	follow = on
+end
+
+-- Off while menus / photo mode are up
+function CameraRig.SetEnabled(on)
+	enabled = on
+end
+
+local function manual()
+	lastManual = os.clock()
+end
+
+function CameraRig.Init()
+	UserInputService.InputChanged:Connect(function(input)
+		local t = input.UserInputType
+		if t == Enum.UserInputType.MouseMovement then
+			if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) or UserInputService.MouseBehavior == Enum.MouseBehavior.LockCenter then
+				manual()
+			end
+		elseif t == Enum.UserInputType.Touch then
+			manual()
+		elseif t == Enum.UserInputType.Gamepad1 and input.KeyCode == Enum.KeyCode.Thumbstick2 and input.Position.Magnitude > 0.2 then
+			manual()
+		end
+	end)
+	UserInputService.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton2 then
+			manual()
+		end
+	end)
+
+	RunService:BindToRenderStep("Bunny64FollowCam", Enum.RenderPriority.Camera.Value + 2, function(dt)
+		if not follow or not enabled or os.clock() - lastManual < 1.6 or (CameraRig.Blocked and CameraRig.Blocked()) then
+			return
+		end
+		local cam = workspace.CurrentCamera
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if not cam or not root or not hum or hum.Health <= 0 or cam.CameraType ~= Enum.CameraType.Custom then
+			return
+		end
+		local v = root.AssemblyLinearVelocity
+		local flatVel = Vector3.new(v.X, 0, v.Z)
+		local speed = flatVel.Magnitude
+		if speed < 8 then
+			return
+		end
+		local look = cam.CFrame.LookVector
+		local flatLook = Vector3.new(look.X, 0, look.Z)
+		if flatLook.Magnitude < 0.1 then
+			return
+		end
+		flatLook = flatLook.Unit
+		local want = flatVel.Unit
+		-- signed angle from where the camera looks to where we're running
+		local angle = math.atan2(flatLook:Cross(want).Y, flatLook:Dot(want))
+		if math.abs(angle) > math.rad(115) then
+			return -- running toward the camera: leave it be
+		end
+		local rate = math.clamp(speed / 24, 0.4, 1.6) * 1.1
+		local turn = angle * math.clamp(dt * rate, 0, 1)
+		local focus = cam.Focus.Position
+		cam.CFrame = CFrame.new(focus) * CFrame.Angles(0, turn, 0) * CFrame.new(-focus) * cam.CFrame
+	end)
+end
+
+return CameraRig
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000028"><Properties><string name="Name">Chiptune</string><ProtectedString name="Source"><![CDATA[--[[
 	Chiptune - Bunny 64's 8-bit music engine and soundtrack.
 
 	Roblox can't synthesise sound, so this little "tracker" plays one short
@@ -13186,7 +13782,7 @@ function Chiptune.Has(name)
 end
 
 return Chiptune
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000028"><Properties><string name="Name">Collectibles</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000029"><Properties><string name="Name">Collectibles</string><ProtectedString name="Source"><![CDATA[--[[
 	Collectibles - spins the carrots, hides the ones this file already has,
 	and asks the server to collect carrots the bunny touches.
 	Each player has their own carrots, so pickups are client-side visuals
@@ -13366,7 +13962,7 @@ function Collectibles.Init(effects, remotes)
 end
 
 return Collectibles
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000029"><Properties><string name="Name">Dialogue</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002A"><Properties><string name="Name">Dialogue</string><ProtectedString name="Source"><![CDATA[--[[
 	Dialogue - talk to friendly characters.
 
 	A chunky text box types each line out letter by letter, with a little
@@ -13553,7 +14149,7 @@ function Dialogue.Init(dependencies)
 end
 
 return Dialogue
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002A"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002B"><Properties><string name="Name">Effects</string><ProtectedString name="Source"><![CDATA[--[[
 	Effects - local sounds, music, chunky block particles and camera shake.
 ]]
 
@@ -13820,7 +14416,7 @@ RunService:BindToRenderStep("Bunny64Shake", Enum.RenderPriority.Camera.Value + 1
 end)
 
 return Effects
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002B"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002C"><Properties><string name="Name">Hud</string><ProtectedString name="Source"><![CDATA[--[[
 	Hud - in-game overlay: hearts, golden carrot and carrot counters,
 	region title cards, toasts, the boss health bar and the MENU button.
 ]]
@@ -13941,16 +14537,23 @@ function Hud.Init(menuCallback)
 		hearts[i] = h
 	end
 
-	-- stamina: green pips under the hearts (shown while not full)
+	-- stamina: green pips under the hearts (and a ring over the bunny's head while in use)
 	staminaRow = Instance.new("Frame")
 	staminaRow.BackgroundTransparency = 1
-	staminaRow.Size = UDim2.fromOffset(200, 18)
-	staminaRow.Position = UDim2.fromOffset(6, 88)
+	staminaRow.Size = UDim2.fromOffset(280, 20)
+	staminaRow.Position = UDim2.fromOffset(4, 88)
 	staminaRow.Parent = root
 	local sLayout = Instance.new("UIListLayout")
 	sLayout.FillDirection = Enum.FillDirection.Horizontal
+	sLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 	sLayout.Padding = UDim.new(0, 4)
+	sLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	sLayout.Parent = staminaRow
+	local sTitle = UI.label(staminaRow, {
+		Text = "STAMINA", Font = UI.TITLE, TextSize = 14, Size = UDim2.fromOffset(64, 18),
+		TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = Color3.fromRGB(176, 220, 140), Stroke = 2,
+	})
+	sTitle.LayoutOrder = 0
 	for i = 1, Config.Stamina.max do
 		local back = Instance.new("Frame")
 		back.Size = UDim2.fromOffset(28, 12)
@@ -13958,6 +14561,7 @@ function Hud.Init(menuCallback)
 		back.BorderSizePixel = 0
 		UI.corner(back, 5)
 		UI.stroke(back, 2, UI.Ink, Enum.ApplyStrokeMode.Border)
+		back.LayoutOrder = i
 		back.Parent = staminaRow
 		local fill = Instance.new("Frame")
 		fill.Name = "Fill"
@@ -13968,7 +14572,6 @@ function Hud.Init(menuCallback)
 		fill.Parent = back
 		staminaPips[i] = back
 	end
-	staminaRow.Visible = false
 
 	goldenLabel = counter(root, P.Gold, 36)
 	carrotLabel = counter(root, P.Carrot, 84)
@@ -14250,28 +14853,78 @@ function Hud.Pulse(label)
 	TweenService:Create(scale, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 end
 
-local staminaHideAt = 0
+-- A little ring of pips floating over the bunny's head while stamina is in use
+local headGui, headPips = nil, {}
+local function headMeter()
+	local char = player.Character
+	local head = char and char:FindFirstChild("Head")
+	if not head then
+		return nil
+	end
+	if headGui and headGui.Parent and headGui.Adornee == head then
+		return headGui
+	end
+	if headGui then
+		headGui:Destroy()
+	end
+	headGui = Instance.new("BillboardGui")
+	headGui.Name = "Bunny64Stamina"
+	headGui.Size = UDim2.fromOffset(120, 16)
+	headGui.StudsOffsetWorldSpace = Vector3.new(0, 4.2, 0)
+	headGui.AlwaysOnTop = true
+	headGui.LightInfluence = 0
+	headGui.Adornee = head
+	headGui.Enabled = false
+	local row = Instance.new("Frame")
+	row.BackgroundTransparency = 1
+	row.Size = UDim2.fromScale(1, 1)
+	row.Parent = headGui
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Horizontal
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	layout.Padding = UDim.new(0, 3)
+	layout.Parent = row
+	headPips = {}
+	for i = 1, Config.Stamina.max do
+		local back = Instance.new("Frame")
+		back.Size = UDim2.fromOffset(18, 9)
+		back.BackgroundColor3 = Color3.fromRGB(30, 34, 30)
+		back.BorderSizePixel = 0
+		UI.corner(back, 4)
+		UI.stroke(back, 1.5, UI.Ink, Enum.ApplyStrokeMode.Border)
+		back.Parent = row
+		local fill = Instance.new("Frame")
+		fill.Name = "Fill"
+		fill.BorderSizePixel = 0
+		UI.corner(fill, 4)
+		fill.Parent = back
+		headPips[i] = back
+	end
+	headGui.Parent = player:WaitForChild("PlayerGui")
+	return headGui
+end
+
+local function paintPips(pips, cur, max)
+	for i, pip in ipairs(pips) do
+		pip.Visible = i <= max
+		local f = math.clamp(cur - (i - 1), 0, 1)
+		local fill = pip:FindFirstChild("Fill")
+		if fill then
+			fill.Size = UDim2.fromScale(f, 1)
+			fill.BackgroundColor3 = f >= 1 and Color3.fromRGB(134, 196, 96) or Color3.fromRGB(214, 180, 80)
+		end
+	end
+end
+
 function Hud.SetStamina(cur, max)
 	if not staminaRow then
 		return
 	end
-	for i, pip in ipairs(staminaPips) do
-		pip.Visible = i <= max
-		local f = math.clamp(cur - (i - 1), 0, 1)
-		pip.Fill.Size = UDim2.fromScale(f, 1)
-		pip.Fill.BackgroundColor3 = f >= 1 and Color3.fromRGB(134, 196, 96) or Color3.fromRGB(196, 176, 90)
-	end
-	if cur < max - 0.001 then
-		staminaRow.Visible = true
-		staminaHideAt = math.huge
-	elseif staminaHideAt == math.huge then
-		-- linger a moment once full, then tuck away
-		staminaHideAt = os.clock() + 1.2
-		task.delay(1.25, function()
-			if os.clock() >= staminaHideAt then
-				staminaRow.Visible = false
-			end
-		end)
+	paintPips(staminaPips, cur, max)
+	local meter = headMeter()
+	if meter then
+		paintPips(headPips, cur, max)
+		meter.Enabled = gui.Enabled and cur < max - 0.001
 	end
 end
 
@@ -14280,7 +14933,6 @@ function Hud.StaminaEmpty()
 	if not staminaRow then
 		return
 	end
-	staminaRow.Visible = true
 	for _, pip in ipairs(staminaPips) do
 		pip.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
 		TweenService:Create(pip, TweenInfo.new(0.5), { BackgroundColor3 = Color3.fromRGB(40, 46, 40) }):Play()
@@ -14387,7 +15039,7 @@ function Hud.WatchBoss(arenaBossFn)
 end
 
 return Hud
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002C"><Properties><string name="Name">Menus</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002D"><Properties><string name="Name">Menus</string><ProtectedString name="Source"><![CDATA[--[[
 	Menus - every full-screen menu:
 	  Title (PRESS START) -> File Select (File A/B/C, erase) -> game
 	  Customise (fur, accent colour, hat, neckwear with a live 3D preview)
@@ -14819,7 +15471,7 @@ function showOptions(back)
 	clear()
 	UI.backdrop(layer, snap.slot and 0.3 or 0.05)
 	UI.title(layer, "OPTIONS", 60, UDim2.new(0.5, 0, 0, 24), Vector2.new(0.5, 0))
-	local panel = UI.panel(layer, UDim2.fromOffset(560, 500), UDim2.fromScale(0.5, 0.56))
+	local panel = UI.panel(layer, UDim2.fromOffset(560, 560), UDim2.fromScale(0.5, 0.57))
 	local list = Instance.new("Frame")
 	list.BackgroundTransparency = 1
 	list.Size = UDim2.new(1, -40, 1, -40)
@@ -14835,28 +15487,34 @@ function showOptions(back)
 	local shake = UI.item(list, "", { LayoutOrder = 3 })
 	local tipsRow = UI.item(list, "", { LayoutOrder = 4 })
 	local assistRow = UI.item(list, "", { LayoutOrder = 5 })
+	local cameraRow = UI.item(list, "", { LayoutOrder = 6 })
 	local function refresh()
 		sfx.Text = "SOUND  < " .. bar(o.sfx) .. " >"
 		music.Text = "MUSIC  < " .. bar(o.music) .. " >"
 		shake.Text = "SCREEN SHAKE  < " .. (o.shake and "ON" or "OFF") .. " >"
 		tipsRow.Text = "TIPS  < " .. (o.tips ~= false and "ON" or "OFF") .. " >"
 		assistRow.Text = "ASSIST MODE  < " .. (o.assist and "ON - 5 HEARTS" or "OFF") .. " >"
+		cameraRow.Text = "CAMERA  < " .. (o.camera == "free" and "FREE" or "FOLLOW") .. " >"
 		deps.Effects.SetOptions(o)
+		if deps.CameraRig then
+			deps.CameraRig.SetFollow(o.camera ~= "free")
+		end
 	end
 	refresh()
 	local function finish()
 		deps.Remotes.SetOptions:FireServer(o)
 		back()
 	end
-	local controlsButton = UI.item(list, "CONTROLS", { LayoutOrder = 6 })
-	local backButton = UI.item(list, "BACK", { LayoutOrder = 8 })
-	UI.label(list, { Text = "8-bit music is built in. Add uploaded track ids in Config.Music to replace it.", TextSize = 14, TextWrapped = true, LayoutOrder = 7, Size = UDim2.new(1, 0, 0, 34), Stroke = 2, TextTransparency = 0.3 })
+	local controlsButton = UI.item(list, "CONTROLS", { LayoutOrder = 7 })
+	local backButton = UI.item(list, "BACK", { LayoutOrder = 9 })
+	UI.label(list, { Text = "FOLLOW swings the camera in behind you as you run. 8-bit music is built in; uploaded track ids in Config.Music replace it.", TextSize = 14, TextWrapped = true, LayoutOrder = 8, Size = UDim2.new(1, 0, 0, 34), Stroke = 2, TextTransparency = 0.3 })
 	UI.SetNav({
 		{ button = sfx, left = function() o.sfx = math.max(0, o.sfx - 1); refresh() end, right = function() o.sfx = math.min(10, o.sfx + 1); refresh() end, select = function() o.sfx = (o.sfx + 1) % 11; refresh() end },
 		{ button = music, left = function() o.music = math.max(0, o.music - 1); refresh() end, right = function() o.music = math.min(10, o.music + 1); refresh() end, select = function() o.music = (o.music + 1) % 11; refresh() end },
 		{ button = shake, left = function() o.shake = not o.shake; refresh() end, right = function() o.shake = not o.shake; refresh() end, select = function() o.shake = not o.shake; refresh() end },
 		{ button = tipsRow, left = function() o.tips = o.tips == false; refresh() end, right = function() o.tips = o.tips == false; refresh() end, select = function() o.tips = o.tips == false; refresh() end },
 		{ button = assistRow, left = function() o.assist = not o.assist; refresh() end, right = function() o.assist = not o.assist; refresh() end, select = function() o.assist = not o.assist; refresh() end },
+		{ button = cameraRow, left = function() o.camera = o.camera == "free" and "follow" or "free"; refresh() end, right = function() o.camera = o.camera == "free" and "follow" or "free"; refresh() end, select = function() o.camera = o.camera == "free" and "follow" or "free"; refresh() end },
 		{ button = controlsButton, select = function()
 			deps.Remotes.SetOptions:FireServer(o)
 			Menus.ShowControls(function()
@@ -14970,7 +15628,7 @@ function Menus.ShowControls(back)
 			if input.UserInputType ~= Enum.UserInputType.Keyboard and not isPad then
 				return
 			end
-			if kc == Enum.KeyCode.Unknown or kc == Enum.KeyCode.Thumbstick1 or kc == Enum.KeyCode.Thumbstick2 then
+			if kc.Value == 0 or kc == Enum.KeyCode.Thumbstick1 or kc == Enum.KeyCode.Thumbstick2 then -- (key code 0 = "no key")
 				return
 			end
 			listening:Disconnect()
@@ -15800,7 +16458,7 @@ function Menus.Init(dependencies)
 end
 
 return Menus
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002D"><Properties><string name="Name">Movement</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002E"><Properties><string name="Name">Movement</string><ProtectedString name="Source"><![CDATA[--[[
 	Movement - the bunny's moveset on top of Roblox's humanoid.
 
 	  Jump            Space / A / jump button
@@ -15830,6 +16488,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local ContextActionService = game:GetService("ContextActionService")
+local TweenService = game:GetService("TweenService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Bunny64")
 local Config = require(Shared:WaitForChild("Config"))
@@ -15876,6 +16535,9 @@ local stamina, staminaMax = 3, 3
 local staminaRegenAt = 0
 local zipFolder = nil -- workspace.Bunny64World.Ziplines
 local zip = nil -- { a, b, dir, len, t, speed } while riding a zipline
+local zipAlign, zipOrient, zipPulley, zipSound -- the ride's constraints, pulley and whirr
+local releaseZip -- (defined with the zipline code below)
+local rollPower = 1 -- 0.6 for a tired roll
 local zipReleasedAt = -10
 local lastLaunch = 0
 local COYOTE_TIME = 0.13
@@ -16057,8 +16719,9 @@ local function startRoll()
 		return
 	end
 	local tired = not spend("roll")
+	rollPower = tired and 0.6 or 1
 	moveDir = facingDir()
-	moveSpeed = Config.RollSpeed * (tired and 0.6 or 1)
+	moveSpeed = Config.RollSpeed * rollPower
 	setMove("roll")
 	setPlane(moveDir * moveSpeed)
 	Effects.Play("Roll", 0.9)
@@ -16121,11 +16784,7 @@ local function crouch()
 		return
 	end
 	if move == "zip" and zip then
-		-- drop off the zipline
-		zip = nil
-		zipReleasedAt = os.clock()
-		setMove("")
-		humanoid:ChangeState(HST.Freefall)
+		releaseZip(false) -- drop off the zipline
 		return
 	end
 	if move == "" or move == "longjump" or move == "dive" or move == "backflip" then
@@ -16194,17 +16853,7 @@ local function tryJumpMove()
 		return
 	end
 	if move == "zip" and zip then
-		-- let go of the zipline with a hop
-		local v = zip.dir * zip.speed * 0.8
-		zip = nil
-		zipReleasedAt = now
-		setMove("")
-		usedDouble = false
-		flipAt = now
-		sendMove("flip")
-		humanoid:ChangeState(HST.Freefall)
-		root.AssemblyLinearVelocity = v + Vector3.new(0, 46, 0)
-		Effects.Play("Jump", 1.1)
+		releaseZip(true) -- let go of the zipline with a hop
 		return
 	end
 	if move == "dive" then
@@ -16306,6 +16955,10 @@ local function onCharacter(char)
 	root = char:WaitForChild("HumanoidRootPart")
 	move = ""
 	zip = nil
+	if zipPulley then
+		zipPulley:Destroy()
+	end
+	zipAlign, zipOrient, zipPulley, zipSound = nil, nil, nil, nil
 	usedDouble = false
 	divedSinceGround = false
 	sentMove = nil
@@ -16548,208 +17201,212 @@ local function bounceOff(part)
 	Effects.Burst(part.Position + Vector3.new(0, part.Size.Y / 2, 0), part.Color, 10, 8, 0.7, 3)
 end
 
-local function step(dt)
-	if not root or not humanoid or humanoid.Health <= 0 or flying then
+--------------------------------------------------------------------------------
+-- Ziplines: grab the rope and ride a pulley down it
+--------------------------------------------------------------------------------
+
+local DEFAULT_FOV = 65
+
+local function cameraFov(fov, time)
+	local cam = workspace.CurrentCamera
+	if cam then
+		TweenService:Create(cam, TweenInfo.new(time or 0.4, Enum.EasingStyle.Sine), { FieldOfView = fov }):Play()
+	end
+end
+
+local function buildPulley()
+	local model = Instance.new("Model")
+	model.Name = "ZipPulley"
+	local function piece(size, color, material, cf, shape)
+		local p = Instance.new("Part")
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.Size = size
+		p.Color = color
+		p.Material = material
+		if shape then
+			p.Shape = shape
+		end
+		p:SetAttribute("Offset", cf)
+		p.Parent = model
+		return p
+	end
+	local metal = Color3.fromRGB(70, 72, 80)
+	-- a wheel riding on the cable, a housing, and a bar to hang from
+	local wheel = piece(Vector3.new(0.5, 1.3, 1.3), Color3.fromRGB(40, 40, 46), Enum.Material.Metal, CFrame.new(), Enum.PartType.Cylinder)
+	piece(Vector3.new(0.9, 1.6, 0.35), Config.Palette.Roof, Enum.Material.SmoothPlastic, CFrame.new(0, -0.35, 0))
+	for _, sx in ipairs({ -1, 1 }) do
+		piece(Vector3.new(0.18, 1.4, 0.18), metal, Enum.Material.Metal, CFrame.new(sx * 0.7, -1.15, 0))
+	end
+	piece(Vector3.new(1.9, 0.26, 0.26), Config.Palette.WoodLight, Enum.Material.Wood, CFrame.new(0, -1.85, 0))
+	model.PrimaryPart = wheel
+	model.Parent = Effects.Folder
+	return model
+end
+
+local function placePulley(at, along)
+	if not zipPulley then
 		return
 	end
-	local now = os.clock()
-	local onGround = grounded()
-	if onGround then
-		lastGrounded = now
-		airborneSince = nil
-	elseif not airborneSince then
-		airborneSince = now
-	end
-
-	local vel = root.AssemblyLinearVelocity
-	if emote then
-		local moving = humanoid.MoveDirection.Magnitude > 0.1 or not onGround or move ~= ""
-		if moving or (emote == "wave" and now - emoteStart > 2.6) then
-			endEmote()
+	local flat = Vector3.new(along.X, 0, along.Z)
+	local base = flat.Magnitude > 0.01 and CFrame.lookAt(at, at + flat) or CFrame.new(at)
+	local spin = CFrame.Angles(os.clock() * -18, 0, 0)
+	for _, p in ipairs(zipPulley:GetChildren()) do
+		local off = p:GetAttribute("Offset") or CFrame.new()
+		if p == zipPulley.PrimaryPart then
+			-- the wheel turns as you ride (cylinders spin about their X axis)
+			p.CFrame = base * CFrame.Angles(0, math.pi / 2, 0) * spin
+		else
+			p.CFrame = base * off
 		end
 	end
-	-- variable jump height: letting go early cuts the jump short
-	if jumpRising then
-		if vel.Y <= 0 then
-			jumpRising = false
-		elseif move == "" and vel.Y > 16 and not jumpHeld() then
-			root.AssemblyLinearVelocity = Vector3.new(vel.X, vel.Y * 0.45, vel.Z)
-			jumpRising = false
+end
+
+local function endZip()
+	zip = nil
+	zipReleasedAt = os.clock()
+	for _, inst in ipairs({ zipAlign, zipOrient, zipPulley, zipSound }) do
+		if inst then
+			inst:Destroy()
 		end
 	end
-	-- stamina refills on the ground
-	if onGround and stamina < staminaMax and now > staminaRegenAt and move ~= "roll" and move ~= "slide" then
-		local before = math.floor(stamina)
-		stamina = math.min(staminaMax, stamina + Config.Stamina.regen * dt)
-		if math.floor(stamina) ~= before or stamina >= staminaMax then
-			staminaChanged()
-		end
+	zipAlign, zipOrient, zipPulley, zipSound = nil, nil, nil, nil
+	cameraFov(DEFAULT_FOV, 0.6)
+	if move == "zip" then
+		setMove("")
 	end
+	if humanoid then
+		humanoid:ChangeState(HST.Freefall)
+	end
+end
 
-	-- running builds up to full speed; hard turns at speed skid
-	local boost = character:GetAttribute("SpeedBoost") or 1
-	local top = Config.WalkSpeed * boost
-	local md = humanoid.MoveDirection
-	local hv = Vector3.new(vel.X, 0, vel.Z)
-	if move == "crouch" then
-		runSpeed = 7
-	elseif now < staggerUntil then
-		runSpeed = Config.RunStartSpeed * 0.5
-	elseif md.Magnitude < 0.1 then
-		if onGround then
-			runSpeed = Config.RunStartSpeed * boost
-		end
-	elseif onGround and move == "" and hv.Magnitude > top * 0.7 and md:Dot(hv.Unit) < -0.55 and now > skidUntil then
-		skidUntil = now + 0.2
-		runSpeed = 4
-		Effects.Play("Roll", 1.6)
-		Effects.Burst(root.Position - Vector3.new(0, 2.5, 0), DUST, 6, 4, 0.5, 1)
-		sendMove("skid")
-		task.delay(0.22, function()
-			if move == "" and sentMove == "skid" then
-				sendMove("")
-			end
-		end)
-	elseif now > skidUntil then
-		local rate = Config.RunAccel * (onGround and 1 or 0.6)
-		runSpeed = math.min(top, math.max(runSpeed, Config.RunStartSpeed * boost) + rate * dt)
-	end
-	runSpeed = math.max(runSpeed, 1)
-	if math.abs(humanoid.WalkSpeed - runSpeed) > 0.05 then
-		humanoid.WalkSpeed = runSpeed
-	end
+local function startZip(a, b, t)
+	local ab = b - a
+	zip = { a = a, b = b, dir = ab.Unit, len = ab.Magnitude, t = t, speed = math.max(flatVelocity().Magnitude * 0.6, 20) }
+	setMove("zip")
+	usedDouble = false
+	jumpRising = false
+	humanoid:ChangeState(HST.Physics)
+	local att = root:FindFirstChild("MoveAttachment")
+	zipAlign = Instance.new("AlignPosition")
+	zipAlign.Mode = Enum.PositionAlignmentMode.OneAttachment
+	zipAlign.Attachment0 = att
+	zipAlign.RigidityEnabled = true
+	zipAlign.Position = root.Position
+	zipAlign.Parent = root
+	zipOrient = Instance.new("AlignOrientation")
+	zipOrient.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	zipOrient.Attachment0 = att
+	zipOrient.RigidityEnabled = true
+	zipOrient.CFrame = root.CFrame.Rotation
+	zipOrient.Parent = root
+	zipPulley = buildPulley()
+	zipSound = Instance.new("Sound")
+	zipSound.SoundId = Config.Sounds.Roll.id
+	zipSound.Looped = true
+	zipSound.Volume = 0.3
+	zipSound.PlaybackSpeed = 0.6
+	zipSound.Parent = root
+	zipSound:Play()
+	cameraFov(DEFAULT_FOV + 9, 0.8)
+	Effects.Play("Stomp", 1.4)
+	Effects.Burst(a:Lerp(b, t), Color3.fromRGB(255, 220, 150), 6, 4, 0.4, 0, Enum.Material.Neon)
+end
 
-	-- heavier falls (not while pounding or riding the wind)
-	if not onGround and vel.Y < 0 and move ~= "pound" and not inWind then
-		local vy = math.max(vel.Y - Config.Gravity * (Config.FallGravityMult - 1) * dt, -Config.MaxFallSpeed)
-		root.AssemblyLinearVelocity = Vector3.new(vel.X, vy, vel.Z)
-		vel = root.AssemblyLinearVelocity
+-- Let go of the zipline: a hop (jump) or a drop (crouch)
+releaseZip = function(hop)
+	if not zip then
+		return
 	end
-
-	-- running dust
-	if onGround and move == "" and now > nextDust and Vector3.new(vel.X, 0, vel.Z).Magnitude > 20 then
-		nextDust = now + 0.16
-		Effects.Burst(root.Position - Vector3.new(0, 2.5, 0), DUST, 2, 2, 0.45, 0.8)
+	local v = zip.dir * zip.speed
+	endZip()
+	if hop then
+		flipAt = os.clock()
+		sendMove("flip")
+		root.AssemblyLinearVelocity = Vector3.new(v.X * 0.85, 46, v.Z * 0.85)
+		Effects.Play("Jump", 1.1)
+	else
+		root.AssemblyLinearVelocity = Vector3.new(v.X * 0.6, math.min(v.Y, 0), v.Z * 0.6)
 	end
-	lastVy = vel.Y
+end
 
-	-- landed on a bounce pad?
-	if root.AssemblyLinearVelocity.Y < 5 then
-		local under = floorHit()
-		if under and under.Instance:GetAttribute("Bounce") and root.Position.Y - under.Position.Y < 3.6 then
-			bounceOff(under.Instance)
-		end
-	end
-
-	-- spring pads fling you
-	if root.AssemblyLinearVelocity.Y < 5 and now - lastLaunch > 0.5 then
-		local under = floorHit()
-		local launchVel = under and under.Instance:GetAttribute("Launch")
-		if typeof(launchVel) == "Vector3" and root.Position.Y - under.Position.Y < 3.8 then
-			lastLaunch = now
-			launch(launchVel, "bounce")
-			flipAt = now
-			sendMove("flip")
-			if Vector3.new(launchVel.X, 0, launchVel.Z).Magnitude > 5 then
-				-- carry the throw exactly, so the pad lands you where it aims
-				moveDir = Vector3.new(launchVel.X, 0, launchVel.Z).Unit
-				moveSpeed = Vector3.new(launchVel.X, 0, launchVel.Z).Magnitude
-				setMove("spring")
-				setPlane(moveDir * moveSpeed)
-				usedDouble = false
-			end
-			Effects.Play("Boing", 1.1)
-			Effects.Burst(under.Position, under.Instance.Color, 10, 6, 0.6, 4)
-		end
-	end
-
-	-- ziplines: jump up into the rope to grab it
+local function stepZipGrab(now)
 	if not zipFolder then
 		local world = workspace:FindFirstChild("Bunny64World")
 		zipFolder = world and world:FindFirstChild("Ziplines")
-	end
-	if zipFolder and not zip and (move == "" or move == "longjump" or move == "dive" or move == "walljump" or move == "backflip")
-		and now - zipReleasedAt > 0.6 then
-		local hands = root.Position + Vector3.new(0, 3, 0)
-		for _, rope in ipairs(zipFolder:GetChildren()) do
-			local a, b = rope:GetAttribute("ZipA"), rope:GetAttribute("ZipB")
-			if typeof(a) == "Vector3" and typeof(b) == "Vector3" then
-				local ab = b - a
-				local t = math.clamp((hands - a):Dot(ab) / ab:Dot(ab), 0, 1)
-				local closest = a + ab * t
-				if t < 0.95 and (hands - closest).Magnitude < 2.8 then
-					zip = { a = a, b = b, dir = ab.Unit, len = ab.Magnitude, t = t, speed = math.max(flatVelocity().Magnitude * 0.6, 18) }
-					setMove("zip")
-					humanoid:ChangeState(HST.Physics)
-					Effects.Play("Roll", 1.3)
-					break
-				end
-			end
+		if not zipFolder then
+			return
 		end
 	end
-	if move == "zip" and zip then
-		local slope = math.max(0, -zip.dir.Y)
-		zip.speed = math.min(Config.ZipSpeed, zip.speed + (14 + 60 * slope) * dt)
-		zip.t += zip.speed * dt / zip.len
-		local flatDir = Vector3.new(zip.dir.X, 0, zip.dir.Z)
-		if zip.t >= 1 then
-			-- off the end, flying
-			local v = zip.dir * zip.speed
-			zip = nil
-			zipReleasedAt = now
-			setMove("")
-			usedDouble = false
-			humanoid:ChangeState(HST.Freefall)
-			root.AssemblyLinearVelocity = Vector3.new(v.X, math.max(v.Y, 0) + 20, v.Z)
-		else
-			local p = zip.a:Lerp(zip.b, zip.t) - Vector3.new(0, 3.3, 0)
-			root.CFrame = flatDir.Magnitude > 0.01 and CFrame.lookAt(p, p + flatDir) or CFrame.new(p)
-			root.AssemblyLinearVelocity = zip.dir * zip.speed
-			if now > nextDust then
-				nextDust = now + 0.08
-				Effects.Burst(zip.a:Lerp(zip.b, zip.t), Color3.fromRGB(255, 220, 150), 1, 2, 0.3, -1, Enum.Material.Neon)
-			end
-		end
+	if zip or now - zipReleasedAt < 0.6 then
 		return
 	end
-
-	-- rising winds and gusts (Cloudtop Heights): parts in the world's Winds folder
-	if not windFolder then
-		local world = workspace:FindFirstChild("Bunny64World")
-		windFolder = world and world:FindFirstChild("Winds")
+	if not (move == "" or move == "longjump" or move == "dive" or move == "walljump" or move == "backflip" or move == "spring") then
+		return
 	end
-	local nowInWind = false
-	if windFolder then
-		local pos = root.Position
-		for _, w in ipairs(windFolder:GetChildren()) do
-			local force = w:GetAttribute("Wind")
-			if typeof(force) == "Vector3" and w:IsA("BasePart") then
-				local lp = w.CFrame:PointToObjectSpace(pos)
-				local half = w.Size / 2
-				if math.abs(lp.X) < half.X and math.abs(lp.Z) < half.Z and lp.Y > -half.Y - 3 and lp.Y < half.Y then
-					nowInWind = true
-					local v = root.AssemblyLinearVelocity
-					local vy = force.Y > 0 and math.max(v.Y, force.Y) or v.Y
-					local push = Vector3.new(force.X, 0, force.Z) * math.clamp(dt * 3, 0, 1)
-					root.AssemblyLinearVelocity = Vector3.new(v.X + push.X, vy, v.Z + push.Z)
-					if not inWind and force.Y > 0 then
-						humanoid:ChangeState(HST.Freefall)
-						jumpRising = false
-						if move == "pound" then
-							setMove("")
-						end
-					end
-					usedDouble = false -- the wind gives you your double jump back
-				end
+	local hands = root.Position + Vector3.new(0, 3, 0)
+	for _, rope in ipairs(zipFolder:GetChildren()) do
+		local a, b = rope:GetAttribute("ZipA"), rope:GetAttribute("ZipB")
+		if typeof(a) == "Vector3" and typeof(b) == "Vector3" then
+			local ab = b - a
+			local t = math.clamp((hands - a):Dot(ab) / ab:Dot(ab), 0, 1)
+			if t < 0.94 and (hands - (a + ab * t)).Magnitude < 3.4 then
+				startZip(a, b, t)
+				return
 			end
 		end
 	end
-	inWind = nowInWind
+end
 
+local function stepZipRide(dt, now)
+	if not zipAlign or not zipAlign.Parent then
+		endZip()
+		return
+	end
+	-- gravity pulls you faster on steep lines; there's always a little push
+	local slope = math.max(0, -zip.dir.Y)
+	zip.speed = math.min(Config.ZipSpeed, zip.speed + (12 + 70 * slope) * dt)
+	zip.t += zip.speed * dt / zip.len
+	if zip.t >= 1 then
+		-- off the end: flung forward with all that speed
+		local v = zip.dir * zip.speed
+		endZip()
+		flipAt = now
+		sendMove("flip")
+		root.AssemblyLinearVelocity = Vector3.new(v.X, math.max(v.Y, 0) + 24, v.Z)
+		Effects.Play("DoubleJump", 1.1)
+		return
+	end
+	local ropePoint = zip.a:Lerp(zip.b, zip.t)
+	local flatDir = Vector3.new(zip.dir.X, 0, zip.dir.Z)
+	zipAlign.Position = ropePoint - Vector3.new(0, 3.3, 0)
+	if flatDir.Magnitude > 0.01 then
+		zipOrient.CFrame = CFrame.lookAt(Vector3.zero, flatDir.Unit)
+	end
+	root.AssemblyLinearVelocity = zip.dir * zip.speed
+	placePulley(ropePoint, zip.dir)
+	if zipSound then
+		zipSound.PlaybackSpeed = 0.6 + zip.speed / Config.ZipSpeed * 0.9
+	end
+	if now > nextDust then
+		nextDust = now + 0.05
+		Effects.Burst(ropePoint, Color3.fromRGB(255, 214, 140), 2, 3, 0.25, -2, Enum.Material.Neon)
+	end
+end
+
+--------------------------------------------------------------------------------
+-- The per-frame update, in protected pieces: the core moves always run first,
+-- and if an optional system (stamina, pads, wind...) ever errors, it reports
+-- once in the Output window and the rest of the bunny keeps working.
+--------------------------------------------------------------------------------
+
+local function stepMoves(dt, now, onGround)
 	if move == "" and onGround and sentMove == "flip" then
 		sendMove("")
 	end
-
 	if move == "roll" or move == "longjump" or move == "slide" then
 		if now - moveStart > 0.1 then
 			followActual()
@@ -16764,7 +17421,7 @@ local function step(dt)
 		end
 	elseif move == "roll" then
 		local t = now - moveStart
-		moveSpeed = Config.RollSpeed * (1 - 0.35 * t / Config.RollTime)
+		moveSpeed = Config.RollSpeed * rollPower * (1 - 0.35 * t / Config.RollTime)
 		setPlane(moveDir * moveSpeed)
 		if t > Config.RollTime then
 			lastRollEnd = now
@@ -16775,10 +17432,9 @@ local function step(dt)
 		local md = humanoid.MoveDirection
 		if md.Magnitude > 0.1 then
 			local want = Vector3.new(md.X, 0, md.Z).Unit
-			local blend = math.clamp(dt * 2.4, 0, 1)
-			moveDir = (moveDir:Lerp(want, blend)).Unit
+			moveDir = (moveDir:Lerp(want, math.clamp(dt * 2.4, 0, 1))).Unit
 		end
-		moveSpeed = math.max(moveSpeed - 9 * dt, 26)
+		moveSpeed = math.max(moveSpeed - 9 * dt, math.min(moveSpeed, 26))
 		setPlane(moveDir * moveSpeed)
 		if onGround and t > 0.15 then
 			setMove("")
@@ -16786,9 +17442,9 @@ local function step(dt)
 		end
 	elseif move == "dive" then
 		local t = now - moveStart
-		local mdir = humanoid.MoveDirection
-		if mdir.Magnitude > 0.1 then
-			moveDir = (moveDir:Lerp(Vector3.new(mdir.X, 0, mdir.Z).Unit, math.clamp(dt * 2, 0, 1))).Unit
+		local md = humanoid.MoveDirection
+		if md.Magnitude > 0.1 then
+			moveDir = (moveDir:Lerp(Vector3.new(md.X, 0, md.Z).Unit, math.clamp(dt * 2, 0, 1))).Unit
 		end
 		moveSpeed = math.max(moveSpeed - 14 * dt, 32)
 		setPlane(moveDir * moveSpeed)
@@ -16802,14 +17458,9 @@ local function step(dt)
 		elseif t > 3 then
 			setMove("")
 		end
-	elseif move == "spring" then
+	elseif move == "spring" or move == "backflip" then
 		setPlane(moveDir * moveSpeed)
 		if (onGround and now - moveStart > 0.15) or now - moveStart > 4 then
-			setMove("")
-		end
-	elseif move == "backflip" then
-		setPlane(moveDir * moveSpeed)
-		if (onGround and now - moveStart > 0.15) or now - moveStart > 3 then
 			setMove("")
 		end
 	elseif move == "crouch" then
@@ -16836,8 +17487,7 @@ local function step(dt)
 			end
 			local speed = v.Magnitude
 			if onChute then
-				-- chutes keep you moving forward, fast
-				speed = math.clamp(speed + 22 * dt, 30, Config.ChuteSpeed)
+				speed = math.clamp(speed + 22 * dt, 30, Config.ChuteSpeed) -- chutes keep you moving, fast
 			else
 				speed = math.max(0, speed - Config.SlideFriction * dt)
 			end
@@ -16873,6 +17523,191 @@ local function step(dt)
 			startSlide(true)
 		end
 	end
+end
+
+local function stepStamina(dt, now, onGround)
+	if onGround and stamina < staminaMax and now > staminaRegenAt and move ~= "roll" and move ~= "slide" then
+		local before = math.floor(stamina * 4)
+		stamina = math.min(staminaMax, stamina + Config.Stamina.regen * dt)
+		if math.floor(stamina * 4) ~= before or stamina >= staminaMax then
+			staminaChanged()
+		end
+	end
+end
+
+-- running builds up to full speed; hard turns at speed skid
+local function stepRunSpeed(dt, now, onGround, vel)
+	local boost = character:GetAttribute("SpeedBoost") or 1
+	local top = Config.WalkSpeed * boost
+	local md = humanoid.MoveDirection
+	local hv = Vector3.new(vel.X, 0, vel.Z)
+	if move == "crouch" then
+		runSpeed = 7
+	elseif now < staggerUntil then
+		runSpeed = Config.RunStartSpeed * 0.5
+	elseif md.Magnitude < 0.1 then
+		if onGround then
+			runSpeed = Config.RunStartSpeed * boost
+		end
+	elseif onGround and move == "" and hv.Magnitude > top * 0.7 and md:Dot(hv.Unit) < -0.55 and now > skidUntil then
+		skidUntil = now + 0.2
+		runSpeed = 4
+		Effects.Play("Roll", 1.6)
+		Effects.Burst(root.Position - Vector3.new(0, 2.5, 0), DUST, 6, 4, 0.5, 1)
+		sendMove("skid")
+		task.delay(0.22, function()
+			if move == "" and sentMove == "skid" then
+				sendMove("")
+			end
+		end)
+	elseif now > skidUntil then
+		local rate = Config.RunAccel * (onGround and 1 or 0.6)
+		runSpeed = math.min(top, math.max(runSpeed, Config.RunStartSpeed * boost) + rate * dt)
+	end
+	runSpeed = math.max(runSpeed, 1)
+	if math.abs(humanoid.WalkSpeed - runSpeed) > 0.05 then
+		humanoid.WalkSpeed = runSpeed
+	end
+end
+
+-- heavier falls (not while pounding or riding the wind)
+local function stepGravity(dt, onGround)
+	local vel = root.AssemblyLinearVelocity
+	if not onGround and vel.Y < 0 and move ~= "pound" and not inWind then
+		local vy = math.max(vel.Y - Config.Gravity * (Config.FallGravityMult - 1) * dt, -Config.MaxFallSpeed)
+		root.AssemblyLinearVelocity = Vector3.new(vel.X, vy, vel.Z)
+	end
+end
+
+-- mushrooms bounce you up; spring pads throw you where they aim
+local function stepPads(now)
+	if root.AssemblyLinearVelocity.Y >= 5 then
+		return
+	end
+	local under = floorHit()
+	if not under then
+		return
+	end
+	local part = under.Instance
+	local height = root.Position.Y - under.Position.Y
+	if part:GetAttribute("Bounce") and height < 3.6 then
+		bounceOff(part)
+		return
+	end
+	local launchVel = part:GetAttribute("Launch")
+	if typeof(launchVel) == "Vector3" and height < 3.8 and now - lastLaunch > 0.5 then
+		lastLaunch = now
+		launch(launchVel, "bounce")
+		flipAt = now
+		sendMove("flip")
+		local flat = Vector3.new(launchVel.X, 0, launchVel.Z)
+		if flat.Magnitude > 5 then
+			-- carry the throw exactly, so the pad lands you where it aims
+			moveDir = flat.Unit
+			moveSpeed = flat.Magnitude
+			setMove("spring")
+			setPlane(moveDir * moveSpeed)
+			usedDouble = false
+		end
+		Effects.Play("Boing", 1.1)
+		Effects.Burst(under.Position, part.Color, 10, 6, 0.6, 4)
+	end
+end
+
+-- rising winds and gusts (Cloudtop Heights): parts in the world's Winds folder
+local function stepWind(dt)
+	if not windFolder then
+		local world = workspace:FindFirstChild("Bunny64World")
+		windFolder = world and world:FindFirstChild("Winds")
+	end
+	local nowInWind = false
+	if windFolder then
+		local pos = root.Position
+		for _, w in ipairs(windFolder:GetChildren()) do
+			local force = w:GetAttribute("Wind")
+			if typeof(force) == "Vector3" and w:IsA("BasePart") then
+				local lp = w.CFrame:PointToObjectSpace(pos)
+				local half = w.Size / 2
+				if math.abs(lp.X) < half.X and math.abs(lp.Z) < half.Z and lp.Y > -half.Y - 3 and lp.Y < half.Y then
+					nowInWind = true
+					local v = root.AssemblyLinearVelocity
+					local vy = force.Y > 0 and math.max(v.Y, force.Y) or v.Y
+					local push = Vector3.new(force.X, 0, force.Z) * math.clamp(dt * 3, 0, 1)
+					root.AssemblyLinearVelocity = Vector3.new(v.X + push.X, vy, v.Z + push.Z)
+					if not inWind and force.Y > 0 then
+						humanoid:ChangeState(HST.Freefall)
+						jumpRising = false
+						if move == "pound" then
+							setMove("")
+						end
+					end
+					usedDouble = false -- the wind gives you your double jump back
+				end
+			end
+		end
+	end
+	inWind = nowInWind
+end
+
+local warnedParts = {}
+local function safely(name, fn, ...)
+	local ok, err = pcall(fn, ...)
+	if not ok and not warnedParts[name] then
+		warnedParts[name] = true
+		warn(string.format("[Bunny64] Movement (%s): %s", name, tostring(err)))
+	end
+end
+
+local function step(dt)
+	if not root or not humanoid or humanoid.Health <= 0 or flying then
+		return
+	end
+	dt = math.min(dt, 0.1)
+	local now = os.clock()
+	local onGround = grounded()
+	if onGround then
+		lastGrounded = now
+		airborneSince = nil
+	elseif not airborneSince then
+		airborneSince = now
+	end
+	local vel = root.AssemblyLinearVelocity
+	if emote then
+		local moving = humanoid.MoveDirection.Magnitude > 0.1 or not onGround or move ~= ""
+		if moving or (emote == "wave" and now - emoteStart > 2.6) then
+			endEmote()
+		end
+	end
+	-- variable jump height: letting go early cuts the jump short
+	if jumpRising then
+		if vel.Y <= 0 then
+			jumpRising = false
+		elseif move == "" and vel.Y > 16 and not jumpHeld() then
+			root.AssemblyLinearVelocity = Vector3.new(vel.X, vel.Y * 0.45, vel.Z)
+			jumpRising = false
+		end
+	end
+
+	if move == "zip" then
+		safely("zipline", stepZipRide, dt, now)
+		lastVy = root.AssemblyLinearVelocity.Y
+		return
+	end
+	safely("moves", stepMoves, dt, now, onGround)
+	safely("stamina", stepStamina, dt, now, onGround)
+	safely("run", stepRunSpeed, dt, now, onGround, vel)
+	safely("gravity", stepGravity, dt, onGround)
+	safely("pads", stepPads, now)
+	safely("zipgrab", stepZipGrab, now)
+	safely("wind", stepWind, dt)
+
+	-- running dust
+	vel = root.AssemblyLinearVelocity
+	if onGround and move == "" and now > nextDust and Vector3.new(vel.X, 0, vel.Z).Magnitude > 20 then
+		nextDust = now + 0.16
+		Effects.Burst(root.Position - Vector3.new(0, 2.5, 0), DUST, 2, 2, 0.45, 0.8)
+	end
+	lastVy = vel.Y
 end
 
 --------------------------------------------------------------------------------
@@ -17040,7 +17875,7 @@ function Movement.Init(effects, remotes)
 end
 
 return Movement
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002E"><Properties><string name="Name">PhotoMode</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002F"><Properties><string name="Name">PhotoMode</string><ProtectedString name="Source"><![CDATA[--[[
 	PhotoMode - a free camera for screenshots (Pause > PHOTO MODE).
 
 	  WASD / left stick       fly
@@ -17168,7 +18003,7 @@ function PhotoMode.IsActive()
 end
 
 return PhotoMode
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX0000002F"><Properties><string name="Name">Shadows</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000030"><Properties><string name="Name">Shadows</string><ProtectedString name="Source"><![CDATA[--[[
 	Shadows - a round "blob" shadow straight under every bunny.
 
 	In a 3D platformer the sun's shadow is rarely directly beneath you, so
@@ -17245,7 +18080,7 @@ function Shadows.Init()
 end
 
 return Shadows
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000030"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000031"><Properties><string name="Name">UI</string><ProtectedString name="Source"><![CDATA[--[[
 	UI - shared building blocks for Bunny 64's late-90s console look:
 	chunky beveled panels with gold trim, gradient title lettering, a bouncing
 	carrot cursor, and menu navigation that works with keyboard, gamepad,
@@ -17637,7 +18472,7 @@ function UI.list(parent, padding)
 end
 
 return UI
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000031"><Properties><string name="Name">Weather</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000032"><Properties><string name="Name">Weather</string><ProtectedString name="Source"><![CDATA[--[[
 	Weather - a little atmosphere for each region, drawn around the camera:
 	  meadow  drifting pollen motes
 	  peaks   gentle snowfall
@@ -17766,7 +18601,7 @@ function Weather.Init()
 end
 
 return Weather
-]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000032"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--[[
+]]></ProtectedString></Properties></Item><Item class="ModuleScript" referent="RBX00000033"><Properties><string name="Name">WorldFX</string><ProtectedString name="Source"><![CDATA[--[[
 	WorldFX - client-side world behaviour:
 	  * animates firebars and crushers from the shared server clock
 	  * opens golden-carrot gates for players who have enough golden carrots
@@ -17850,9 +18685,11 @@ local LOOKS = {
 		indoor = Color3.fromRGB(110, 118, 100), tint = Color3.fromRGB(236, 246, 226), sat = -0.2, clock = 17.6, brightness = 1.9,
 	},
 	-- the Underburrow: deep violet dark, crystals and torches doing the lighting
+	-- (bright enough to read every jump: the mood comes from the violet haze,
+	-- the glowing edges and the crystals, not from darkness)
 	secret = {
-		fog = Color3.fromRGB(34, 26, 52), fogStart = 30, fogEnd = 420, ambient = Color3.fromRGB(96, 86, 124),
-		indoor = Color3.fromRGB(96, 86, 124), tint = Color3.fromRGB(226, 214, 255), sat = -0.15, clock = 0.4, brightness = 1.2,
+		fog = Color3.fromRGB(78, 64, 110), fogStart = 140, fogEnd = 760, ambient = Color3.fromRGB(176, 166, 198),
+		indoor = Color3.fromRGB(176, 166, 198), tint = Color3.fromRGB(238, 230, 255), sat = -0.05, clock = 14.2, brightness = 2.1,
 	},
 	-- bright and clear above the clouds; the fog is the cloud sea far below
 	sky = {
@@ -18148,8 +18985,8 @@ function WorldFX.Region()
 end
 
 return WorldFX
-]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterCharacterScripts" referent="RBX00000037"><Properties><string name="Name">StarterCharacterScripts</string></Properties><Item class="LocalScript" referent="RBX00000035"><Properties><string name="Name">Animate</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default "Animate" script.
+]]></ProtectedString></Properties></Item></Item></Item><Item class="StarterCharacterScripts" referent="RBX00000038"><Properties><string name="Name">StarterCharacterScripts</string></Properties><Item class="LocalScript" referent="RBX00000036"><Properties><string name="Name">Animate</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default "Animate" script.
 -- The bunny is animated procedurally by StarterPlayerScripts.Bunny64Client.Animator.
-]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX00000036"><Properties><string name="Name">Health</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default health regeneration.
+]]></ProtectedString></Properties></Item><Item class="Script" referent="RBX00000037"><Properties><string name="Name">Health</string><ProtectedString name="Source"><![CDATA[-- Intentionally empty: replaces Roblox's default health regeneration.
 -- In Bunny 64 hearts only come back from carrots and golden carrots.
 ]]></ProtectedString><token name="RunContext">0</token></Properties></Item></Item></Item></roblox>
