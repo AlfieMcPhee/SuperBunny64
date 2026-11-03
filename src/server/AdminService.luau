@@ -117,6 +117,9 @@ function COMMANDS.fly(admin, on)
 	if not char then
 		return false, "No character"
 	end
+	-- AdminFly is set only here, on the server; the safety checks look at it
+	-- (players can't claim to be flying)
+	char:SetAttribute("AdminFly", on == true or nil)
 	char:SetAttribute("Move", on and "fly" or "")
 	char:SetAttribute("MoveAt", workspace:GetServerTimeNow())
 	return true, on and "FLYING - WASD + SPACE/SHIFT" or "FLY OFF", on == true
@@ -267,6 +270,9 @@ function AdminService.Start(context)
 				local behind = aroot.CFrame * CFrame.new(math.sin(now) * 3, 0, 7)
 				thum:MoveTo(behind.Position)
 				if (troot.Position - aroot.Position).Magnitude > 120 then
+					if ctx.markMoved then
+						ctx.markMoved(target)
+					end
 					troot.CFrame = behind
 				end
 			end

@@ -56,6 +56,7 @@ function DataService.NewSlot()
 		stamps = {},
 		silvers = {},
 		trials = {},
+		flagged = false, -- impossible movement seen: this file's clear won't post to the leaderboard
 		stats = { crates = 0, longjumps = 0 },
 		regions = {},
 		friends = {},

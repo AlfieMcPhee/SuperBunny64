@@ -16,6 +16,9 @@ Publishing it and setting up the optional Robux items is covered in
 | --- | --- | --- | --- |
 | Run / jump | WASD / Space | Stick / A | Stick / Jump |
 | Double jump (front flip) | Space in the air | A in the air | Jump in the air |
+| Triple jump | Jump again the moment you land, while running (x3) | | |
+| Side flip | Jump during a skid (turn hard at speed) | | |
+| Ledge grab | Automatic when you just miss an edge; jump to climb, crouch to drop | | |
 | Roll (bops baddies) | Shift or Q | X | ROLL |
 | Long jump | Jump during a roll or slide | | |
 | Dive | Roll button in the air (jump during it to roll out) | X in the air | ROLL in the air |
@@ -28,6 +31,8 @@ Publishing it and setting up the optional Robux items is covered in
 | Menu | M | Select | MENU |
 
 All keys and gamepad buttons can be rebound in **Options > Controls**.
+**Options > CAMERA** switches between FOLLOW (the camera swings in behind
+you as you run, Mario 64 style) and FREE.
 
 **Stamina.** The green pips under your hearts are stamina. Rolls, dives and
 long jumps each use one (a long jump straight out of a roll is included in the
@@ -93,9 +98,16 @@ lightning, lava or roots are about to strike, and shockwave rings are jumped.
 | Snapper | Rooted plant that rears back and lunges. Stomp its head while it droops. |
 | Puffer | A grumpy cloud that blows you away. Stomp it from above. |
 
-Baddies are drawn smoothly on every screen. The server runs their brains and
-each player's game animates them: waddles, flaps, jaw snaps, a "!" when they
-spot you, and a squash when they're bopped.
+Baddies have proper little bodies and brains, Goomba-style. They:
+
+* walk with gravity and step up small bumps, never wander off ledges, and lean
+  to slopes;
+* wander about, spot you only if they can see you (a "!" and a hop), chase,
+  and give up with a "?" when you get away.
+
+Each player's game predicts their movement between server updates and
+animates them: scuttling legs, waddles, flaps, jaw snaps and a squash when
+they're bopped.
 
 ## Things to collect and do
 
@@ -164,6 +176,20 @@ Press **P** (or the **ADMIN** button) for the admin panel. The place owner,
 * reset all bosses;
 * give yourself every golden carrot.
 
+## Fair play
+
+A Roblox client controls its own character's position, so the server
+sanity-checks it:
+
+* **Flying:** only the admin command can turn fly on, using a server-only
+  flag. Players can't claim it to skip fall damage.
+* **Leaderboard:** impossible jumps in position that no server teleport
+  explains count as strikes, and enough strikes stop that file posting to
+  the leaderboard. Clears under 30 minutes don't post either. Tune this in
+  `Config.AntiCheat`.
+* **Stamps:** long jumps and wall jumps only count when the server sees a
+  real one (speed, airborne, next to a wall).
+
 ## Saving
 
 Three files (A/B/C) per player in DataStoreService. Saving has:
@@ -207,8 +233,19 @@ getting players.
 
 * **Rojo**: `rojo serve` with `default.project.json`.
 * **Rebuild the place**: `python3 tools/build_place.py`.
-* **Check**: `python3 tools/check_luau.py` runs a full Luau syntax check plus
-  block and undeclared-name checks. Run it before rebuilding.
+* **Check**: `python3 tools/check_luau.py` runs a full Luau syntax check and
+  also catches:
+  * names used before their `local` declaration (a run-time crash in Luau);
+  * calls to module functions that don't exist.
+
+  Run it before rebuilding.
+* **Check against Roblox's API**: `python3 tools/check_roblox_api.py
+  API-Dump.json` flags properties, methods and Enum items that don't exist.
+  The dump is published by the Roblox-Client-Tracker project; see the
+  script's header for the link.
+* **When testing in Studio**, keep **View > Output** open. Every per-frame
+  system (moves, animation, baddies) reports its first error there as
+  `[Bunny64] ...` and carries on, rather than freezing silently.
 
 ## Sound and music
 

@@ -241,7 +241,9 @@ local function hurt(player, fromPos, velocity, ignoreInvuln)
 	if not ignoreInvuln and os.clock() < st.invulnUntil then
 		return false
 	end
-	st.invulnUntil = os.clock() + (assistOn(player) and 2.5 or 1.5)
+	local safeFor = assistOn(player) and 2.5 or 1.5
+	st.invulnUntil = os.clock() + safeFor
+	player.Character:SetAttribute("Invuln", workspace:GetServerTimeNow() + safeFor) -- everyone sees the blink
 	hum:TakeDamage(1)
 	if inArena(root.Position) then
 		bossHit[player] = true
@@ -265,6 +267,7 @@ local function burn(player)
 	end
 	if os.clock() >= st.invulnUntil and not player.Character:GetAttribute("God") then
 		st.invulnUntil = os.clock() + 1.5
+		player.Character:SetAttribute("Invuln", workspace:GetServerTimeNow() + 1.5)
 		hum:TakeDamage(1)
 	end
 	Bounce:FireClient(player, Vector3.new(0, 88, 0), true, "burn")
@@ -315,8 +318,10 @@ local function onCharacter(player, character)
 		end
 		if st then
 			st.safe = cf
+			st.movedAt = os.clock()
 			st.sky = cf.Position.Y > Config.SkyFloor
 			st.invulnUntil = os.clock() + 2
+			character:SetAttribute("Invuln", workspace:GetServerTimeNow() + 2)
 		end
 	end
 	if profile then
@@ -474,12 +479,13 @@ Collect.OnServerEvent:Connect(function(player, id)
 			end
 			if n >= #Config.Goldens then
 				awardStamp(player, "golden20")
-				if DataService.GetPlayTime(player) < 4 * 3600 then
+				if DataService.GetPlayTime(player) < 4 * 3600 and not slot.flagged then
 					awardStamp(player, "speedy")
 				end
 			end
 		end)
-		if done then
+		-- only believable clears go on the board: no flagged files, nothing impossibly quick
+		if done and not slot.flagged and (slot.completedTime or 0) >= Config.AntiCheat.minClearSeconds then
 			Leaderboard.RecordClear(player, slot.completedTime)
 		end
 		DataService.AddCoins(player, Config.Coins.golden)
@@ -628,30 +634,72 @@ end)
 local VALID_MOVES = {
 	[""] = true, roll = true, slide = true, longjump = true, pound = true, flip = true, fly = true,
 	walljump = true, cheer = true, talk = true, wave = true, dance = true, sit = true,
-	dive = true, crouch = true, backflip = true, skid = true, zip = true, spring = true,
+	dive = true, crouch = true, backflip = true, skid = true, zip = true, spring = true, hang = true, climb = true,
+	-- ("fly" is NOT here: only the admin command can turn flying on, see AdminService)
 }
+-- Is there a wall within `reach` studs of this point, in any direction?
+local wallParams = RaycastParams.new()
+wallParams.FilterType = Enum.RaycastFilterType.Include
+wallParams.FilterDescendantsInstances = { info.solidFolder, workspace.Terrain }
+local function nearWall(pos, reach)
+	for i = 0, 7 do
+		local a = i / 8 * math.pi * 2
+		local hit = workspace:Raycast(pos, Vector3.new(math.cos(a), 0, math.sin(a)) * reach, wallParams)
+		if hit and math.abs(hit.Normal.Y) < 0.4 then
+			return true
+		end
+	end
+	return false
+end
+
 SetMove.OnServerEvent:Connect(function(player, move)
 	local char = player.Character
-	if char and type(move) == "string" and VALID_MOVES[move] then
-		char:SetAttribute("Move", move)
-		char:SetAttribute("MoveAt", workspace:GetServerTimeNow())
-		local slot = DataService.ActiveSlot(player)
-		local st = state[player]
-		if slot and st then
-			slot.stats = slot.stats or { crates = 0, longjumps = 0 }
-			if move == "longjump" then
+	if not char or type(move) ~= "string" or not VALID_MOVES[move] or char:GetAttribute("AdminFly") then
+		return
+	end
+	char:SetAttribute("Move", move)
+	char:SetAttribute("MoveAt", workspace:GetServerTimeNow())
+	local slot = DataService.ActiveSlot(player)
+	local st = state[player]
+	if not slot or not st then
+		return
+	end
+	slot.stats = slot.stats or { crates = 0, longjumps = 0 }
+	local now = os.clock()
+	if move == "longjump" then
+		-- count it only if the server can see a real long jump happening
+		if now - (st.lastLongJump or 0) < 0.8 then
+			return
+		end
+		st.lastLongJump = now
+		task.delay(0.25, function()
+			local root = getRoot(player)
+			if not root then
+				return
+			end
+			local v = root.AssemblyLinearVelocity
+			if Vector3.new(v.X, 0, v.Z).Magnitude > 26 then
 				slot.stats.longjumps = (slot.stats.longjumps or 0) + 1
 				if slot.stats.longjumps >= 25 then
 					awardStamp(player, "longjump")
 				end
-			elseif move == "walljump" then
-				local now = os.clock()
-				st.wallChain = (now - (st.lastWall or 0) < 2.5) and (st.wallChain or 0) + 1 or 1
-				st.lastWall = now
-				if st.wallChain >= 3 then
-					awardStamp(player, "walljump")
-				end
 			end
+		end)
+	elseif move == "walljump" then
+		-- in the air, next to a wall
+		local root = getRoot(player)
+		if not root or now - (st.lastWall or 0) < 0.25 then
+			return
+		end
+		local airborne = workspace:Raycast(root.Position, Vector3.new(0, -5, 0), wallParams) == nil
+		if not airborne or not nearWall(root.Position, 7) then
+			st.wallChain = 0
+			return
+		end
+		st.wallChain = (now - (st.lastWall or 0) < 2.5) and (st.wallChain or 0) + 1 or 1
+		st.lastWall = now
+		if st.wallChain >= 3 then
+			awardStamp(player, "walljump")
 		end
 	end
 end)
@@ -681,6 +729,7 @@ local function teleport(player, cf)
 	if state[player] then
 		state[player].trial = nil -- warping out of a time trial cancels it
 		state[player].sky = cf.Position.Y > Config.SkyFloor
+		state[player].movedAt = os.clock() -- a legit jump in position (see the anti-cheat check)
 	end
 	local char = player.Character
 	if char then
@@ -783,7 +832,7 @@ safeStart("EnemyService", EnemyService.Start, info, {
 	-- a Puffer's gust: shoves the bunny without hurting it
 	gust = function(player, vel)
 		local char = player.Character
-		if char and char:GetAttribute("Move") ~= "fly" then
+		if char and not char:GetAttribute("AdminFly") then
 			Bounce:FireClient(player, vel, false, "gust")
 		end
 	end,
@@ -809,7 +858,7 @@ local function bossCallbacks(id)
 		end,
 		gust = function(player, vel)
 			local char = player.Character
-			if char and char:GetAttribute("Move") ~= "fly" then
+			if char and not char:GetAttribute("AdminFly") then
 				Bounce:FireClient(player, vel, false, "gust")
 			end
 		end,
@@ -924,6 +973,11 @@ safeStart("AdminService", AdminService.Start, {
 	heal = heal,
 	teleport = teleport,
 	checkpointCF = checkpointCF,
+	markMoved = function(player)
+		if state[player] then
+			state[player].movedAt = os.clock()
+		end
+	end,
 	bounce = function(player, vel)
 		Bounce:FireClient(player, vel, false, "stomp")
 	end,
@@ -985,6 +1039,26 @@ RunService.Heartbeat:Connect(function(dt)
 		local slot = DataService.ActiveSlot(player)
 		if root and hum and hum.Health > 0 and slot then
 			local pos = root.Position
+			-- anti-cheat: a client controls its own bunny's position, so check it moves
+			-- plausibly. Impossible jumps (not explained by a server teleport) add a
+			-- strike; enough strikes and this file can't post to the leaderboard.
+			local clock = os.clock()
+			if st.lastPos and clock - (st.movedAt or 0) > 1.5 and not root.Anchored and not player.Character:GetAttribute("AdminFly") then
+				local gap = clock - st.lastPosAt
+				local moved = (pos - st.lastPos).Magnitude
+				if gap > 0 and moved > Config.AntiCheat.maxSpeed * gap + 40 then
+					st.strikes = (st.strikes or 0) + 1
+					st.strikeAt = clock
+					if st.strikes >= Config.AntiCheat.strikes and not slot.flagged then
+						slot.flagged = true
+						warn("[Bunny64] " .. player.Name .. " moved impossibly fast; this file won't post to the leaderboard.")
+					end
+				elseif st.strikes and st.strikes > 0 and clock - (st.strikeAt or 0) > 60 then
+					st.strikes -= 1 -- old strikes fade (lag spikes happen)
+					st.strikeAt = clock
+				end
+			end
+			st.lastPos, st.lastPosAt = pos, clock
 			local hit = workspace:Raycast(pos, Vector3.new(0, -3.4, 0), floorParams)
 			local inWater = pos.Y < Config.WaterLevel - 2.5 or (hit and hit.Instance:GetAttribute("Water"))
 			-- Cloudtop Heights: falling off the clouds catches you and puts you back
@@ -992,14 +1066,14 @@ RunService.Heartbeat:Connect(function(dt)
 				st.sky = true
 			elseif st.sky and pos.Y < Config.SkyFloor - 25 then
 				st.sky = false
-				if st.safe.Position.Y > Config.SkyFloor and player.Character:GetAttribute("Move") ~= "fly" then
+				if st.safe.Position.Y > Config.SkyFloor and not player.Character:GetAttribute("AdminFly") then
 					inWater = true
 				end
 			end
 			-- the Underburrow floats over a bottomless dark
 			local S = Config.Secret
 			if pos.Y < S.voidY and Vector3.new(pos.X - S.center.X, 0, pos.Z - S.center.Z).Magnitude < S.radius
-				and player.Character:GetAttribute("Move") ~= "fly" then
+				and not player.Character:GetAttribute("AdminFly") then
 				inWater = true
 			end
 			if inWater then
@@ -1011,6 +1085,7 @@ RunService.Heartbeat:Connect(function(dt)
 				hurt(player, pos, Vector3.zero, true)
 				if hum.Health > 0 then
 					player.Character:PivotTo(st.safe)
+					st.movedAt = os.clock()
 					Bounce:FireClient(player, Vector3.zero, false, "reset")
 				end
 			elseif hit and hit.Instance:GetAttribute("Lava") then

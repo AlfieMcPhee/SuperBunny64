@@ -11,6 +11,9 @@
 	  Pound jump      jump the moment a ground pound lands: a big spinning leap
 	  Dive            Roll in the air: a forward lunge (jump during it to roll out)
 	  Backflip        hold Crouch while standing still, then jump: the highest jump
+	  Triple jump     land and jump again straight away while running: higher, then a flip
+	  Side flip       jump during a skid: flip up and out of the turn
+	  Ledge grab      catch an edge you just missed; jump to climb up, crouch to drop
 	  Wall jump       jump while pressed against a wall in mid-air
 
 	Stamina: rolls, dives and long jumps each use a pip; pips refill on the ground.
@@ -77,6 +80,11 @@ local zipFolder = nil -- workspace.Bunny64World.Ziplines
 local zip = nil -- { a, b, dir, len, t, speed } while riding a zipline
 local zipAlign, zipOrient, zipPulley, zipSound -- the ride's constraints, pulley and whirr
 local releaseZip -- (defined with the zipline code below)
+local climbLedge, dropLedge -- (defined with the ledge code below)
+local ledge = nil -- { top, normal, hang } while hanging from an edge
+local ledgeAlign, ledgeOrient
+local lastLedgeDrop = -10
+local jumpChain, lastChainLand = 0, -10 -- triple jump
 local rollPower = 1 -- 0.6 for a tired roll
 local zipReleasedAt = -10
 local lastLaunch = 0
@@ -327,6 +335,10 @@ local function crouch()
 		releaseZip(false) -- drop off the zipline
 		return
 	end
+	if move == "hang" then
+		dropLedge()
+		return
+	end
 	if move == "" or move == "longjump" or move == "dive" or move == "backflip" then
 		if inAir() and not grounded() then
 			if move == "dive" or move == "backflip" then
@@ -388,6 +400,10 @@ local function tryJumpMove()
 		return
 	end
 	local now = os.clock()
+	if move == "hang" then
+		climbLedge()
+		return
+	end
 	if move == "roll" or (move == "slide" and now - moveStart > 0.08) then
 		startLongJump(moveSpeed + 10, move == "roll") -- out of a roll it's included in the roll's cost
 		return
@@ -499,6 +515,8 @@ local function onCharacter(char)
 		zipPulley:Destroy()
 	end
 	zipAlign, zipOrient, zipPulley, zipSound = nil, nil, nil, nil
+	ledge, ledgeAlign, ledgeOrient = nil, nil, nil
+	jumpChain = 0
 	usedDouble = false
 	divedSinceGround = false
 	sentMove = nil
@@ -527,6 +545,9 @@ local function onCharacter(char)
 	celebrateUntil = 0
 	humanoid.StateChanged:Connect(function(_, new)
 		if new == HST.Landed or new == HST.Running then
+			if new == HST.Landed and jumpedSinceGround then
+				lastChainLand = os.clock() -- a quick jump from here continues a triple jump
+			end
 			usedDouble = false
 			divedSinceGround = false
 			jumpedSinceGround = false
@@ -590,8 +611,53 @@ local function onCharacter(char)
 				end)
 				Effects.Play("DoubleJump", 1.3)
 				Effects.Ring(root.Position - Vector3.new(0, 2.6, 0), Color3.fromRGB(240, 226, 170), 6, 12, 0.35)
+			elseif move == "" and now < skidUntil + 0.12 then
+				-- side flip: jump out of a skid, high and back the way the stick points
+				local dir = facingDir()
+				jumpRising = false
+				usedDouble = true
+				jumpChain = 0
+				flipAt = now
+				moveDir = dir
+				moveSpeed = 12
+				setMove("spring")
+				setPlane(dir * moveSpeed)
+				task.defer(function()
+					if root then
+						root.AssemblyLinearVelocity = dir * moveSpeed + Vector3.new(0, Config.SideFlipPower, 0)
+					end
+				end)
+				Effects.Play("DoubleJump", 1.15)
 			elseif move == "" then
-				Effects.Play("Jump", 1 + math.random() * 0.1)
+				-- triple jump: each quick, running jump goes higher; the third is a flip
+				local running = flatVelocity().Magnitude > 16
+				if running and now - lastChainLand < Config.TripleJumpWindow then
+					jumpChain = math.min(jumpChain + 1, 3)
+				else
+					jumpChain = 1
+				end
+				if jumpChain >= 2 then
+					local power = Config.JumpPower * (jumpChain == 2 and 1.2 or 1.45)
+					task.defer(function()
+						if root then
+							local v = root.AssemblyLinearVelocity
+							root.AssemblyLinearVelocity = Vector3.new(v.X, power, v.Z)
+						end
+					end)
+					if jumpChain == 3 then
+						jumpRising = false
+						usedDouble = true
+						flipAt = now
+						sendMove("flip")
+						jumpChain = 0
+						Effects.Play("DoubleJump", 1.25)
+						Effects.Ring(root.Position - Vector3.new(0, 2.6, 0), Color3.fromRGB(240, 226, 170), 5, 10, 0.3)
+					else
+						Effects.Play("Jump", 1.2)
+					end
+				else
+					Effects.Play("Jump", 1 + math.random() * 0.1)
+				end
 			end
 		end
 	end)
@@ -938,6 +1004,123 @@ local function stepZipRide(dt, now)
 end
 
 --------------------------------------------------------------------------------
+-- Ledges: catch an edge you just missed, hang, then climb up (jump) or drop (crouch)
+--------------------------------------------------------------------------------
+
+local function clearLedge()
+	for _, inst in ipairs({ ledgeAlign, ledgeOrient }) do
+		if inst then
+			inst:Destroy()
+		end
+	end
+	ledgeAlign, ledgeOrient = nil, nil
+	ledge = nil
+end
+
+dropLedge = function()
+	clearLedge()
+	lastLedgeDrop = os.clock()
+	if move == "hang" or move == "climb" then
+		setMove("")
+	end
+	if humanoid then
+		humanoid:ChangeState(HST.Freefall)
+	end
+end
+
+climbLedge = function()
+	if move == "hang" and ledge then
+		setMove("climb")
+		Effects.Play("Jump", 1.25)
+	end
+end
+
+local function stepLedgeGrab(now)
+	if move ~= "" and move ~= "longjump" and move ~= "walljump" then
+		return
+	end
+	if grounded() or now - lastLedgeDrop < 0.45 or now - lastGrounded < 0.15 or root.AssemblyLinearVelocity.Y > 4 then
+		return -- only on the way down
+	end
+	local dir = facingDir()
+	local wall = workspace:Raycast(root.Position + Vector3.new(0, 0.6, 0), dir * 2.8, rayParams)
+	if not wall or math.abs(wall.Normal.Y) > 0.3 or wall.Instance:GetAttribute("Moving") or wall.Instance:GetAttribute("Lava") then
+		return
+	end
+	local n = Vector3.new(wall.Normal.X, 0, wall.Normal.Z)
+	if n.Magnitude < 0.1 then
+		return
+	end
+	n = n.Unit
+	local top = workspace:Raycast(wall.Position - n * 1.2 + Vector3.new(0, 4.5, 0), Vector3.new(0, -5, 0), rayParams)
+	if not top or top.Normal.Y < 0.75 or top.Instance:GetAttribute("Moving") or top.Instance:GetAttribute("Lava") then
+		return
+	end
+	local rise = top.Position.Y - root.Position.Y
+	if rise < 0.8 or rise > 4 then
+		return
+	end
+	if workspace:Raycast(top.Position + Vector3.new(0, 0.3, 0), Vector3.new(0, 5, 0), rayParams) then
+		return -- no room to climb up there
+	end
+	-- got it!
+	ledge = {
+		top = top.Position,
+		normal = n,
+		hang = Vector3.new(wall.Position.X, top.Position.Y - 2.9, wall.Position.Z) + n * 1.3,
+	}
+	setMove("hang")
+	usedDouble = false
+	divedSinceGround = false
+	jumpRising = false
+	humanoid:ChangeState(HST.Physics)
+	local att = root:FindFirstChild("MoveAttachment")
+	ledgeAlign = Instance.new("AlignPosition")
+	ledgeAlign.Mode = Enum.PositionAlignmentMode.OneAttachment
+	ledgeAlign.Attachment0 = att
+	ledgeAlign.RigidityEnabled = true
+	ledgeAlign.Position = ledge.hang
+	ledgeAlign.Parent = root
+	ledgeOrient = Instance.new("AlignOrientation")
+	ledgeOrient.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	ledgeOrient.Attachment0 = att
+	ledgeOrient.RigidityEnabled = true
+	ledgeOrient.CFrame = CFrame.lookAt(Vector3.zero, -n)
+	ledgeOrient.Parent = root
+	root.AssemblyLinearVelocity = Vector3.zero
+	Effects.Play("Land", 1.5)
+	Effects.Burst(top.Position, DUST, 4, 2, 0.4, 1)
+end
+
+local function stepHang(_dt, now)
+	if not ledge or not ledgeAlign or not ledgeAlign.Parent then
+		dropLedge()
+		return
+	end
+	root.AssemblyLinearVelocity = Vector3.zero
+	if move == "climb" then
+		-- pull up, then step over onto the ledge
+		local u = math.clamp((now - moveStart) / 0.3, 0, 1)
+		local up = Vector3.new(ledge.hang.X, ledge.top.Y + 2.9, ledge.hang.Z)
+		local over = ledge.top + Vector3.new(0, 2.9, 0) - ledge.normal * 1.4
+		ledgeAlign.Position = u < 0.6 and ledge.hang:Lerp(up, u / 0.6) or up:Lerp(over, (u - 0.6) / 0.4)
+		if u >= 1 then
+			clearLedge()
+			lastLedgeDrop = now
+			setMove("")
+			humanoid:ChangeState(HST.Freefall)
+		end
+		return
+	end
+	ledgeAlign.Position = ledge.hang
+	-- pull the stick away from the wall to let go
+	local md = humanoid.MoveDirection
+	if md.Magnitude > 0.5 and md:Dot(ledge.normal) > 0.7 and now - moveStart > 0.3 then
+		dropLedge()
+	end
+end
+
+--------------------------------------------------------------------------------
 -- The per-frame update, in protected pieces: the core moves always run first,
 -- and if an optional system (stamina, pads, wind...) ever errors, it reports
 -- once in the Output window and the rest of the bunny keeps working.
@@ -1233,12 +1416,18 @@ local function step(dt)
 		lastVy = root.AssemblyLinearVelocity.Y
 		return
 	end
+	if move == "hang" or move == "climb" then
+		safely("ledge", stepHang, dt, now)
+		lastVy = 0
+		return
+	end
 	safely("moves", stepMoves, dt, now, onGround)
 	safely("stamina", stepStamina, dt, now, onGround)
 	safely("run", stepRunSpeed, dt, now, onGround, vel)
 	safely("gravity", stepGravity, dt, onGround)
 	safely("pads", stepPads, now)
 	safely("zipgrab", stepZipGrab, now)
+	safely("ledgegrab", stepLedgeGrab, now)
 	safely("wind", stepWind, dt)
 
 	-- running dust

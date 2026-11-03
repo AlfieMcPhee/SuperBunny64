@@ -231,6 +231,23 @@ local function poseFor(rig, char, dt, now, isLocal)
 		p.neck = A(-0.25, 0, 0)
 		earTarget = 1.25
 		springy = false
+	elseif move == "hang" then
+		-- hanging from a ledge by the paws, feet dangling against the wall
+		p.root = CFrame.new(0, -0.2, 0.3) * A(0.12 + math.sin(t * 2) * 0.03, 0, 0)
+		p.lArm, p.rArm = A(2.9, 0, -0.25), A(2.9, 0, 0.25)
+		p.lLeg = A(0.25 + math.sin(t * 3) * 0.12, 0, -0.08)
+		p.rLeg = A(0.25 - math.sin(t * 3) * 0.12, 0, 0.08)
+		p.neck = A(0.35, 0, 0)
+		earTarget = -0.2
+		springy = false
+	elseif move == "climb" then
+		-- hauling up: one knee up onto the ledge
+		local u = math.clamp(moveAge / 0.3, 0, 1)
+		p.root = A(-0.4 * u, 0, 0)
+		p.lArm, p.rArm = A(1.6 - u, 0, -0.2), A(1.6 - u, 0, 0.2)
+		p.lLeg, p.rLeg = A(1.5 * u, 0, -0.1), A(0.3, 0, 0.1)
+		earTarget = 0.6
+		springy = false
 	elseif move == "backflip" then
 		local u = math.clamp(moveAge / 0.75, 0, 1)
 		extra = A(TAU * easeOut(u), 0, 0)
@@ -397,6 +414,24 @@ local function update(dt)
 				if not ok and not warned[tostring(err)] then
 					warned[tostring(err)] = true
 					warn("[Bunny64] Animator: " .. tostring(err))
+				end
+				-- just been hurt: blink, the classic "can't touch me for a moment" signal
+				local invuln = char:GetAttribute("Invuln")
+				local blinking = typeof(invuln) == "number" and workspace:GetServerTimeNow() < invuln
+				if blinking or rig.blinking then
+					if blinking and not rig.blinking then
+						rig.blinkParts = {}
+						for _, d in ipairs(char:GetDescendants()) do
+							if d:IsA("BasePart") and d.Name ~= "HumanoidRootPart" then
+								table.insert(rig.blinkParts, d)
+							end
+						end
+					end
+					rig.blinking = blinking
+					local off = blinking and math.floor(now * 14) % 2 == 0
+					for _, part in ipairs(rig.blinkParts or {}) do
+						part.LocalTransparencyModifier = off and 0.75 or 0
+					end
 				end
 			end
 		end

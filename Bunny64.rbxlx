@@ -623,6 +623,8 @@ Config.BackflipPower = 82      -- hold crouch while standing still, then jump (~
 Config.BackflipBack = 13
 Config.PoundJumpPower = 76     -- jump the moment a ground pound lands
 Config.ZipSpeed = 74           -- top speed on a zipline
+Config.TripleJumpWindow = 0.2  -- jump again this soon after landing (while running) to chain a triple jump
+Config.SideFlipPower = 80      -- jump during a skid
 -- Stamina: rolls, dives and long jumps use a pip; pips refill while you're on the ground.
 -- You earn extra pips as you find golden carrots.
 Config.Stamina = {
@@ -646,6 +648,10 @@ Config.MaxHearts = 3
 Config.AssistHearts = 5        -- hearts in Assist Mode (Options)
 Config.HealEveryCarrots = 10   -- every N carrots restores a heart
 Config.WaterLevel = -6
+
+-- Anti-cheat for the leaderboard (a client controls its own position, so the
+-- server sanity-checks it). maxSpeed is well above anything the moves can do.
+Config.AntiCheat = { maxSpeed = 300, strikes = 5, minClearSeconds = 30 * 60 }
 
 -- Admins ------------------------------------------------------------------------
 -- The place owner (or owning group's owner) is always an admin, and everyone is
@@ -911,6 +917,8 @@ Config.Emotes = {
 -- One-off tips, shown the first time you come near each spot (per save file).
 -- {jump} {roll} {crouch} {menu} become the player's own key names.
 Config.Tips = {
+	{ id = "triple", pos = Vector3.new(60, 4, 30), radius = 24, text = "Running? Press {jump} again the moment you land to jump higher - three in a row is a triple jump! Jump during a skid for a side flip." },
+	{ id = "ledge", pos = Vector3.new(-60, 4, -40), radius = 22, text = "Missed a jump by a whisker? You'll grab the ledge. Press {jump} to climb up, or {crouch} to let go." },
 	{ id = "stamina", pos = Vector3.new(-30, 4, 10), radius = 22, text = "The green pips under your hearts are stamina. Rolls, dives and long jumps use one; they refill while you're on the ground." },
 	{ id = "zipline", pos = Vector3.new(-121, 108, -112), radius = 16, text = "Jump up and grab the zipline! Press {jump} to let go, or {crouch} to drop." },
 	{ id = "spring", pos = Vector3.new(-120, 4, 160), radius = 14, text = "Spring pads throw you where the arrow points. Step on and enjoy the ride!" },
@@ -1663,7 +1671,9 @@ local function hurt(player, fromPos, velocity, ignoreInvuln)
 	if not ignoreInvuln and os.clock() < st.invulnUntil then
 		return false
 	end
-	st.invulnUntil = os.clock() + (assistOn(player) and 2.5 or 1.5)
+	local safeFor = assistOn(player) and 2.5 or 1.5
+	st.invulnUntil = os.clock() + safeFor
+	player.Character:SetAttribute("Invuln", workspace:GetServerTimeNow() + safeFor) -- everyone sees the blink
 	hum:TakeDamage(1)
 	if inArena(root.Position) then
 		bossHit[player] = true
@@ -1687,6 +1697,7 @@ local function burn(player)
 	end
 	if os.clock() >= st.invulnUntil and not player.Character:GetAttribute("God") then
 		st.invulnUntil = os.clock() + 1.5
+		player.Character:SetAttribute("Invuln", workspace:GetServerTimeNow() + 1.5)
 		hum:TakeDamage(1)
 	end
 	Bounce:FireClient(player, Vector3.new(0, 88, 0), true, "burn")
@@ -1737,8 +1748,10 @@ local function onCharacter(player, character)
 		end
 		if st then
 			st.safe = cf
+			st.movedAt = os.clock()
 			st.sky = cf.Position.Y > Config.SkyFloor
 			st.invulnUntil = os.clock() + 2
+			character:SetAttribute("Invuln", workspace:GetServerTimeNow() + 2)
 		end
 	end
 	if profile then
@@ -1896,12 +1909,13 @@ Collect.OnServerEvent:Connect(function(player, id)
 			end
 			if n >= #Config.Goldens then
 				awardStamp(player, "golden20")
-				if DataService.GetPlayTime(player) < 4 * 3600 then
+				if DataService.GetPlayTime(player) < 4 * 3600 and not slot.flagged then
 					awardStamp(player, "speedy")
 				end
 			end
 		end)
-		if done then
+		-- only believable clears go on the board: no flagged files, nothing impossibly quick
+		if done and not slot.flagged and (slot.completedTime or 0) >= Config.AntiCheat.minClearSeconds then
 			Leaderboard.RecordClear(player, slot.completedTime)
 		end
 		DataService.AddCoins(player, Config.Coins.golden)
@@ -2050,30 +2064,72 @@ end)
 local VALID_MOVES = {
 	[""] = true, roll = true, slide = true, longjump = true, pound = true, flip = true, fly = true,
 	walljump = true, cheer = true, talk = true, wave = true, dance = true, sit = true,
-	dive = true, crouch = true, backflip = true, skid = true, zip = true, spring = true,
+	dive = true, crouch = true, backflip = true, skid = true, zip = true, spring = true, hang = true, climb = true,
+	-- ("fly" is NOT here: only the admin command can turn flying on, see AdminService)
 }
+-- Is there a wall within `reach` studs of this point, in any direction?
+local wallParams = RaycastParams.new()
+wallParams.FilterType = Enum.RaycastFilterType.Include
+wallParams.FilterDescendantsInstances = { info.solidFolder, workspace.Terrain }
+local function nearWall(pos, reach)
+	for i = 0, 7 do
+		local a = i / 8 * math.pi * 2
+		local hit = workspace:Raycast(pos, Vector3.new(math.cos(a), 0, math.sin(a)) * reach, wallParams)
+		if hit and math.abs(hit.Normal.Y) < 0.4 then
+			return true
+		end
+	end
+	return false
+end
+
 SetMove.OnServerEvent:Connect(function(player, move)
 	local char = player.Character
-	if char and type(move) == "string" and VALID_MOVES[move] then
-		char:SetAttribute("Move", move)
-		char:SetAttribute("MoveAt", workspace:GetServerTimeNow())
-		local slot = DataService.ActiveSlot(player)
-		local st = state[player]
-		if slot and st then
-			slot.stats = slot.stats or { crates = 0, longjumps = 0 }
-			if move == "longjump" then
+	if not char or type(move) ~= "string" or not VALID_MOVES[move] or char:GetAttribute("AdminFly") then
+		return
+	end
+	char:SetAttribute("Move", move)
+	char:SetAttribute("MoveAt", workspace:GetServerTimeNow())
+	local slot = DataService.ActiveSlot(player)
+	local st = state[player]
+	if not slot or not st then
+		return
+	end
+	slot.stats = slot.stats or { crates = 0, longjumps = 0 }
+	local now = os.clock()
+	if move == "longjump" then
+		-- count it only if the server can see a real long jump happening
+		if now - (st.lastLongJump or 0) < 0.8 then
+			return
+		end
+		st.lastLongJump = now
+		task.delay(0.25, function()
+			local root = getRoot(player)
+			if not root then
+				return
+			end
+			local v = root.AssemblyLinearVelocity
+			if Vector3.new(v.X, 0, v.Z).Magnitude > 26 then
 				slot.stats.longjumps = (slot.stats.longjumps or 0) + 1
 				if slot.stats.longjumps >= 25 then
 					awardStamp(player, "longjump")
 				end
-			elseif move == "walljump" then
-				local now = os.clock()
-				st.wallChain = (now - (st.lastWall or 0) < 2.5) and (st.wallChain or 0) + 1 or 1
-				st.lastWall = now
-				if st.wallChain >= 3 then
-					awardStamp(player, "walljump")
-				end
 			end
+		end)
+	elseif move == "walljump" then
+		-- in the air, next to a wall
+		local root = getRoot(player)
+		if not root or now - (st.lastWall or 0) < 0.25 then
+			return
+		end
+		local airborne = workspace:Raycast(root.Position, Vector3.new(0, -5, 0), wallParams) == nil
+		if not airborne or not nearWall(root.Position, 7) then
+			st.wallChain = 0
+			return
+		end
+		st.wallChain = (now - (st.lastWall or 0) < 2.5) and (st.wallChain or 0) + 1 or 1
+		st.lastWall = now
+		if st.wallChain >= 3 then
+			awardStamp(player, "walljump")
 		end
 	end
 end)
@@ -2103,6 +2159,7 @@ local function teleport(player, cf)
 	if state[player] then
 		state[player].trial = nil -- warping out of a time trial cancels it
 		state[player].sky = cf.Position.Y > Config.SkyFloor
+		state[player].movedAt = os.clock() -- a legit jump in position (see the anti-cheat check)
 	end
 	local char = player.Character
 	if char then
@@ -2205,7 +2262,7 @@ safeStart("EnemyService", EnemyService.Start, info, {
 	-- a Puffer's gust: shoves the bunny without hurting it
 	gust = function(player, vel)
 		local char = player.Character
-		if char and char:GetAttribute("Move") ~= "fly" then
+		if char and not char:GetAttribute("AdminFly") then
 			Bounce:FireClient(player, vel, false, "gust")
 		end
 	end,
@@ -2231,7 +2288,7 @@ local function bossCallbacks(id)
 		end,
 		gust = function(player, vel)
 			local char = player.Character
-			if char and char:GetAttribute("Move") ~= "fly" then
+			if char and not char:GetAttribute("AdminFly") then
 				Bounce:FireClient(player, vel, false, "gust")
 			end
 		end,
@@ -2346,6 +2403,11 @@ safeStart("AdminService", AdminService.Start, {
 	heal = heal,
 	teleport = teleport,
 	checkpointCF = checkpointCF,
+	markMoved = function(player)
+		if state[player] then
+			state[player].movedAt = os.clock()
+		end
+	end,
 	bounce = function(player, vel)
 		Bounce:FireClient(player, vel, false, "stomp")
 	end,
@@ -2407,6 +2469,26 @@ RunService.Heartbeat:Connect(function(dt)
 		local slot = DataService.ActiveSlot(player)
 		if root and hum and hum.Health > 0 and slot then
 			local pos = root.Position
+			-- anti-cheat: a client controls its own bunny's position, so check it moves
+			-- plausibly. Impossible jumps (not explained by a server teleport) add a
+			-- strike; enough strikes and this file can't post to the leaderboard.
+			local clock = os.clock()
+			if st.lastPos and clock - (st.movedAt or 0) > 1.5 and not root.Anchored and not player.Character:GetAttribute("AdminFly") then
+				local gap = clock - st.lastPosAt
+				local moved = (pos - st.lastPos).Magnitude
+				if gap > 0 and moved > Config.AntiCheat.maxSpeed * gap + 40 then
+					st.strikes = (st.strikes or 0) + 1
+					st.strikeAt = clock
+					if st.strikes >= Config.AntiCheat.strikes and not slot.flagged then
+						slot.flagged = true
+						warn("[Bunny64] " .. player.Name .. " moved impossibly fast; this file won't post to the leaderboard.")
+					end
+				elseif st.strikes and st.strikes > 0 and clock - (st.strikeAt or 0) > 60 then
+					st.strikes -= 1 -- old strikes fade (lag spikes happen)
+					st.strikeAt = clock
+				end
+			end
+			st.lastPos, st.lastPosAt = pos, clock
 			local hit = workspace:Raycast(pos, Vector3.new(0, -3.4, 0), floorParams)
 			local inWater = pos.Y < Config.WaterLevel - 2.5 or (hit and hit.Instance:GetAttribute("Water"))
 			-- Cloudtop Heights: falling off the clouds catches you and puts you back
@@ -2414,14 +2496,14 @@ RunService.Heartbeat:Connect(function(dt)
 				st.sky = true
 			elseif st.sky and pos.Y < Config.SkyFloor - 25 then
 				st.sky = false
-				if st.safe.Position.Y > Config.SkyFloor and player.Character:GetAttribute("Move") ~= "fly" then
+				if st.safe.Position.Y > Config.SkyFloor and not player.Character:GetAttribute("AdminFly") then
 					inWater = true
 				end
 			end
 			-- the Underburrow floats over a bottomless dark
 			local S = Config.Secret
 			if pos.Y < S.voidY and Vector3.new(pos.X - S.center.X, 0, pos.Z - S.center.Z).Magnitude < S.radius
-				and player.Character:GetAttribute("Move") ~= "fly" then
+				and not player.Character:GetAttribute("AdminFly") then
 				inWater = true
 			end
 			if inWater then
@@ -2433,6 +2515,7 @@ RunService.Heartbeat:Connect(function(dt)
 				hurt(player, pos, Vector3.zero, true)
 				if hum.Health > 0 then
 					player.Character:PivotTo(st.safe)
+					st.movedAt = os.clock()
 					Bounce:FireClient(player, Vector3.zero, false, "reset")
 				end
 			elseif hit and hit.Instance:GetAttribute("Lava") then
@@ -2658,6 +2741,9 @@ function COMMANDS.fly(admin, on)
 	if not char then
 		return false, "No character"
 	end
+	-- AdminFly is set only here, on the server; the safety checks look at it
+	-- (players can't claim to be flying)
+	char:SetAttribute("AdminFly", on == true or nil)
 	char:SetAttribute("Move", on and "fly" or "")
 	char:SetAttribute("MoveAt", workspace:GetServerTimeNow())
 	return true, on and "FLYING - WASD + SPACE/SHIFT" or "FLY OFF", on == true
@@ -2808,6 +2894,9 @@ function AdminService.Start(context)
 				local behind = aroot.CFrame * CFrame.new(math.sin(now) * 3, 0, 7)
 				thum:MoveTo(behind.Position)
 				if (troot.Position - aroot.Position).Magnitude > 120 then
+					if ctx.markMoved then
+						ctx.markMoved(target)
+					end
 					troot.CFrame = behind
 				end
 			end
@@ -4977,6 +5066,7 @@ function DataService.NewSlot()
 		stamps = {},
 		silvers = {},
 		trials = {},
+		flagged = false, -- impossible movement seen: this file's clear won't post to the leaderboard
 		stats = { crates = 0, longjumps = 0 },
 		regions = {},
 		friends = {},
@@ -12619,6 +12709,23 @@ local function poseFor(rig, char, dt, now, isLocal)
 		p.neck = A(-0.25, 0, 0)
 		earTarget = 1.25
 		springy = false
+	elseif move == "hang" then
+		-- hanging from a ledge by the paws, feet dangling against the wall
+		p.root = CFrame.new(0, -0.2, 0.3) * A(0.12 + math.sin(t * 2) * 0.03, 0, 0)
+		p.lArm, p.rArm = A(2.9, 0, -0.25), A(2.9, 0, 0.25)
+		p.lLeg = A(0.25 + math.sin(t * 3) * 0.12, 0, -0.08)
+		p.rLeg = A(0.25 - math.sin(t * 3) * 0.12, 0, 0.08)
+		p.neck = A(0.35, 0, 0)
+		earTarget = -0.2
+		springy = false
+	elseif move == "climb" then
+		-- hauling up: one knee up onto the ledge
+		local u = math.clamp(moveAge / 0.3, 0, 1)
+		p.root = A(-0.4 * u, 0, 0)
+		p.lArm, p.rArm = A(1.6 - u, 0, -0.2), A(1.6 - u, 0, 0.2)
+		p.lLeg, p.rLeg = A(1.5 * u, 0, -0.1), A(0.3, 0, 0.1)
+		earTarget = 0.6
+		springy = false
 	elseif move == "backflip" then
 		local u = math.clamp(moveAge / 0.75, 0, 1)
 		extra = A(TAU * easeOut(u), 0, 0)
@@ -12785,6 +12892,24 @@ local function update(dt)
 				if not ok and not warned[tostring(err)] then
 					warned[tostring(err)] = true
 					warn("[Bunny64] Animator: " .. tostring(err))
+				end
+				-- just been hurt: blink, the classic "can't touch me for a moment" signal
+				local invuln = char:GetAttribute("Invuln")
+				local blinking = typeof(invuln) == "number" and workspace:GetServerTimeNow() < invuln
+				if blinking or rig.blinking then
+					if blinking and not rig.blinking then
+						rig.blinkParts = {}
+						for _, d in ipairs(char:GetDescendants()) do
+							if d:IsA("BasePart") and d.Name ~= "HumanoidRootPart" then
+								table.insert(rig.blinkParts, d)
+							end
+						end
+					end
+					rig.blinking = blinking
+					local off = blinking and math.floor(now * 14) % 2 == 0
+					for _, part in ipairs(rig.blinkParts or {}) do
+						part.LocalTransparencyModifier = off and 0.75 or 0
+					end
 				end
 			end
 		end
@@ -16471,6 +16596,9 @@ return Menus
 	  Pound jump      jump the moment a ground pound lands: a big spinning leap
 	  Dive            Roll in the air: a forward lunge (jump during it to roll out)
 	  Backflip        hold Crouch while standing still, then jump: the highest jump
+	  Triple jump     land and jump again straight away while running: higher, then a flip
+	  Side flip       jump during a skid: flip up and out of the turn
+	  Ledge grab      catch an edge you just missed; jump to climb up, crouch to drop
 	  Wall jump       jump while pressed against a wall in mid-air
 
 	Stamina: rolls, dives and long jumps each use a pip; pips refill on the ground.
@@ -16537,6 +16665,11 @@ local zipFolder = nil -- workspace.Bunny64World.Ziplines
 local zip = nil -- { a, b, dir, len, t, speed } while riding a zipline
 local zipAlign, zipOrient, zipPulley, zipSound -- the ride's constraints, pulley and whirr
 local releaseZip -- (defined with the zipline code below)
+local climbLedge, dropLedge -- (defined with the ledge code below)
+local ledge = nil -- { top, normal, hang } while hanging from an edge
+local ledgeAlign, ledgeOrient
+local lastLedgeDrop = -10
+local jumpChain, lastChainLand = 0, -10 -- triple jump
 local rollPower = 1 -- 0.6 for a tired roll
 local zipReleasedAt = -10
 local lastLaunch = 0
@@ -16787,6 +16920,10 @@ local function crouch()
 		releaseZip(false) -- drop off the zipline
 		return
 	end
+	if move == "hang" then
+		dropLedge()
+		return
+	end
 	if move == "" or move == "longjump" or move == "dive" or move == "backflip" then
 		if inAir() and not grounded() then
 			if move == "dive" or move == "backflip" then
@@ -16848,6 +16985,10 @@ local function tryJumpMove()
 		return
 	end
 	local now = os.clock()
+	if move == "hang" then
+		climbLedge()
+		return
+	end
 	if move == "roll" or (move == "slide" and now - moveStart > 0.08) then
 		startLongJump(moveSpeed + 10, move == "roll") -- out of a roll it's included in the roll's cost
 		return
@@ -16959,6 +17100,8 @@ local function onCharacter(char)
 		zipPulley:Destroy()
 	end
 	zipAlign, zipOrient, zipPulley, zipSound = nil, nil, nil, nil
+	ledge, ledgeAlign, ledgeOrient = nil, nil, nil
+	jumpChain = 0
 	usedDouble = false
 	divedSinceGround = false
 	sentMove = nil
@@ -16987,6 +17130,9 @@ local function onCharacter(char)
 	celebrateUntil = 0
 	humanoid.StateChanged:Connect(function(_, new)
 		if new == HST.Landed or new == HST.Running then
+			if new == HST.Landed and jumpedSinceGround then
+				lastChainLand = os.clock() -- a quick jump from here continues a triple jump
+			end
 			usedDouble = false
 			divedSinceGround = false
 			jumpedSinceGround = false
@@ -17050,8 +17196,53 @@ local function onCharacter(char)
 				end)
 				Effects.Play("DoubleJump", 1.3)
 				Effects.Ring(root.Position - Vector3.new(0, 2.6, 0), Color3.fromRGB(240, 226, 170), 6, 12, 0.35)
+			elseif move == "" and now < skidUntil + 0.12 then
+				-- side flip: jump out of a skid, high and back the way the stick points
+				local dir = facingDir()
+				jumpRising = false
+				usedDouble = true
+				jumpChain = 0
+				flipAt = now
+				moveDir = dir
+				moveSpeed = 12
+				setMove("spring")
+				setPlane(dir * moveSpeed)
+				task.defer(function()
+					if root then
+						root.AssemblyLinearVelocity = dir * moveSpeed + Vector3.new(0, Config.SideFlipPower, 0)
+					end
+				end)
+				Effects.Play("DoubleJump", 1.15)
 			elseif move == "" then
-				Effects.Play("Jump", 1 + math.random() * 0.1)
+				-- triple jump: each quick, running jump goes higher; the third is a flip
+				local running = flatVelocity().Magnitude > 16
+				if running and now - lastChainLand < Config.TripleJumpWindow then
+					jumpChain = math.min(jumpChain + 1, 3)
+				else
+					jumpChain = 1
+				end
+				if jumpChain >= 2 then
+					local power = Config.JumpPower * (jumpChain == 2 and 1.2 or 1.45)
+					task.defer(function()
+						if root then
+							local v = root.AssemblyLinearVelocity
+							root.AssemblyLinearVelocity = Vector3.new(v.X, power, v.Z)
+						end
+					end)
+					if jumpChain == 3 then
+						jumpRising = false
+						usedDouble = true
+						flipAt = now
+						sendMove("flip")
+						jumpChain = 0
+						Effects.Play("DoubleJump", 1.25)
+						Effects.Ring(root.Position - Vector3.new(0, 2.6, 0), Color3.fromRGB(240, 226, 170), 5, 10, 0.3)
+					else
+						Effects.Play("Jump", 1.2)
+					end
+				else
+					Effects.Play("Jump", 1 + math.random() * 0.1)
+				end
 			end
 		end
 	end)
@@ -17398,6 +17589,123 @@ local function stepZipRide(dt, now)
 end
 
 --------------------------------------------------------------------------------
+-- Ledges: catch an edge you just missed, hang, then climb up (jump) or drop (crouch)
+--------------------------------------------------------------------------------
+
+local function clearLedge()
+	for _, inst in ipairs({ ledgeAlign, ledgeOrient }) do
+		if inst then
+			inst:Destroy()
+		end
+	end
+	ledgeAlign, ledgeOrient = nil, nil
+	ledge = nil
+end
+
+dropLedge = function()
+	clearLedge()
+	lastLedgeDrop = os.clock()
+	if move == "hang" or move == "climb" then
+		setMove("")
+	end
+	if humanoid then
+		humanoid:ChangeState(HST.Freefall)
+	end
+end
+
+climbLedge = function()
+	if move == "hang" and ledge then
+		setMove("climb")
+		Effects.Play("Jump", 1.25)
+	end
+end
+
+local function stepLedgeGrab(now)
+	if move ~= "" and move ~= "longjump" and move ~= "walljump" then
+		return
+	end
+	if grounded() or now - lastLedgeDrop < 0.45 or now - lastGrounded < 0.15 or root.AssemblyLinearVelocity.Y > 4 then
+		return -- only on the way down
+	end
+	local dir = facingDir()
+	local wall = workspace:Raycast(root.Position + Vector3.new(0, 0.6, 0), dir * 2.8, rayParams)
+	if not wall or math.abs(wall.Normal.Y) > 0.3 or wall.Instance:GetAttribute("Moving") or wall.Instance:GetAttribute("Lava") then
+		return
+	end
+	local n = Vector3.new(wall.Normal.X, 0, wall.Normal.Z)
+	if n.Magnitude < 0.1 then
+		return
+	end
+	n = n.Unit
+	local top = workspace:Raycast(wall.Position - n * 1.2 + Vector3.new(0, 4.5, 0), Vector3.new(0, -5, 0), rayParams)
+	if not top or top.Normal.Y < 0.75 or top.Instance:GetAttribute("Moving") or top.Instance:GetAttribute("Lava") then
+		return
+	end
+	local rise = top.Position.Y - root.Position.Y
+	if rise < 0.8 or rise > 4 then
+		return
+	end
+	if workspace:Raycast(top.Position + Vector3.new(0, 0.3, 0), Vector3.new(0, 5, 0), rayParams) then
+		return -- no room to climb up there
+	end
+	-- got it!
+	ledge = {
+		top = top.Position,
+		normal = n,
+		hang = Vector3.new(wall.Position.X, top.Position.Y - 2.9, wall.Position.Z) + n * 1.3,
+	}
+	setMove("hang")
+	usedDouble = false
+	divedSinceGround = false
+	jumpRising = false
+	humanoid:ChangeState(HST.Physics)
+	local att = root:FindFirstChild("MoveAttachment")
+	ledgeAlign = Instance.new("AlignPosition")
+	ledgeAlign.Mode = Enum.PositionAlignmentMode.OneAttachment
+	ledgeAlign.Attachment0 = att
+	ledgeAlign.RigidityEnabled = true
+	ledgeAlign.Position = ledge.hang
+	ledgeAlign.Parent = root
+	ledgeOrient = Instance.new("AlignOrientation")
+	ledgeOrient.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	ledgeOrient.Attachment0 = att
+	ledgeOrient.RigidityEnabled = true
+	ledgeOrient.CFrame = CFrame.lookAt(Vector3.zero, -n)
+	ledgeOrient.Parent = root
+	root.AssemblyLinearVelocity = Vector3.zero
+	Effects.Play("Land", 1.5)
+	Effects.Burst(top.Position, DUST, 4, 2, 0.4, 1)
+end
+
+local function stepHang(_dt, now)
+	if not ledge or not ledgeAlign or not ledgeAlign.Parent then
+		dropLedge()
+		return
+	end
+	root.AssemblyLinearVelocity = Vector3.zero
+	if move == "climb" then
+		-- pull up, then step over onto the ledge
+		local u = math.clamp((now - moveStart) / 0.3, 0, 1)
+		local up = Vector3.new(ledge.hang.X, ledge.top.Y + 2.9, ledge.hang.Z)
+		local over = ledge.top + Vector3.new(0, 2.9, 0) - ledge.normal * 1.4
+		ledgeAlign.Position = u < 0.6 and ledge.hang:Lerp(up, u / 0.6) or up:Lerp(over, (u - 0.6) / 0.4)
+		if u >= 1 then
+			clearLedge()
+			lastLedgeDrop = now
+			setMove("")
+			humanoid:ChangeState(HST.Freefall)
+		end
+		return
+	end
+	ledgeAlign.Position = ledge.hang
+	-- pull the stick away from the wall to let go
+	local md = humanoid.MoveDirection
+	if md.Magnitude > 0.5 and md:Dot(ledge.normal) > 0.7 and now - moveStart > 0.3 then
+		dropLedge()
+	end
+end
+
+--------------------------------------------------------------------------------
 -- The per-frame update, in protected pieces: the core moves always run first,
 -- and if an optional system (stamina, pads, wind...) ever errors, it reports
 -- once in the Output window and the rest of the bunny keeps working.
@@ -17693,12 +18001,18 @@ local function step(dt)
 		lastVy = root.AssemblyLinearVelocity.Y
 		return
 	end
+	if move == "hang" or move == "climb" then
+		safely("ledge", stepHang, dt, now)
+		lastVy = 0
+		return
+	end
 	safely("moves", stepMoves, dt, now, onGround)
 	safely("stamina", stepStamina, dt, now, onGround)
 	safely("run", stepRunSpeed, dt, now, onGround, vel)
 	safely("gravity", stepGravity, dt, onGround)
 	safely("pads", stepPads, now)
 	safely("zipgrab", stepZipGrab, now)
+	safely("ledgegrab", stepLedgeGrab, now)
 	safely("wind", stepWind, dt)
 
 	-- running dust

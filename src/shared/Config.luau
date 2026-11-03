@@ -45,6 +45,8 @@ Config.BackflipPower = 82      -- hold crouch while standing still, then jump (~
 Config.BackflipBack = 13
 Config.PoundJumpPower = 76     -- jump the moment a ground pound lands
 Config.ZipSpeed = 74           -- top speed on a zipline
+Config.TripleJumpWindow = 0.2  -- jump again this soon after landing (while running) to chain a triple jump
+Config.SideFlipPower = 80      -- jump during a skid
 -- Stamina: rolls, dives and long jumps use a pip; pips refill while you're on the ground.
 -- You earn extra pips as you find golden carrots.
 Config.Stamina = {
@@ -68,6 +70,10 @@ Config.MaxHearts = 3
 Config.AssistHearts = 5        -- hearts in Assist Mode (Options)
 Config.HealEveryCarrots = 10   -- every N carrots restores a heart
 Config.WaterLevel = -6
+
+-- Anti-cheat for the leaderboard (a client controls its own position, so the
+-- server sanity-checks it). maxSpeed is well above anything the moves can do.
+Config.AntiCheat = { maxSpeed = 300, strikes = 5, minClearSeconds = 30 * 60 }
 
 -- Admins ------------------------------------------------------------------------
 -- The place owner (or owning group's owner) is always an admin, and everyone is
@@ -333,6 +339,8 @@ Config.Emotes = {
 -- One-off tips, shown the first time you come near each spot (per save file).
 -- {jump} {roll} {crouch} {menu} become the player's own key names.
 Config.Tips = {
+	{ id = "triple", pos = Vector3.new(60, 4, 30), radius = 24, text = "Running? Press {jump} again the moment you land to jump higher - three in a row is a triple jump! Jump during a skid for a side flip." },
+	{ id = "ledge", pos = Vector3.new(-60, 4, -40), radius = 22, text = "Missed a jump by a whisker? You'll grab the ledge. Press {jump} to climb up, or {crouch} to let go." },
 	{ id = "stamina", pos = Vector3.new(-30, 4, 10), radius = 22, text = "The green pips under your hearts are stamina. Rolls, dives and long jumps use one; they refill while you're on the ground." },
 	{ id = "zipline", pos = Vector3.new(-121, 108, -112), radius = 16, text = "Jump up and grab the zipline! Press {jump} to let go, or {crouch} to drop." },
 	{ id = "spring", pos = Vector3.new(-120, 4, 160), radius = 14, text = "Spring pads throw you where the arrow points. Step on and enjoy the ride!" },
